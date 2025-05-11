@@ -16,7 +16,7 @@ A modular framework for benchmarking **classical**, **discrete-variable quantum 
 - [Configuration](#configuration)
 - [Industrial Validation](#industrial-validation)
 - [Contributing](#contributing)
-- [License](#license)
+- [Acknowledgments](#acknowledgments)
 
 ---
 
@@ -198,6 +198,12 @@ Synthetic accessibility score: 3.4 (easy to synthesize)
 
 ---
 
-## License
+## Acknowledgments    
 
-MIT License. See `LICENSE` file for details.
+- **Paper over the cv simulation library** - Nathan Killoran, Josh Izaac, Nicolás Quesada, Ville Bergholm, Matthew Amy, and Christian Weedbrook. “Strawberry Fields: A Software Platform for Photonic Quantum Computing”, Quantum, 3, 129 (2019).
+
+- **Paper about the applications for this systems**: Thomas R. Bromley, Juan Miguel Arrazola, Soran Jahangiri, Josh Izaac, Nicolás Quesada, Alain Delgado Gran, Maria Schuld, Jeremy Swinarton, Zeid Zabaneh, and Nathan Killoran. “Applications of Near-Term Photonic Quantum Computers: Software and Algorithms”, arxiv:1912.07634 (2019).
+
+- **Source Code**: https://github.com/XanaduAI/strawberryfields
+
+- **Issue Tracker**: https://github.com/XanaduAI/strawberryfields/issues
