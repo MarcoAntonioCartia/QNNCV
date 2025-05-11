@@ -1,0 +1,18 @@
+training:  
+  epochs: 100  
+  batch_size: 32  
+  latent_dim: 10  
+
+components:  
+  generator:  
+    type: "quantum_continuous"  # Options: classical/quantum_discrete/quantum_continuous  
+    n_qumodes: 30  
+    cutoff_dim: 5  
+
+  discriminator:  
+    type: "classical"  
+    hidden_units: 64  
+
+optimizer:  
+  learning_rate: 0.001  
+  beta_1: 0.9  

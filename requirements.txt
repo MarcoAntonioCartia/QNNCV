@@ -1,0 +1,6 @@
+tensorflow==2.10.0  
+pennylane==0.30.0  
+strawberryfields==0.24.0  
+rdkit==2022.09.5  
+numpy>=1.21.0  
+matplotlib>=3.5.0  
