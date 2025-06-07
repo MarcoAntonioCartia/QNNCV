@@ -54,10 +54,11 @@ class QuantumContinuousGeneratorEnhanced:
             name="squeeze_parameters"
         )
         
-        # Interferometer parameters (simplified for stability)
-        # Using a simpler parameterization for the interferometer
+        # Interferometer parameters for mode mixing
+        # Using anti-symmetric matrix parameterization for unitary generation
+        n_interferometer_params = self.n_qumodes * (self.n_qumodes - 1)
         self.interferometer_params = tf.Variable(
-            tf.random.normal([self.n_qumodes, self.n_qumodes], stddev=0.05),
+            tf.random.normal([n_interferometer_params], stddev=0.05),
             name="interferometer_parameters"
         )
         
@@ -75,10 +76,32 @@ class QuantumContinuousGeneratorEnhanced:
         return variables
     
     def _build_interferometer_matrix(self):
-        """Build unitary interferometer matrix from parameters."""
-        # Create Hermitian matrix and exponentiate to get unitary
-        hermitian = (self.interferometer_params + tf.transpose(self.interferometer_params, conjugate=True)) / 2
-        unitary_matrix = tf.linalg.expm(1j * hermitian)
+        """Build unitary interferometer matrix from parameters.
+        
+        Uses anti-symmetric matrix parameterization to ensure unitarity.
+        """
+        n = self.n_qumodes
+        antisymm_matrix = tf.zeros([n, n], dtype=tf.complex64)
+        
+        # Fill anti-symmetric matrix from parameters
+        param_idx = 0
+        for i in range(n):
+            for j in range(i+1, n):
+                # Create anti-symmetric entries
+                antisymm_matrix = tf.tensor_scatter_nd_update(
+                    antisymm_matrix,
+                    [[i, j]],
+                    [tf.complex(0.0, self.interferometer_params[param_idx])]
+                )
+                antisymm_matrix = tf.tensor_scatter_nd_update(
+                    antisymm_matrix,
+                    [[j, i]],
+                    [tf.complex(0.0, -self.interferometer_params[param_idx])]
+                )
+                param_idx += 1
+        
+        # Generate unitary matrix via matrix exponential
+        unitary_matrix = tf.linalg.expm(antisymm_matrix)
         return unitary_matrix
     
     def generate(self, z):
@@ -231,4 +254,4 @@ def test_quantum_generators():
         print("Using simple generator as fallback.")
 
 if __name__ == "__main__":
-    test_quantum_generators() 
+    test_quantum_generators()
