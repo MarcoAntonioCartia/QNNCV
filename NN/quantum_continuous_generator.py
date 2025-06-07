@@ -64,3 +64,8 @@ class QuantumContinuousGenerator:
         
         # Return measurement results (shape [batch_size, n_qumodes])
         return result.samples  # These are the "generated" samples
+    
+    @property
+    def trainable_variables(self):
+        """Return trainable variables for optimization."""
+        return [self.params]
