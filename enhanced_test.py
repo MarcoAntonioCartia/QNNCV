@@ -22,8 +22,8 @@ class QuantumContinuousGeneratorSimple:
         # Classical network that mimics quantum behavior
         self.quantum_network = tf.keras.Sequential([
             tf.keras.layers.Dense(64, activation='tanh'),
-            tf.keras.layers.Dense(32, activation='sin'),  # Oscillatory activation
-            tf.keras.layers.Dense(n_qumodes, activation='tanh')
+            tf.keras.layers.Dense(32, activation=lambda x: tf.sin(x)),  # Oscillatory activation
+            tf.keras.layers.Dense(2, activation='tanh')  # Output correct dimension
         ])
         
         # Build the network
