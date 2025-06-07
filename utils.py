@@ -1,10 +1,18 @@
-import tensorflow as tf
 import numpy as np
 import matplotlib.pyplot as plt
 from sklearn.datasets import make_moons, make_circles
 from sklearn.preprocessing import StandardScaler
 import os
 import logging
+
+# Try to import TensorFlow, but don't fail if it's not available
+try:
+    import tensorflow as tf
+    TF_AVAILABLE = True
+    logging.info("TensorFlow is available")
+except ImportError:
+    TF_AVAILABLE = False
+    logging.warning("TensorFlow is not available. Some functions will use fallbacks.")
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -21,7 +29,7 @@ def load_qm9_data(data_path="data/qm9", num_samples=1000, feature_dim=30):
         feature_dim (int): Dimension of molecular features
         
     Returns:
-        tf.Tensor: Preprocessed molecular descriptors
+        np.ndarray or tf.Tensor: Preprocessed molecular descriptors
     """
     logger.info(f"Loading QM9 data from {data_path}")
     
@@ -61,7 +69,11 @@ def load_qm9_data(data_path="data/qm9", num_samples=1000, feature_dim=30):
     
     logger.info(f"Loaded {data_normalized.shape[0]} samples with {data_normalized.shape[1]} features")
     
-    return tf.convert_to_tensor(data_normalized, dtype=tf.float32)
+    # Return as TensorFlow tensor if available, otherwise numpy array
+    if TF_AVAILABLE:
+        return tf.convert_to_tensor(data_normalized, dtype=tf.float32)
+    else:
+        return data_normalized.astype(np.float32)
 
 def load_synthetic_data(dataset_type="spiral", num_samples=1000):
     """
@@ -72,7 +84,7 @@ def load_synthetic_data(dataset_type="spiral", num_samples=1000):
         num_samples (int): Number of samples to generate
         
     Returns:
-        tf.Tensor: Generated 2D data
+        np.ndarray or tf.Tensor: Generated 2D data
     """
     logger.info(f"Generating {dataset_type} synthetic data with {num_samples} samples")
     
@@ -102,21 +114,29 @@ def load_synthetic_data(dataset_type="spiral", num_samples=1000):
     scaler = StandardScaler()
     data_normalized = scaler.fit_transform(data)
     
-    return tf.convert_to_tensor(data_normalized, dtype=tf.float32)
+    # Return as TensorFlow tensor if available, otherwise numpy array
+    if TF_AVAILABLE:
+        return tf.convert_to_tensor(data_normalized, dtype=tf.float32)
+    else:
+        return data_normalized.astype(np.float32)
 
 def plot_results(real_data, generated_data, epoch=None, save_path=None):
     """
     Plot comparison between real and generated data.
     
     Args:
-        real_data (tf.Tensor): Real data samples
-        generated_data (tf.Tensor): Generated data samples
+        real_data: Real data samples (numpy array or tf.Tensor)
+        generated_data: Generated data samples (numpy array or tf.Tensor)
         epoch (int): Current training epoch
         save_path (str): Path to save the plot
     """
     # Convert to numpy for plotting
-    real_np = real_data.numpy()
-    gen_np = generated_data.numpy()
+    if TF_AVAILABLE and hasattr(real_data, 'numpy'):
+        real_np = real_data.numpy()
+        gen_np = generated_data.numpy()
+    else:
+        real_np = np.array(real_data)
+        gen_np = np.array(generated_data)
     
     # Create figure with subplots
     fig, axes = plt.subplots(1, 3, figsize=(15, 5))
@@ -177,15 +197,19 @@ def compute_wasserstein_distance(real_samples, generated_samples):
     Compute approximate Wasserstein distance between real and generated samples.
     
     Args:
-        real_samples (tf.Tensor): Real data samples
-        generated_samples (tf.Tensor): Generated data samples
+        real_samples: Real data samples (numpy array or tf.Tensor)
+        generated_samples: Generated data samples (numpy array or tf.Tensor)
         
     Returns:
         float: Wasserstein distance estimate
     """
     # Convert to numpy
-    real_np = real_samples.numpy()
-    gen_np = generated_samples.numpy()
+    if TF_AVAILABLE and hasattr(real_samples, 'numpy'):
+        real_np = real_samples.numpy()
+        gen_np = generated_samples.numpy()
+    else:
+        real_np = np.array(real_samples)
+        gen_np = np.array(generated_samples)
     
     # For high-dimensional data, use mean distance approximation
     real_mean = np.mean(real_np, axis=0)
@@ -201,8 +225,8 @@ def compute_mmd(real_samples, generated_samples, kernel='rbf', gamma=1.0):
     Compute Maximum Mean Discrepancy between real and generated samples.
     
     Args:
-        real_samples (tf.Tensor): Real data samples
-        generated_samples (tf.Tensor): Generated data samples
+        real_samples: Real data samples (numpy array or tf.Tensor)
+        generated_samples: Generated data samples (numpy array or tf.Tensor)
         kernel (str): Kernel type ('rbf', 'linear')
         gamma (float): Kernel parameter
         
@@ -210,8 +234,12 @@ def compute_mmd(real_samples, generated_samples, kernel='rbf', gamma=1.0):
         float: MMD value
     """
     # Convert to numpy
-    X = real_samples.numpy()
-    Y = generated_samples.numpy()
+    if TF_AVAILABLE and hasattr(real_samples, 'numpy'):
+        X = real_samples.numpy()
+        Y = generated_samples.numpy()
+    else:
+        X = np.array(real_samples)
+        Y = np.array(generated_samples)
     
     def kernel_func(x, y):
         if kernel == 'rbf':
@@ -248,13 +276,13 @@ def save_model(model, filepath):
     """
     os.makedirs(os.path.dirname(filepath), exist_ok=True)
     
-    if hasattr(model, 'trainable_variables'):
+    if TF_AVAILABLE and hasattr(model, 'trainable_variables'):
         # TensorFlow model
         checkpoint = tf.train.Checkpoint(model=model)
         checkpoint.save(filepath)
         logger.info(f"Model saved to {filepath}")
     else:
-        logger.warning("Model type not recognized for saving")
+        logger.warning("Model saving requires TensorFlow or model type not recognized")
 
 def load_model(model, filepath):
     """
@@ -264,13 +292,13 @@ def load_model(model, filepath):
         model: Model object to load parameters into
         filepath (str): Path to load the model from
     """
-    if hasattr(model, 'trainable_variables'):
+    if TF_AVAILABLE and hasattr(model, 'trainable_variables'):
         # TensorFlow model
         checkpoint = tf.train.Checkpoint(model=model)
         checkpoint.restore(filepath)
         logger.info(f"Model loaded from {filepath}")
     else:
-        logger.warning("Model type not recognized for loading")
+        logger.warning("Model loading requires TensorFlow or model type not recognized")
 
 def create_output_directory(base_path="results"):
     """
