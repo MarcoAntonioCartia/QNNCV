@@ -1,62 +1,79 @@
 import tensorflow as tf
 import numpy as np
-from utils import load_qm9_data, plot_results
+import sys
+import os
+
+# Add parent directory to path for relative imports
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+
+from utils.data_utils import load_dataset
+from utils.visualization import plot_results
 
 class QGAN:
-    """Enhanced QGAN with quantum-aware training stability features.
+    """
+    Quantum Generative Adversarial Network implementation for adversarial training.
     
-    Architecture:
-    - Generator (G): Creates fake samples from noise (quantum/classical).
-    - Discriminator (D): Classifies real vs. fake samples (quantum/classical).
+    This class implements the adversarial training framework for quantum GANs,
+    supporting both classical and quantum generators and discriminators. The
+    training process alternates between optimizing the generator to produce
+    realistic samples and the discriminator to distinguish real from generated data.
     
-    Quantum-specific enhancements:
-    - Gradient clipping for quantum parameter stability
-    - Learning rate scheduling for quantum optimization
-    - Quantum-aware loss functions
-    - Training monitoring and stability checks
+    Mathematical Framework:
+    The adversarial objective follows the minimax formulation:
+    min_G max_D V(D,G) = E_x[log D(x)] + E_z[log(1 - D(G(z)))]
+    
+    Quantum-specific considerations:
+    - Gradient clipping prevents parameter divergence in quantum circuits
+    - Learning rate scheduling accommodates quantum parameter optimization
+    - Stability monitoring detects training instabilities specific to quantum systems
     """
     
     def __init__(self, generator, discriminator, latent_dim=10, 
                  generator_lr=0.0001, discriminator_lr=0.0001,
                  beta1=0.5, beta2=0.999, gradient_clip_norm=1.0):
-        """Initialize QGAN with enhanced quantum-aware training.
+        """
+        Initialize quantum GAN training framework.
+        
+        This method sets up the adversarial training components including
+        optimizers, learning rate schedules, and metric tracking systems
+        for monitoring the training dynamics.
         
         Args:
-            generator: Instance of a generator (e.g., QuantumContinuousGenerator).
-            discriminator: Instance of a discriminator.
-            latent_dim (int): Dimension of latent noise vector.
-            generator_lr (float): Generator learning rate (lower for quantum stability).
-            discriminator_lr (float): Discriminator learning rate.
-            beta1 (float): Adam optimizer beta1 parameter.
-            beta2 (float): Adam optimizer beta2 parameter.
-            gradient_clip_norm (float): Gradient clipping norm for stability.
+            generator: Generator network instance (classical or quantum)
+            discriminator: Discriminator network instance (classical or quantum)
+            latent_dim (int): Dimensionality of latent noise vector z
+            generator_lr (float): Learning rate for generator optimization
+            discriminator_lr (float): Learning rate for discriminator optimization
+            beta1 (float): Adam optimizer first moment decay rate
+            beta2 (float): Adam optimizer second moment decay rate
+            gradient_clip_norm (float): Maximum gradient norm for clipping
         """
         self.generator = generator
         self.discriminator = discriminator
         self.latent_dim = latent_dim
         self.gradient_clip_norm = gradient_clip_norm
         
-        # Enhanced optimizers with quantum-friendly settings
-        self.g_optimizer = tf.keras.optimizers.Adam(
+        # Initialize Adam optimizers for adversarial training
+        self.g_optimizer = tf.optimizers.Adam(
             learning_rate=generator_lr, beta_1=beta1, beta_2=beta2
         )
-        self.d_optimizer = tf.keras.optimizers.Adam(
+        self.d_optimizer = tf.optimizers.Adam(
             learning_rate=discriminator_lr, beta_1=beta1, beta_2=beta2
         )
         
-        # Learning rate schedulers for quantum parameter optimization
-        self.g_scheduler = tf.keras.optimizers.schedules.ExponentialDecay(
+        # Exponential decay schedules for learning rate adaptation
+        self.g_scheduler = tf.optimizers.schedules.ExponentialDecay(
             initial_learning_rate=generator_lr,
             decay_steps=100,
             decay_rate=0.98
         )
-        self.d_scheduler = tf.keras.optimizers.schedules.ExponentialDecay(
+        self.d_scheduler = tf.optimizers.schedules.ExponentialDecay(
             initial_learning_rate=discriminator_lr,
             decay_steps=100,
             decay_rate=0.98
         )
         
-        # Training metrics for monitoring
+        # Training history for loss and metric tracking
         self.training_history = {
             'g_loss': [],
             'd_loss': [],
@@ -66,29 +83,37 @@ class QGAN:
         }
     
     def wasserstein_loss(self, real_samples, fake_samples, lambda_gp=10.0):
-        """Wasserstein loss with gradient penalty for improved quantum training stability.
+        """
+        Wasserstein loss with gradient penalty for Lipschitz constraint enforcement.
+        
+        This loss function implements the Wasserstein-1 distance with gradient penalty
+        (WGAN-GP) which provides more stable training dynamics compared to the original
+        GAN objective. The gradient penalty enforces the Lipschitz constraint required
+        for the Kantorovich-Rubinstein duality.
+        
+        Mathematical formulation:
+        L_D = E[D(x_fake)] - E[D(x_real)] + λ * E[(||∇D(x_hat)||_2 - 1)^2]
+        L_G = -E[D(G(z))]
         
         Args:
-            real_samples: Real data samples
-            fake_samples: Generated samples
-            lambda_gp: Gradient penalty coefficient
+            real_samples: Real data samples from training distribution
+            fake_samples: Generated samples from generator network
+            lambda_gp: Gradient penalty coefficient (typically 10)
             
         Returns:
-            d_loss: Discriminator loss
-            g_loss: Generator loss
-            gp: Gradient penalty value
+            tuple: (discriminator_loss, generator_loss, gradient_penalty)
         """
         batch_size = tf.shape(real_samples)[0]
         
-        # Discriminator predictions
+        # Compute discriminator outputs for real and fake samples
         real_output = self.discriminator.discriminate(real_samples)
         fake_output = self.discriminator.discriminate(fake_samples)
         
-        # Wasserstein distance
+        # Wasserstein distance estimation
         wasserstein_distance = tf.reduce_mean(real_output) - tf.reduce_mean(fake_output)
         
-        # Gradient penalty for Lipschitz constraint
-        alpha = tf.random.uniform([batch_size, 1], 0.0, 1.0)
+        # Gradient penalty computation for Lipschitz constraint
+        alpha = tf.random.uniform([batch_size, 1], minval=0, maxval=1)
         interpolated = alpha * real_samples + (1 - alpha) * fake_samples
         
         with tf.GradientTape() as gp_tape:
@@ -99,37 +124,49 @@ class QGAN:
         gradient_norm = tf.sqrt(tf.reduce_sum(tf.square(gradients), axis=1))
         gradient_penalty = lambda_gp * tf.reduce_mean(tf.square(gradient_norm - 1.0))
         
-        # Losses
+        # Final loss computations
         d_loss = -wasserstein_distance + gradient_penalty
         g_loss = -tf.reduce_mean(fake_output)
         
         return d_loss, g_loss, gradient_penalty
     
     def traditional_gan_loss(self, real_samples, fake_samples, label_smoothing=0.1):
-        """Traditional GAN loss with label smoothing for quantum stability.
+        """
+        Traditional GAN loss with label smoothing for training stabilization.
+        
+        This implements the original GAN objective with binary cross-entropy loss
+        and label smoothing to reduce the discriminator's overconfidence and
+        improve training stability, particularly important for quantum components.
+        
+        Mathematical formulation:
+        L_D = -E[log D(x)] - E[log(1 - D(G(z)))]
+        L_G = -E[log D(G(z))]
         
         Args:
-            real_samples: Real data samples
-            fake_samples: Generated samples
-            label_smoothing: Amount of label smoothing for stability
+            real_samples: Real data samples from training distribution
+            fake_samples: Generated samples from generator network
+            label_smoothing: Amount of label smoothing (0.0 to 0.5)
             
         Returns:
-            d_loss: Discriminator loss
-            g_loss: Generator loss
+            tuple: (discriminator_loss, generator_loss)
         """
-        # Label smoothing for training stability
-        real_labels = tf.ones_like(real_samples[:, :1]) * (1.0 - label_smoothing)
-        fake_labels = tf.zeros_like(fake_samples[:, :1]) + label_smoothing
+        # Apply label smoothing to reduce discriminator overconfidence
+        real_labels = tf.ones_like(real_samples[:, 0:1]) * (1.0 - label_smoothing)
+        fake_labels = tf.zeros_like(fake_samples[:, 0:1]) + label_smoothing
         
+        # Compute discriminator outputs
         real_output = self.discriminator.discriminate(real_samples)
         fake_output = self.discriminator.discriminate(fake_samples)
         
-        # Binary crossentropy loss with smoothing
-        real_loss = tf.keras.losses.binary_crossentropy(real_labels, real_output)
-        fake_loss = tf.keras.losses.binary_crossentropy(fake_labels, fake_output)
+        # Binary cross-entropy loss computation
+        real_loss = tf.losses.binary_crossentropy(real_labels, real_output)
+        fake_loss = tf.losses.binary_crossentropy(fake_labels, fake_output)
         
+        # Discriminator loss combines real and fake sample losses
         d_loss = tf.reduce_mean(real_loss + fake_loss)
-        g_loss = tf.reduce_mean(tf.keras.losses.binary_crossentropy(
+        
+        # Generator loss encourages discriminator to classify fake as real
+        g_loss = tf.reduce_mean(tf.losses.binary_crossentropy(
             tf.ones_like(fake_output), fake_output
         ))
         
@@ -291,19 +328,7 @@ class QGAN:
         
         return self.training_history
 
-# Example Usage (for a classical baseline)
 if __name__ == "__main__":
-    from NN.classical_generator import ClassicalGenerator
-    from NN.classical_discriminator import ClassicalDiscriminator
-    
-    # Load preprocessed molecular descriptors
-    data = load_qm9_data()
-    
-    # Initialize QGAN with classical components
-    qgan = QGAN(
-        generator=ClassicalGenerator(latent_dim=10, output_dim=30),
-        discriminator=ClassicalDiscriminator(input_dim=30)
-    )
-    
-    # Train and benchmark
-    qgan.train(data, epochs=50)
+    # Example usage can be found in the tests directory
+    print("QGAN training framework loaded successfully.")
+    print("See tests/integration/ for usage examples.")

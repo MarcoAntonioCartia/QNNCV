@@ -1,209 +1,270 @@
-# Quantum Generative Adversarial Networks (QGANs) for Chemical Applications
+# Quantum Neural Networks for Computer Vision (QNNCV)
 
-A modular framework for benchmarking **classical**, **discrete-variable quantum (qubit)**, and **continuous-variable quantum (qumode)** GANs. Designed for molecular generation using the QM9 dataset, with industrial validation via RDKit.
+A research framework for implementing and evaluating quantum generative adversarial networks using continuous and discrete variable quantum computing paradigms.
 
----
+## Overview
 
-## Table of Contents
-- [Key Features](#key-features)
-- [Installation](#installation)
-- [Usage](#usage)
-  - [Training a QGAN](#training-a-qgan)
-  - [Validating Molecules](#validating-generated-molecules)
-  - [Running Tests](#running-tests)
-  - [Jupyter Notebook Tutorial](#jupyter-notebook-tutorial)
-- [Project Structure](#project-structure)
-- [Configuration](#configuration)
-- [Industrial Validation](#industrial-validation)
-- [Contributing](#contributing)
-- [Acknowledgments](#acknowledgments)
+This project implements quantum generative adversarial networks (QGANs) that combine classical neural networks with quantum computing components. The framework supports multiple quantum computing paradigms including continuous variable (CV) quantum computing via Strawberry Fields and discrete variable (DV) quantum computing via PennyLane.
 
----
+## Research Objectives
 
-## Key Features
-- **Hybrid Architectures**: Mix classical/quantum generators (G) and discriminators (D).
-- **Quantum Backends**:
-  - **PennyLane** for qubit-based models (discrete-variable).
-  - **Strawberry Fields** for photonic/qumode models (continuous-variable).
-- **Industrial Relevance**: Generate molecular descriptors validated via RDKit.
-- **Benchmarking Tools**: Compare loss curves, sample quality, and hardware efficiency.
+- Investigate quantum advantages in generative modeling tasks
+- Compare classical and quantum GAN architectures
+- Develop hybrid quantum-classical training methodologies
+- Evaluate quantum circuit expressivity in adversarial learning
 
----
+## Architecture
+
+### Core Components
+
+The framework implements a modular architecture supporting various generator and discriminator combinations:
+
+- **Classical Components**: Traditional neural network implementations
+- **Quantum Continuous Variable**: Photonic quantum computing using Strawberry Fields
+- **Quantum Discrete Variable**: Qubit-based quantum computing using PennyLane
+- **Hybrid Architectures**: Mixed classical-quantum configurations
+
+### Mathematical Framework
+
+The adversarial training follows the minimax objective:
+
+```
+min_G max_D V(D,G) = E_x[log D(x)] + E_z[log(1 - D(G(z)))]
+```
+
+Where quantum components introduce additional considerations:
+- Quantum parameter optimization requires specialized gradient handling
+- Circuit depth affects expressivity and trainability
+- Measurement strategies impact information extraction
 
 ## Installation
 
-### Dependencies
+### Prerequisites
+
 - Python 3.8+
-- TensorFlow 2.10+
-- PennyLane
-- Strawberry Fields
-- RDKit
+- TensorFlow 2.13+
+- NumPy, SciPy, Matplotlib
+- scikit-learn for classical ML utilities
 
-### Steps
+### Quantum Dependencies (Optional)
 
+For full quantum functionality:
+
+```bash
+pip install strawberryfields  # Continuous variable quantum computing
+pip install pennylane        # Discrete variable quantum computing
 ```
-git clone https://github.com/yourusername/QGAN_Project.git
-cd QGAN_Project
+
+### Setup
+
+```bash
+git clone <repository-url>
+cd QNNCV
 pip install -r requirements.txt
 ```
 
----
-
 ## Usage
 
-### Training a QGAN
+### Basic Training
 
-```
-python main_qgan.py
-```
+```python
+from src.training.qgan_trainer import QGAN
+from src.models.generators.classical_generator import ClassicalGenerator
+from src.models.discriminators.classical_discriminator import ClassicalDiscriminator
+from src.utils.data_utils import load_synthetic_data
 
-**Default**: Classical G + Classical D on mock QM9 data.
+# Load or generate data
+data = load_synthetic_data(dataset_type="spiral", num_samples=2000)
 
-**Custom Setup**: Edit `config.yaml`:
+# Initialize components
+generator = ClassicalGenerator(latent_dim=10, output_dim=2)
+discriminator = ClassicalDiscriminator(input_dim=2)
 
-```
-components:
-  generator: "quantum_continuous"  # Options: classical, quantum_discrete, quantum_continuous
-  discriminator: "quantum_discrete"
-
-training:
-  epochs: 200
-  batch_size: 64
-```
-
----
-
-### Validating Generated Molecules
-
-```
-python pharma_validation.py
+# Create and train QGAN
+qgan = QGAN(generator, discriminator)
+history = qgan.train(data, epochs=100, batch_size=32)
 ```
 
-**Input**: Generated descriptors in `/data/generated_samples.npy`.
+### Quantum Components
 
-**Output**:
-- Validity rate (chemically plausible molecules).
-- Property distributions (LogP, molecular weight).
-- Visualizations of top molecules.
+```python
+from src.models.generators.quantum_continuous_generator_enhanced import QuantumContinuousGeneratorEnhanced
+from src.models.discriminators.quantum_continuous_discriminator import QuantumContinuousDiscriminator
 
----
+# Quantum generator with continuous variables
+quantum_gen = QuantumContinuousGeneratorEnhanced(n_qumodes=4, latent_dim=10)
 
-### Running Tests
+# Quantum discriminator
+quantum_disc = QuantumContinuousDiscriminator(n_qumodes=4, input_dim=4)
 
-Test all components:
-
+# Hybrid training
+qgan = QGAN(quantum_gen, quantum_disc)
 ```
-python -m pytest tests/
-```
-
-Test specific hybrid model (CV-G + Classical-D):
-
-```
-python tests/test_hybrid_qgan.py
-```
-
----
-
-### Jupyter Notebook Tutorial
-
-```
-jupyter notebook tutorial.ipynb
-```
-
-Covers:
-- Hybrid QGAN training (CV quantum G + classical D).
-- Loss curve analysis.
-- Quantum circuit visualization.
-
----
 
 ## Project Structure
 
 ```
-/QGAN_Project  
-├── data/                   # QM9 dataset and generated samples  
-├── NN/                     # All generators/discriminators  
-│   ├── classical_generator.py  
-│   ├── quantum_discrete_generator.py  
-│   ├── quantum_continuous_generator.py  
-│   ├── classical_discriminator.py  
-│   ├── quantum_discrete_discriminator.py  
-│   └── quantum_continuous_discriminator.py  
-├── tests/                  # Unit tests  
-│   ├── test_hybrid_qgan.py  
-│   └── test_gan_classical.py  
-├── main_qgan.py            # Central training script  
-├── utils.py                # Data loading, plotting, metrics  
-├── pharma_validation.py    # RDKit-based validation  
-├── config.yaml             # Hyperparameters and model settings  
-├── requirements.txt        # Dependency list  
-└── tutorial.ipynb          # Step-by-step guide  
+QNNCV/
+├── src/                          # Source code
+│   ├── models/                   # Neural network implementations
+│   │   ├── generators/           # Generator architectures
+│   │   └── discriminators/       # Discriminator architectures
+│   ├── training/                 # Training framework
+│   └── utils/                    # Utilities and metrics
+├── tests/                        # Test suite
+│   ├── unit/                     # Unit tests
+│   ├── integration/              # Integration tests
+│   └── results/                  # Test outputs
+├── data/                         # Dataset directory
+├── docs/                         # Documentation
+├── config/                       # Configuration files
+└── requirements.txt              # Dependencies
 ```
 
----
+## Quantum Circuit Implementations
+
+### Continuous Variable Quantum Computing
+
+The framework implements sophisticated CV quantum circuits:
+
+```
+Input → Classical Encoding → Displacement Gates → Squeezing Layer → 
+Interferometer → Additional Squeezing → Adaptive Measurements → Output
+```
+
+Key quantum operations:
+- **Displacement gates**: Encode classical information into quantum states
+- **Squeezing gates**: Create quantum correlations and nonlinearity
+- **Interferometers**: Enable quantum mode coupling and entanglement
+- **Homodyne measurements**: Extract classical information from quantum states
+
+### Discrete Variable Quantum Computing
+
+Qubit-based implementations using parameterized quantum circuits:
+
+```
+Input Encoding → Parameterized Rotations → Entangling Gates → 
+Additional Layers → Measurements → Classical Post-processing
+```
+
+## Training Methodology
+
+### Quantum-Aware Training
+
+The framework includes specialized training features for quantum components:
+
+- **Gradient Clipping**: Prevents parameter divergence in quantum circuits
+- **Learning Rate Scheduling**: Accommodates quantum parameter optimization
+- **Stability Monitoring**: Detects training instabilities specific to quantum systems
+- **Adaptive Optimization**: Adjusts training dynamics based on quantum circuit behavior
+
+### Loss Functions
+
+Multiple loss formulations are supported:
+
+1. **Traditional GAN Loss**: Binary cross-entropy with label smoothing
+2. **Wasserstein Loss**: With gradient penalty for improved stability
+
+## Evaluation Metrics
+
+The framework provides comprehensive evaluation tools:
+
+- **Wasserstein Distance**: Distribution similarity measurement
+- **Maximum Mean Discrepancy (MMD)**: Statistical distance between distributions
+- **Coverage and Precision**: Quality and diversity metrics
+- **Frechet Distance**: Distribution comparison in feature space
+
+## Testing
+
+Run the complete test suite:
+
+```bash
+# All tests
+python -m pytest tests/
+
+# Unit tests only
+python -m pytest tests/unit/
+
+# Integration tests
+python -m pytest tests/integration/
+```
 
 ## Configuration
 
-Modify `config.yaml` to customize:
+Training parameters can be configured via `config/config.yaml`:
 
-```
+```yaml
 training:
-  epochs: 100               # Number of training iterations
-  batch_size: 32            # Samples per batch
-  latent_dim: 10            # Noise vector dimension
+  epochs: 100
+  batch_size: 32
+  latent_dim: 10
 
 components:
   generator:
-    type: "quantum_continuous"  # Options: classical, quantum_discrete, quantum_continuous
-    n_qumodes: 30               # For CV models
-    n_layers: 3                 # For qubit models
+    type: "quantum_continuous"
+    n_qumodes: 4
   discriminator:
-    type: "classical"           # Options: classical, quantum_discrete, quantum_continuous
-    hidden_units: 64            # For classical D
+    type: "classical"
+    hidden_units: 64
 
 optimizer:
-  learning_rate: 0.001          # Adam optimizer LR
-  beta_1: 0.9                   # Adam momentum
+  learning_rate: 0.0001
+  beta_1: 0.5
 ```
 
----
+## Research Applications
 
-## Industrial Validation
+This framework is designed for research in:
 
-- **Validity Check**: Ensure generated molecules are chemically possible.
-- **Property Prediction**: Compute LogP, molecular weight, etc.
-- **Novelty Score**: Compare against QM9 training set using Tanimoto similarity.
-
-**Example Output from `pharma_validation.py`:**
-
-```
-Valid molecules: 8/10  
-Average LogP: 1.2 ± 0.3  
-Synthetic accessibility score: 3.4 (easy to synthesize)
-```
-
----
+- Quantum machine learning
+- Generative modeling with quantum circuits
+- Hybrid quantum-classical algorithms
+- Quantum advantage investigations
+- Variational quantum algorithms
 
 ## Contributing
 
-**Add New Components**:
-- Add quantum generators/discriminators to `/NN`.
-- Include unit tests in `/tests`.
+This is a research framework. Contributions should focus on:
 
-**Improve Validation**:
-- Integrate advanced property predictors (e.g., DFT calculators).
+- Novel quantum circuit architectures
+- Improved training methodologies
+- Additional evaluation metrics
+- Performance optimizations
+- Documentation improvements
 
-**Hardware Support**:
-- Add Xanadu Cloud integration for photonic hardware.
+## Technical Requirements
 
----
+### Minimum System Requirements
 
-## Acknowledgments    
+- 8GB RAM
+- Modern CPU with AVX support
+- Python 3.8+ environment
 
-- **Paper over the cv simulation library** - Nathan Killoran, Josh Izaac, Nicolás Quesada, Ville Bergholm, Matthew Amy, and Christian Weedbrook. “Strawberry Fields: A Software Platform for Photonic Quantum Computing”, Quantum, 3, 129 (2019).
+### Recommended for Quantum Simulations
 
-- **Paper about the applications for this systems**: Thomas R. Bromley, Juan Miguel Arrazola, Soran Jahangiri, Josh Izaac, Nicolás Quesada, Alain Delgado Gran, Maria Schuld, Jeremy Swinarton, Zeid Zabaneh, and Nathan Killoran. “Applications of Near-Term Photonic Quantum Computers: Software and Algorithms”, arxiv:1912.07634 (2019).
+- 16GB+ RAM
+- Multi-core CPU
+- GPU support for TensorFlow (optional)
 
-- **Source Code**: https://github.com/XanaduAI/strawberryfields
+## Limitations
 
-- **Issue Tracker**: https://github.com/XanaduAI/strawberryfields/issues
+- Quantum simulations are computationally intensive
+- Circuit depth limited by classical simulation capabilities
+- Quantum hardware integration requires additional setup
+- Some quantum dependencies may have platform-specific requirements
+
+## References
+
+This framework builds upon established quantum computing and machine learning research:
+
+- Quantum computing frameworks: Strawberry Fields, PennyLane
+- Generative adversarial networks: Original GAN formulation and variants
+- Quantum machine learning: Variational quantum algorithms and quantum neural networks
+
+## License
+
+This project is intended for academic and research use. Please refer to the license file for specific terms and conditions.
+
+## Contact
+
+For questions regarding this research framework, please refer to the project documentation or submit issues through the appropriate channels.
