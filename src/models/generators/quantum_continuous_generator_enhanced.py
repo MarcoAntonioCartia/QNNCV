@@ -54,9 +54,9 @@ class QuantumContinuousGeneratorEnhanced:
             name="squeeze_parameters"
         )
         
-        # Interferometer parameters for mode mixing
-        # Using anti-symmetric matrix parameterization for unitary generation
-        n_interferometer_params = self.n_qumodes * (self.n_qumodes - 1)
+        # Interferometer parameters for mode mixing  
+        # Use fewer parameters for simpler unitary generation
+        n_interferometer_params = self.n_qumodes * self.n_qumodes
         self.interferometer_params = tf.Variable(
             tf.random.normal([n_interferometer_params], stddev=0.05),
             name="interferometer_parameters"
@@ -78,31 +78,18 @@ class QuantumContinuousGeneratorEnhanced:
     def _build_interferometer_matrix(self):
         """Build unitary interferometer matrix from parameters.
         
-        Uses anti-symmetric matrix parameterization to ensure unitarity.
+        Uses QR decomposition for guaranteed unitarity.
         """
         n = self.n_qumodes
-        antisymm_matrix = tf.zeros([n, n], dtype=tf.complex64)
         
-        # Fill anti-symmetric matrix from parameters
-        param_idx = 0
-        for i in range(n):
-            for j in range(i+1, n):
-                # Create anti-symmetric entries
-                antisymm_matrix = tf.tensor_scatter_nd_update(
-                    antisymm_matrix,
-                    [[i, j]],
-                    [tf.complex(0.0, self.interferometer_params[param_idx])]
-                )
-                antisymm_matrix = tf.tensor_scatter_nd_update(
-                    antisymm_matrix,
-                    [[j, i]],
-                    [tf.complex(0.0, -self.interferometer_params[param_idx])]
-                )
-                param_idx += 1
+        # Reshape parameters into matrix form
+        matrix_params = tf.reshape(self.interferometer_params, [n, n])
         
-        # Generate unitary matrix via matrix exponential
-        unitary_matrix = tf.linalg.expm(antisymm_matrix)
-        return unitary_matrix
+        # Use QR decomposition directly on real matrix for simplicity
+        # This avoids complex casting warnings while maintaining unitarity
+        q, _ = tf.linalg.qr(matrix_params)
+        
+        return q
     
     def generate(self, z):
         """Generate quantum samples from latent vector.
@@ -170,6 +157,9 @@ class QuantumContinuousGeneratorEnhanced:
             
             result = self.eng.run(prog, args=param_mapping)
             samples = tf.cast(result.samples, tf.float32)
+            # Ensure samples are 1D [n_qumodes]
+            if len(samples.shape) > 1:
+                samples = tf.squeeze(samples, axis=0)
             all_samples.append(samples)
         
         # Stack samples into batch
