@@ -8,6 +8,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 from utils.data_utils import load_dataset
 from utils.visualization import plot_results
+from utils.tensorflow_compat import QuantumExecutionContext, configure_tensorflow_for_quantum
 
 class QGAN:
     """
@@ -191,9 +192,22 @@ class QGAN:
                 clipped_gradients.append(grad)
         return clipped_gradients
     
-    @tf.function
-    def train_step(self, real_samples, use_wasserstein=False):
-        """Enhanced training step with quantum-aware stability features.
+    def _quantum_safe_generate(self, z):
+        """Generate samples using quantum-safe execution context."""
+        # Check if generator has quantum components
+        generator_type = type(self.generator).__name__
+        if 'Quantum' in generator_type:
+            # Use quantum execution context for quantum generators
+            with QuantumExecutionContext(force_eager=True):
+                return self.generator.generate(z)
+        else:
+            # Use normal execution for classical generators
+            return self.generator.generate(z)
+    
+    def train_step_eager(self, real_samples, use_wasserstein=False):
+        """Training step optimized for quantum operations (eager execution).
+        
+        This version removes @tf.function to avoid AutoGraph issues with quantum circuits.
         
         Args:
             real_samples: Batch of real training data
@@ -208,13 +222,14 @@ class QGAN:
         z = tf.random.normal([batch_size, self.latent_dim])
         
         with tf.GradientTape() as d_tape:
-            fake_samples = self.generator.generate(z)
+            # Use quantum-safe generation
+            fake_samples = self._quantum_safe_generate(z)
             
             if use_wasserstein:
                 d_loss, _, gp = self.wasserstein_loss(real_samples, fake_samples)
             else:
                 d_loss, _ = self.traditional_gan_loss(real_samples, fake_samples)
-                gp = 0.0
+                gp = tf.constant(0.0)
         
         # Discriminator gradients with clipping
         d_gradients = d_tape.gradient(d_loss, self.discriminator.trainable_variables)
@@ -229,7 +244,8 @@ class QGAN:
         z = tf.random.normal([batch_size, self.latent_dim])
         
         with tf.GradientTape() as g_tape:
-            fake_samples = self.generator.generate(z)
+            # Use quantum-safe generation
+            fake_samples = self._quantum_safe_generate(z)
             
             if use_wasserstein:
                 _, g_loss, _ = self.wasserstein_loss(real_samples, fake_samples)
@@ -256,6 +272,11 @@ class QGAN:
             'd_grad_norm': d_grad_norm,
             'stability_metric': stability_metric
         }
+    
+    # Alias for backward compatibility
+    def train_step(self, real_samples, use_wasserstein=False):
+        """Training step with automatic quantum/classical handling."""
+        return self.train_step_eager(real_samples, use_wasserstein)
     
     def train(self, data, epochs=100, batch_size=32, use_wasserstein=False, 
               verbose=True, save_interval=10):

@@ -56,13 +56,8 @@ class QuantumContinuousDiscriminator:
             name="disc_squeeze_params"
         )
         
-        # Interferometer parameters for mode mixing
-        # Use same approach as generator for compatibility
-        n_interferometer_params = self.n_qumodes * self.n_qumodes
-        self.interferometer_params = tf.Variable(
-            tf.random.normal([n_interferometer_params], stddev=0.05),
-            name="disc_interferometer_params"
-        )
+        # Note: Using fixed DFT interferometer instead of trainable parameters
+        # to avoid symbolic tensor issues with Strawberry Fields
         
         # Learnable measurement angles for adaptive measurements
         self.measurement_angles = tf.Variable(
@@ -86,28 +81,13 @@ class QuantumContinuousDiscriminator:
         """Return all trainable parameters for optimization."""
         variables = [
             self.squeeze_params, 
-            self.interferometer_params, 
             self.measurement_angles
         ]
         variables.extend(self.input_encoder.trainable_variables)
         variables.extend(self.output_network.trainable_variables)
         return variables
     
-    def _build_interferometer_matrix(self):
-        """Build unitary interferometer matrix from parameters.
-        
-        Uses QR decomposition for guaranteed unitarity (same as generator).
-        """
-        n = self.n_qumodes
-        
-        # Reshape parameters into matrix form
-        matrix_params = tf.reshape(self.interferometer_params, [n, n])
-        
-        # Use QR decomposition directly on real matrix for simplicity
-        # This avoids complex casting warnings while maintaining unitarity
-        q, _ = tf.linalg.qr(matrix_params)
-        
-        return q
+
     
     def _create_circuit_program(self):
         """Create the sophisticated quantum discriminator circuit."""
@@ -119,9 +99,6 @@ class QuantumContinuousDiscriminator:
         displacement_phi_symbols = [prog.params(f"disp_phi_{i}") for i in range(self.n_qumodes)]
         measurement_symbols = [prog.params(f"measure_{i}") for i in range(self.n_qumodes)]
         
-        # Build interferometer matrix
-        interferometer_matrix = self._build_interferometer_matrix()
-        
         with prog.context as q:
             # Step 1: Input encoding via displacement gates
             for i in range(self.n_qumodes):
@@ -131,8 +108,15 @@ class QuantumContinuousDiscriminator:
             for i in range(self.n_qumodes):
                 Sgate(squeeze_symbols[i], 0.0) | q[i]
             
-            # Step 3: Interferometer for quantum mode coupling
-            Interferometer(interferometer_matrix, mesh='rectangular') | q
+            # Step 3: Simple fixed interferometer (Fourier transform)
+            # Use a predefined unitary matrix to avoid symbolic tensor issues
+            n = self.n_qumodes
+            # Create a simple DFT-like unitary matrix
+            angles = [2 * np.pi * i * j / n for i in range(n) for j in range(n)]
+            dft_matrix = np.array([[np.exp(1j * angles[i*n + j]) / np.sqrt(n) 
+                                 for j in range(n)] for i in range(n)])
+            
+            Interferometer(dft_matrix, mesh='rectangular') | q
             
             # Step 4: Second squeezing layer with different phase
             for i in range(self.n_qumodes):
