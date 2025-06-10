@@ -199,8 +199,8 @@ class QGAN:
         if 'Quantum' in generator_type:
             # Use quantum execution context with warning suppression for quantum generators
             with suppress_complex_warnings():
-                with QuantumExecutionContext(force_eager=True):
-                    return self.generator.generate(z)
+                # REMOVED QuantumExecutionContext to fix gradient flow
+                return self.generator.generate(z)
         else:
             # Use normal execution for classical generators
             return self.generator.generate(z)
