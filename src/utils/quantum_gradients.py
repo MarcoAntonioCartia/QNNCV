@@ -185,6 +185,11 @@ def compute_quantum_parameter_gradients(variables: List[tf.Variable],
     """
     gradients = []
     
+    # Ensure upstream_grads is a scalar for scaling
+    upstream_scale = tf.reduce_mean(tf.abs(upstream_grads))
+    # Prevent zero gradients by adding small epsilon
+    upstream_scale = tf.maximum(upstream_scale, 1e-6)
+    
     # Scale factor based on component type
     if component_type == 'generator':
         base_scale = 0.1  # Generators typically need larger gradients
@@ -235,7 +240,7 @@ def compute_quantum_parameter_gradients(variables: List[tf.Variable],
             grad = tf.random.normal(var_shape, stddev=base_scale * 0.05)
         
         # Scale by upstream gradients and add to list
-        scaled_grad = grad * tf.reduce_mean(upstream_grads)
+        scaled_grad = grad * upstream_scale
         gradients.append(scaled_grad)
     
     return gradients
