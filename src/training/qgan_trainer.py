@@ -8,7 +8,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 from utils.data_utils import load_dataset
 from utils.visualization import plot_results
-from utils.tensorflow_compat import QuantumExecutionContext, configure_tensorflow_for_quantum
+from utils.tensorflow_compat import QuantumExecutionContext, configure_tensorflow_for_quantum, suppress_complex_warnings
 
 class QGAN:
     """
@@ -193,13 +193,14 @@ class QGAN:
         return clipped_gradients
     
     def _quantum_safe_generate(self, z):
-        """Generate samples using quantum-safe execution context."""
+        """Generate samples using quantum-safe execution context with warning suppression."""
         # Check if generator has quantum components
         generator_type = type(self.generator).__name__
         if 'Quantum' in generator_type:
-            # Use quantum execution context for quantum generators
-            with QuantumExecutionContext(force_eager=True):
-                return self.generator.generate(z)
+            # Use quantum execution context with warning suppression for quantum generators
+            with suppress_complex_warnings():
+                with QuantumExecutionContext(force_eager=True):
+                    return self.generator.generate(z)
         else:
             # Use normal execution for classical generators
             return self.generator.generate(z)
