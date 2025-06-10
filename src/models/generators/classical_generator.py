@@ -13,7 +13,7 @@ class ClassicalGenerator:
         
         Args:
             latent_dim (int): Dimension of input noise vector.
-            output_dim (int): Output dimension (matches molecular descriptor size).
+            output_dim (int): Output dimension.
         """
         self.model = tf.keras.Sequential([
             # Hidden layer with ReLU activation

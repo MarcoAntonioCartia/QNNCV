@@ -14,7 +14,7 @@ import matplotlib.pyplot as plt
 def test_true_quantum_components():
     """Test true quantum generator and discriminator with realistic datasets."""
     
-    print("🔬 Testing True Quantum QGAN Components")
+    print(" Testing True Quantum QGAN Components")
     print("=" * 50)
     
     # Import our quantum components
@@ -101,7 +101,7 @@ def test_true_quantum_components():
         
         # Evaluate performance
         wasserstein_dist = compute_wasserstein_distance(data[:200], final_generated)
-        print(f"\n✅ Training completed successfully!")
+        print(f"\n Training completed successfully! :)")
         print(f"Final Wasserstein distance: {wasserstein_dist:.4f}")
         
         # Create comprehensive visualization
@@ -119,7 +119,7 @@ def test_true_quantum_components():
 def test_quantum_vs_classical_comprehensive():
     """Comprehensive comparison between quantum and classical approaches."""
     
-    print("\n🏆 Quantum vs Classical Comprehensive Comparison")
+    print("\n Quantum vs Classical Comprehensive Comparison")
     print("=" * 55)
     
     from NN.classical_generator import ClassicalGenerator
@@ -208,9 +208,9 @@ def test_quantum_vs_classical_comprehensive():
     print(f"MMD Improvement: {mmd_improvement:+.1f}%")
     
     if quantum_wd < classical_wd:
-        print("🏆 Quantum approach shows BETTER performance!")
+        print(" Quantum approach shows BETTER performance!")
     else:
-        print("📊 Classical approach shows better performance")
+        print(" Classical approach shows better performance")
     
     # Create comparison visualization
     fig, axes = plt.subplots(1, 3, figsize=(18, 6))
@@ -249,7 +249,7 @@ def test_quantum_vs_classical_comprehensive():
 def analyze_quantum_advantage():
     """Analyze where quantum advantage comes from."""
     
-    print("\n🔍 Quantum Advantage Analysis")
+    print("\n Quantum Advantage Analysis")
     print("=" * 35)
     
     from NN.quantum_generator_sf import QuantumGeneratorStrawberryFields
@@ -292,14 +292,14 @@ def analyze_quantum_advantage():
     return quantum_info
 
 if __name__ == "__main__":
-    print("🚀 Starting Comprehensive Quantum QGAN Testing")
+    print(" Starting Comprehensive Quantum QGAN Testing")
     print("=" * 60)
     
     # Test 1: True quantum components
     success, wd = test_true_quantum_components()
     
     if success:
-        print(f"\n✅ Quantum components test PASSED! (WD: {wd:.4f})")
+        print(f"\n Quantum components test PASSED! (WD: {wd:.4f})")
         
         # Test 2: Comprehensive comparison
         comparison_results = test_quantum_vs_classical_comprehensive()
@@ -307,7 +307,7 @@ if __name__ == "__main__":
         # Test 3: Quantum advantage analysis
         quantum_info = analyze_quantum_advantage()
         
-        print(f"\n🎉 ALL TESTS COMPLETED SUCCESSFULLY!")
+        print(f"\n ALL TESTS COMPLETED SUCCESSFULLY!")
         print("=" * 40)
         print("Key Results:")
         print(f"  • Quantum QGAN functional: ✅")
@@ -316,7 +316,7 @@ if __name__ == "__main__":
         print(f"  • Data size: Fixed (was too small before!)")
         
     else:
-        print(f"\n❌ Quantum components test FAILED")
+        print(f"\n Quantum components test FAILED:(")
         print("Check error messages above for troubleshooting.")
     
-    print(f"\n📈 Results saved to results/ directory") 
+    print(f"\n Results saved to results/ directory") 

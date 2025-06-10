@@ -341,7 +341,7 @@ def test_import(module_name, package_name=None):
 if __name__ == "__main__":
     success = setup_qgan_environment()
     if success:
-        print("\n🎉 Environment setup completed successfully!")
+        print("\n Environment setup completed successfully! :D")
     else:
-        print("\n❌ Environment setup failed!")
+        print("\n Environment setup failed! D:")
         sys.exit(1) 

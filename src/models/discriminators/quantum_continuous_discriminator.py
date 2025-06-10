@@ -56,13 +56,8 @@ class QuantumContinuousDiscriminator:
             name="disc_squeeze_params"
         )
         
-        # Interferometer parameters for mode mixing
-        # Using anti-symmetric matrix parameterization for unitary generation
-        n_interferometer_params = self.n_qumodes * (self.n_qumodes - 1)
-        self.interferometer_params = tf.Variable(
-            tf.random.normal([n_interferometer_params], stddev=0.05),
-            name="disc_interferometer_params"
-        )
+        # Note: Using fixed DFT interferometer instead of trainable parameters
+        # to avoid symbolic tensor issues with Strawberry Fields
         
         # Learnable measurement angles for adaptive measurements
         self.measurement_angles = tf.Variable(
@@ -86,41 +81,13 @@ class QuantumContinuousDiscriminator:
         """Return all trainable parameters for optimization."""
         variables = [
             self.squeeze_params, 
-            self.interferometer_params, 
             self.measurement_angles
         ]
         variables.extend(self.input_encoder.trainable_variables)
         variables.extend(self.output_network.trainable_variables)
         return variables
     
-    def _build_interferometer_matrix(self):
-        """Build unitary interferometer matrix from parameters.
-        
-        Uses anti-symmetric matrix parameterization to ensure unitarity.
-        """
-        n = self.n_qumodes
-        antisymm_matrix = tf.zeros([n, n], dtype=tf.complex64)
-        
-        # Fill anti-symmetric matrix from parameters
-        param_idx = 0
-        for i in range(n):
-            for j in range(i+1, n):
-                # Create anti-symmetric entries
-                antisymm_matrix = tf.tensor_scatter_nd_update(
-                    antisymm_matrix,
-                    [[i, j]],
-                    [tf.complex(0.0, self.interferometer_params[param_idx])]
-                )
-                antisymm_matrix = tf.tensor_scatter_nd_update(
-                    antisymm_matrix,
-                    [[j, i]],
-                    [tf.complex(0.0, -self.interferometer_params[param_idx])]
-                )
-                param_idx += 1
-        
-        # Generate unitary matrix via matrix exponential
-        unitary_matrix = tf.linalg.expm(antisymm_matrix)
-        return unitary_matrix
+
     
     def _create_circuit_program(self):
         """Create the sophisticated quantum discriminator circuit."""
@@ -132,9 +99,6 @@ class QuantumContinuousDiscriminator:
         displacement_phi_symbols = [prog.params(f"disp_phi_{i}") for i in range(self.n_qumodes)]
         measurement_symbols = [prog.params(f"measure_{i}") for i in range(self.n_qumodes)]
         
-        # Build interferometer matrix
-        interferometer_matrix = self._build_interferometer_matrix()
-        
         with prog.context as q:
             # Step 1: Input encoding via displacement gates
             for i in range(self.n_qumodes):
@@ -144,8 +108,15 @@ class QuantumContinuousDiscriminator:
             for i in range(self.n_qumodes):
                 Sgate(squeeze_symbols[i], 0.0) | q[i]
             
-            # Step 3: Interferometer for quantum mode coupling
-            Interferometer(interferometer_matrix, mesh='rectangular') | q
+            # Step 3: Simple fixed interferometer (Fourier transform)
+            # Use a predefined unitary matrix to avoid symbolic tensor issues
+            n = self.n_qumodes
+            # Create a simple DFT-like unitary matrix
+            angles = [2 * np.pi * i * j / n for i in range(n) for j in range(n)]
+            dft_matrix = np.array([[np.exp(1j * angles[i*n + j]) / np.sqrt(n) 
+                                 for j in range(n)] for i in range(n)])
+            
+            Interferometer(dft_matrix, mesh='rectangular') | q
             
             # Step 4: Second squeezing layer with different phase
             for i in range(self.n_qumodes):
@@ -198,6 +169,9 @@ class QuantumContinuousDiscriminator:
             
             result = self.eng.run(prog, args=param_mapping)
             measurements = tf.cast(result.samples, tf.float32)
+            # Ensure measurements are 1D [n_qumodes]
+            if len(measurements.shape) > 1:
+                measurements = tf.squeeze(measurements, axis=0)
             all_measurements.append(measurements)
         
         # Step 4: Stack quantum measurements from all samples

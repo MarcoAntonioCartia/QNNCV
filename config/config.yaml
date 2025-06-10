@@ -1,12 +1,12 @@
 training:  
-  epochs: 100  
+  epochs: 500  
   batch_size: 32  
   latent_dim: 10  
 
 components:  
   generator:  
     type: "quantum_continuous"  # Options: classical/quantum_discrete/quantum_continuous  
-    n_qumodes: 30  
+    n_qumodes: 3  
     cutoff_dim: 5  
 
   discriminator:  

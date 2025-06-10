@@ -11,7 +11,7 @@ class QuantumContinuousGenerator:
     - Measurement: Homodyne detection to collapse quantum states into classical data.
     """
     
-    def __init__(self, n_qumodes=30, cutoff_dim=5):
+    def __init__(self, n_qumodes=3, cutoff_dim=3):
         """Initialize a CV quantum circuit.
         
         Args:
