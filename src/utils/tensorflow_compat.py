@@ -222,6 +222,43 @@ def parameter_shift_gradient(func, params, shift=np.pi/2):
     
     return gradients
 
+def test_tensorflow_quantum_compatibility():
+    """
+    Test TensorFlow compatibility for quantum operations.
+    
+    Returns:
+        dict: Test results for various compatibility checks
+    """
+    results = {
+        'eager_execution': tf.executing_eagerly(),
+        'tensorflow_version': tf.__version__,
+        'complex_ops_available': True,
+        'gradient_tape_available': True,
+        'autograph_disabled': True
+    }
+    
+    try:
+        # Test complex number operations
+        complex_tensor = tf.constant(1.0 + 2.0j)
+        real_part = tf.cast(complex_tensor, tf.float32)
+        results['complex_ops_available'] = True
+    except Exception as e:
+        results['complex_ops_available'] = False
+        results['complex_ops_error'] = str(e)
+    
+    try:
+        # Test gradient tape
+        with tf.GradientTape() as tape:
+            x = tf.Variable(1.0)
+            y = x * x
+        grad = tape.gradient(y, x)
+        results['gradient_tape_available'] = grad is not None
+    except Exception as e:
+        results['gradient_tape_available'] = False
+        results['gradient_tape_error'] = str(e)
+    
+    return results
+
 # Apply patches when module is imported
 _patch_success = _patch_tensorflow_complex_ops()
 if _patch_success:
