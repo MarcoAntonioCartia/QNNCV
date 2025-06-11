@@ -65,7 +65,7 @@ def install_core_packages():
     # Install numpy and scipy first
     for package in core_packages:
         print(f"  Installing {package}...")
-        success, stdout, stderr = run_command(f"pip install -q {package}")
+        success, stdout, stderr = run_command(f"pip install -q '{package}'")
         
         if success:
             print(f"    ✓ {package.split('>=')[0]} installed")
@@ -101,7 +101,7 @@ def install_core_packages():
     
     for package in remaining_packages:
         print(f"  Installing {package}...")
-        success, stdout, stderr = run_command(f"pip install -q {package}")
+        success, stdout, stderr = run_command(f"pip install -q '{package}'")
         
         if success:
             print(f"    ✓ {package.split('>=')[0]} installed")
@@ -116,7 +116,7 @@ def install_tensorflow():
     print("Installing TensorFlow...")
     
     # Install TensorFlow (Colab usually has this, but ensure latest version)
-    success, stdout, stderr = run_command("pip install -q tensorflow>=2.8.0")
+    success, stdout, stderr = run_command("pip install -q 'tensorflow>=2.8.0'")
     
     if success:
         print("    ✓ TensorFlow installed")
