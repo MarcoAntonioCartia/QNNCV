@@ -56,22 +56,49 @@ def install_core_packages():
     """Install core scientific packages with immediate SciPy fix."""
     print("Installing core scientific packages...")
     
-    # Install packages in specific order to handle SciPy compatibility
-    core_packages = [
-        "numpy>=1.21.0,<1.25.0",
-        "scipy>=1.0.0,<1.14.0",  # Pin to versions that still have simps function
-    ]
+    # Step 1: Force correct NumPy version first (critical for binary compatibility)
+    print("  Ensuring correct NumPy version...")
     
-    # Install numpy and scipy first
-    for package in core_packages:
-        print(f"  Installing {package}...")
-        success, stdout, stderr = run_command(f"pip install -q '{package}'")
-        
-        if success:
-            print(f"    ✓ {package.split('>=')[0]} installed")
-        else:
-            print(f"    ✗ {package} failed: {stderr}")
+    # Uninstall any existing NumPy to prevent conflicts
+    print("    Removing any existing NumPy...")
+    run_command("pip uninstall numpy -y", capture_output=True)
+    
+    # Install exact NumPy version
+    numpy_version = "numpy==1.24.4"
+    print(f"    Installing {numpy_version}...")
+    success, stdout, stderr = run_command(f"pip install --no-cache-dir '{numpy_version}'")
+    
+    if not success:
+        print(f"    ✗ NumPy installation failed: {stderr}")
+        return False
+    
+    # Verify NumPy version
+    try:
+        import numpy as np
+        actual_version = np.__version__
+        if not actual_version.startswith('1.24'):
+            print(f"    ✗ Wrong NumPy version installed: {actual_version}")
             return False
+        print(f"    ✓ NumPy {actual_version} installed correctly")
+        
+        # Test binary compatibility
+        from numpy.random import RandomState
+        print("    ✓ NumPy binary compatibility verified")
+        
+    except Exception as e:
+        print(f"    ✗ NumPy verification failed: {e}")
+        return False
+    
+    # Step 2: Install SciPy with correct version
+    scipy_version = "scipy>=1.0.0,<1.14.0"
+    print(f"  Installing {scipy_version}...")
+    success, stdout, stderr = run_command(f"pip install -q '{scipy_version}'")
+    
+    if not success:
+        print(f"    ✗ SciPy installation failed: {stderr}")
+        return False
+    
+    print(f"    ✓ SciPy installed")
     
     # Apply SciPy compatibility fix immediately after SciPy installation
     print("  Applying SciPy compatibility fix...")
