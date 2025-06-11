@@ -52,6 +52,76 @@ def check_colab_environment():
         print("⚠ Not running in Google Colab - this script is optimized for Colab")
         return False
 
+def check_numpy_version():
+    """Check if NumPy version is still correct."""
+    try:
+        import numpy as np
+        current_version = np.__version__
+        if not current_version.startswith('1.24'):
+            return False, current_version
+        return True, current_version
+    except ImportError:
+        return False, "Not installed"
+
+def lock_numpy_version():
+    """Force NumPy back to correct version if it was upgraded."""
+    print("    Locking NumPy to correct version...")
+    
+    # Uninstall any version
+    run_command("pip uninstall numpy -y", capture_output=True)
+    
+    # Reinstall exact version
+    success, stdout, stderr = run_command("pip install --no-cache-dir 'numpy==1.24.4'")
+    
+    if success:
+        is_correct, version = check_numpy_version()
+        if is_correct:
+            print(f"    ✓ NumPy locked to {version}")
+            return True
+        else:
+            print(f"    ✗ Failed to lock NumPy, got {version}")
+            return False
+    else:
+        print(f"    ✗ NumPy lock failed: {stderr}")
+        return False
+
+def install_package_with_numpy_lock(package_spec, package_name=None):
+    """Install a package and ensure NumPy version doesn't change."""
+    if package_name is None:
+        package_name = package_spec.split('>=')[0].split('==')[0]
+    
+    print(f"  Installing {package_name}...")
+    
+    # Check NumPy version before
+    is_correct_before, version_before = check_numpy_version()
+    if not is_correct_before:
+        print(f"    ⚠ NumPy version wrong before installation: {version_before}")
+        if not lock_numpy_version():
+            return False
+    
+    # Install the package
+    success, stdout, stderr = run_command(f"pip install -q '{package_spec}'")
+    
+    if not success:
+        print(f"    ✗ {package_name} installation failed: {stderr}")
+        return False
+    
+    # Check NumPy version after
+    is_correct_after, version_after = check_numpy_version()
+    
+    if not is_correct_after:
+        print(f"    ⚠ {package_name} upgraded NumPy from {version_before} to {version_after}")
+        print(f"    Restoring NumPy version...")
+        
+        if not lock_numpy_version():
+            print(f"    ✗ Failed to restore NumPy version")
+            return False
+        
+        print(f"    ✓ NumPy version restored")
+    
+    print(f"    ✓ {package_name} installed (NumPy version preserved)")
+    return True
+
 def install_core_packages():
     """Install core scientific packages with immediate SciPy fix."""
     print("Installing core scientific packages...")
@@ -89,16 +159,9 @@ def install_core_packages():
         print(f"    ✗ NumPy verification failed: {e}")
         return False
     
-    # Step 2: Install SciPy with correct version
-    scipy_version = "scipy>=1.0.0,<1.14.0"
-    print(f"  Installing {scipy_version}...")
-    success, stdout, stderr = run_command(f"pip install -q '{scipy_version}'")
-    
-    if not success:
-        print(f"    ✗ SciPy installation failed: {stderr}")
+    # Step 2: Install SciPy with NumPy version protection
+    if not install_package_with_numpy_lock("scipy>=1.0.0,<1.14.0", "SciPy"):
         return False
-    
-    print(f"    ✓ SciPy installed")
     
     # Apply SciPy compatibility fix immediately after SciPy installation
     print("  Applying SciPy compatibility fix...")
@@ -116,64 +179,39 @@ def install_core_packages():
         print("    ✗ Could not import scipy.integrate")
         return False
     
-    # Install remaining packages
+    # Install remaining packages with NumPy protection
     remaining_packages = [
-        "matplotlib>=3.5.0",
-        "seaborn>=0.11.0",
-        "scikit-learn>=1.0.0",
-        "pandas>=1.3.0",
-        "tqdm>=4.62.0",
-        "psutil>=5.8.0"
+        ("matplotlib>=3.5.0", "Matplotlib"),
+        ("seaborn>=0.11.0", "Seaborn"),
+        ("scikit-learn>=1.0.0", "Scikit-learn"),
+        ("pandas>=1.3.0", "Pandas"),
+        ("tqdm>=4.62.0", "TQDM"),
+        ("psutil>=5.8.0", "PSUtil")
     ]
     
-    for package in remaining_packages:
-        print(f"  Installing {package}...")
-        success, stdout, stderr = run_command(f"pip install -q '{package}'")
-        
-        if success:
-            print(f"    ✓ {package.split('>=')[0]} installed")
-        else:
-            print(f"    ✗ {package} failed: {stderr}")
+    for package_spec, package_name in remaining_packages:
+        if not install_package_with_numpy_lock(package_spec, package_name):
             return False
     
     return True
 
 def install_tensorflow():
-    """Install TensorFlow with GPU support."""
+    """Install TensorFlow with GPU support and NumPy version protection."""
     print("Installing TensorFlow...")
     
-    # Install TensorFlow with version constraints from requirements.txt
-    success, stdout, stderr = run_command("pip install -q 'tensorflow>=2.13.0,<=2.15.0'")
-    
-    if success:
-        print("    ✓ TensorFlow installed")
-        return True
-    else:
-        print(f"    ✗ TensorFlow installation failed: {stderr}")
-        return False
+    # Install TensorFlow with NumPy version protection
+    return install_package_with_numpy_lock("tensorflow>=2.13.0,<=2.15.0", "TensorFlow")
 
 def install_quantum_packages():
-    """Install quantum computing packages."""
+    """Install quantum computing packages with NumPy version protection."""
     print("Installing quantum packages...")
     
-    quantum_packages = [
-        "strawberryfields",
-        # Note: PennyLane not needed for current implementation
-        # "pennylane"  
-    ]
-    
-    success_count = 0
-    for package in quantum_packages:
-        print(f"  Installing {package}...")
-        success, stdout, stderr = run_command(f"pip install -q {package}")
-        
-        if success:
-            print(f"    ✓ {package} installed")
-            success_count += 1
-        else:
-            print(f"    ⚠ {package} failed: {stderr}")
-    
-    return success_count > 0
+    # Install Strawberry Fields with NumPy version protection
+    if install_package_with_numpy_lock("strawberryfields", "Strawberry Fields"):
+        return True
+    else:
+        print("    ⚠ Strawberry Fields installation failed")
+        return False
 
 def apply_compatibility_fixes():
     """Apply compatibility fixes for known issues."""
