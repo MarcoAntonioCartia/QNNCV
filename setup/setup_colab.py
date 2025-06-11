@@ -53,12 +53,44 @@ def check_colab_environment():
         return False
 
 def install_core_packages():
-    """Install core scientific packages."""
+    """Install core scientific packages with immediate SciPy fix."""
     print("Installing core scientific packages...")
     
+    # Install packages in specific order to handle SciPy compatibility
     core_packages = [
         "numpy>=1.21.0",
-        "scipy>=1.7.0", 
+        "scipy>=1.7.0",  # Install SciPy first
+    ]
+    
+    # Install numpy and scipy first
+    for package in core_packages:
+        print(f"  Installing {package}...")
+        success, stdout, stderr = run_command(f"pip install -q {package}")
+        
+        if success:
+            print(f"    ✓ {package.split('>=')[0]} installed")
+        else:
+            print(f"    ✗ {package} failed: {stderr}")
+            return False
+    
+    # Apply SciPy compatibility fix immediately after SciPy installation
+    print("  Applying SciPy compatibility fix...")
+    try:
+        import scipy.integrate
+        if not hasattr(scipy.integrate, 'simps'):
+            if hasattr(scipy.integrate, 'simpson'):
+                scipy.integrate.simps = scipy.integrate.simpson
+                print("    ✓ SciPy simps -> simpson compatibility applied")
+            else:
+                print("    ⚠ Neither simps nor simpson found in scipy.integrate")
+        else:
+            print("    ✓ SciPy simps already available")
+    except ImportError:
+        print("    ✗ Could not import scipy.integrate")
+        return False
+    
+    # Install remaining packages
+    remaining_packages = [
         "matplotlib>=3.5.0",
         "seaborn>=0.11.0",
         "scikit-learn>=1.0.0",
@@ -67,7 +99,7 @@ def install_core_packages():
         "psutil>=5.8.0"
     ]
     
-    for package in core_packages:
+    for package in remaining_packages:
         print(f"  Installing {package}...")
         success, stdout, stderr = run_command(f"pip install -q {package}")
         
@@ -285,7 +317,13 @@ def test_basic_functionality():
         
         result = eng.run(prog)
         print(f"    ✓ Strawberry Fields basic test successful")
-        print(f"      Sample measurement: {result.samples[0]:.3f}")
+        
+        # Fix numpy formatting issue
+        try:
+            sample_value = float(result.samples[0])
+            print(f"      Sample measurement: {sample_value:.3f}")
+        except (TypeError, ValueError, IndexError):
+            print(f"      Sample measurement: {result.samples}")
         
         return True
         
