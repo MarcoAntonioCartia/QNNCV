@@ -1,59 +1,28 @@
-# Quantum Neural Networks for Computer Vision (QNNCV)
+# Quantum Neural Networks for Continuous Variables (QNNCV)
 
-A research framework for implementing and evaluating quantum generative adversarial networks using continuous and discrete variable quantum computing paradigms.
+A research framework for implementing continuous variable quantum generative adversarial networks using Strawberry Fields.
 
 ## Overview
 
-This project implements quantum generative adversarial networks (QGANs) that combine classical neural networks with quantum computing components. The framework supports multiple quantum computing paradigms including continuous variable (CV) quantum computing via Strawberry Fields and discrete variable (DV) quantum computing via PennyLane.
+This project implements quantum generative adversarial networks (QGANs) using continuous variable quantum computing. The framework provides working implementations of quantum generators and discriminators that leverage Strawberry Fields for quantum circuit simulation and automatic differentiation.
 
-## Research Objectives
+## Current Status
 
-- Investigate quantum advantages in generative modeling tasks
-- Compare classical and quantum GAN architectures
-- Develop hybrid quantum-classical training methodologies
-- Evaluate quantum circuit expressivity in adversarial learning
+The repository contains a functional quantum GAN implementation with:
 
-## Architecture
-
-### Core Components
-
-The framework implements a modular architecture supporting various generator and discriminator combinations:
-
-- **Classical Components**: Traditional neural network implementations
-- **Quantum Continuous Variable**: Photonic quantum computing using Strawberry Fields
-- **Quantum Discrete Variable**: Qubit-based quantum computing using PennyLane
-- **Hybrid Architectures**: Mixed classical-quantum configurations
-
-### Mathematical Framework
-
-The adversarial training follows the minimax objective:
-
-```
-min_G max_D V(D,G) = E_x[log D(x)] + E_z[log(1 - D(G(z)))]
-```
-
-Where quantum components introduce additional considerations:
-- Quantum parameter optimization requires specialized gradient handling
-- Circuit depth affects expressivity and trainability
-- Measurement strategies impact information extraction
+- **Working quantum components**: QuantumSFGenerator and QuantumSFDiscriminator with verified gradient flow
+- **Training framework**: QGANSFTrainer with comprehensive monitoring and quality assessment
+- **Tutorial notebooks**: Step-by-step examples for training quantum GANs
+- **Google Colab support**: Template for cloud-based training
 
 ## Installation
 
 ### Prerequisites
 
 - Python 3.8+
-- TensorFlow 2.13+
+- TensorFlow 2.8+
+- Strawberry Fields
 - NumPy, SciPy, Matplotlib
-- scikit-learn for classical ML utilities
-
-### Quantum Dependencies (Optional)
-
-For full quantum functionality:
-
-```bash
-pip install strawberryfields  # Continuous variable quantum computing
-pip install pennylane        # Discrete variable quantum computing
-```
 
 ### Setup
 
@@ -63,62 +32,57 @@ cd QNNCV
 pip install -r requirements.txt
 ```
 
-## Usage
+### Key Dependencies
 
-### Basic Training
-
-```python
-from src.training.qgan_trainer import QGAN
-from src.models.generators.classical_generator import ClassicalGenerator
-from src.models.discriminators.classical_discriminator import ClassicalDiscriminator
-from src.utils.data_utils import load_synthetic_data
-
-# Load or generate data
-data = load_synthetic_data(dataset_type="spiral", num_samples=2000)
-
-# Initialize components
-generator = ClassicalGenerator(latent_dim=10, output_dim=2)
-discriminator = ClassicalDiscriminator(input_dim=2)
-
-# Create and train QGAN
-qgan = QGAN(generator, discriminator)
-history = qgan.train(data, epochs=100, batch_size=32)
+```bash
+pip install strawberryfields tensorflow numpy scipy matplotlib
 ```
 
-### Quantum Components
+## Quick Start
+
+### Basic Usage
 
 ```python
-from src.models.generators.quantum_continuous_generator_enhanced import QuantumContinuousGeneratorEnhanced
-from src.models.discriminators.quantum_continuous_discriminator import QuantumContinuousDiscriminator
+from src.models.generators.quantum_sf_generator import QuantumSFGenerator
+from src.models.discriminators.quantum_sf_discriminator import QuantumSFDiscriminator
+from src.training.qgan_sf_trainer import QGANSFTrainer
 
-# Quantum generator with continuous variables
-quantum_gen = QuantumContinuousGeneratorEnhanced(n_qumodes=4, latent_dim=10)
+# Create quantum components
+generator = QuantumSFGenerator(n_modes=2, latent_dim=2, layers=2, cutoff_dim=8)
+discriminator = QuantumSFDiscriminator(n_modes=1, input_dim=2, layers=1, cutoff_dim=8)
 
-# Quantum discriminator
-quantum_disc = QuantumContinuousDiscriminator(n_qumodes=4, input_dim=4)
+# Create trainer
+trainer = QGANSFTrainer(generator, discriminator, latent_dim=2)
 
-# Hybrid training
-qgan = QGAN(quantum_gen, quantum_disc)
+# Train on your data
+history = trainer.train(data, epochs=100, batch_size=16)
 ```
+
+### Tutorial Notebooks
+
+1. **tutorials/minimal_sf_qgan.ipynb**: Basic 20-epoch training example
+2. **tutorials/extended_sf_qgan_training.ipynb**: Comprehensive 100+ epoch training with monitoring
+3. **tutorials/complete_cv_sf_qgan_template.ipynb**: Google Colab template
 
 ## Project Structure
 
 ```
 QNNCV/
-├── src/                          # Source code
-│   ├── models/                   # Neural network implementations
-│   │   ├── generators/           # Generator architectures
-│   │   └── discriminators/       # Discriminator architectures
-│   ├── training/                 # Training framework
-│   └── utils/                    # Utilities and metrics
+├── src/                          # Production code
+│   ├── models/
+│   │   ├── generators/           # QuantumSFGenerator
+│   │   └── discriminators/       # QuantumSFDiscriminator  
+│   ├── training/                 # QGANSFTrainer
+│   └── utils/                    # Warning suppression, utilities
+├── tutorials/                    # Working examples and notebooks
+├── legacy/                       # Deprecated implementations
+│   ├── generators/               # Old generators with broken gradients
+│   ├── discriminators/           # Old discriminators  
+│   ├── utils/                    # Fake gradient implementations
+│   └── test_files/               # Historical test files
 ├── tests/                        # Test suite
-│   ├── unit/                     # Unit tests
-│   ├── integration/              # Integration tests
-│   └── results/                  # Test outputs
 ├── data/                         # Dataset directory
-├── docs/                         # Documentation
-├── config/                       # Configuration files
-└── requirements.txt              # Dependencies
+└── config/                       # Configuration files
 ```
 
 ## Quantum Circuit Implementations
