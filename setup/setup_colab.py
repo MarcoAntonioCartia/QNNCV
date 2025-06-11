@@ -58,8 +58,8 @@ def install_core_packages():
     
     # Install packages in specific order to handle SciPy compatibility
     core_packages = [
-        "numpy>=1.21.0",
-        "scipy>=1.7.0",  # Install SciPy first
+        "numpy>=1.21.0,<1.25.0",
+        "scipy>=1.0.0,<1.14.0",  # Pin to versions that still have simps function
     ]
     
     # Install numpy and scipy first
@@ -115,8 +115,8 @@ def install_tensorflow():
     """Install TensorFlow with GPU support."""
     print("Installing TensorFlow...")
     
-    # Install TensorFlow (Colab usually has this, but ensure latest version)
-    success, stdout, stderr = run_command("pip install -q 'tensorflow>=2.8.0'")
+    # Install TensorFlow with version constraints from requirements.txt
+    success, stdout, stderr = run_command("pip install -q 'tensorflow>=2.13.0,<=2.15.0'")
     
     if success:
         print("    ✓ TensorFlow installed")
