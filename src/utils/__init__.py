@@ -18,7 +18,7 @@ from .metrics import (
 
 # Import compatibility patches first
 from .scipy_compat import _patch_scipy_simps
-from .tensorflow_compat import configure_tensorflow_for_quantum, test_tensorflow_quantum_compatibility
+from .tensorflow_compat import configure_tensorflow_for_quantum, suppress_complex_warnings, QuantumExecutionContext
 
 __all__ = [
     'load_dataset',
