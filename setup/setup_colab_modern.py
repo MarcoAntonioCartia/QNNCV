@@ -357,10 +357,10 @@ def provide_usage_instructions(gpu_info: Dict[str, any]):
     print("   - tutorials/complete_cv_sf_qgan_template.ipynb")
     
     if gpu_info['available']:
-        print(f"\n🚀 GPU ACCELERATION ENABLED ({gpu_info['count']} GPU(s))")
+        print(f"\nGPU ACCELERATION ENABLED ({gpu_info['count']} GPU(s))")
         print("   Your quantum GAN training will use GPU acceleration!")
     else:
-        print("\n💻 CPU MODE")
+        print("\nCPU MODE")
         print("   Training will use CPU. For faster training, switch to GPU runtime.")
     
     print("\n" + "=" * 70)
@@ -451,11 +451,11 @@ def main() -> bool:
     overall_success = core_success and functionality_test
     
     if overall_success:
-        print("\n🎉 SETUP COMPLETED SUCCESSFULLY!")
+        print("\nSETUP COMPLETED SUCCESSFULLY!")
         provide_usage_instructions(gpu_info)
         return True
     else:
-        print("\n❌ SETUP FAILED!")
+        print("\nSETUP FAILED!")
         print("Check the error messages above for details.")
         return False
 
@@ -464,15 +464,15 @@ if __name__ == "__main__":
     try:
         success = main()
         if success:
-            print("\n✅ QNNCV is ready for quantum GAN experiments!")
+            print("\nQNNCV is ready for quantum GAN experiments!")
         else:
-            print("\n❌ Setup failed. Please check the errors above.")
+            print("\nSetup failed. Please check the errors above.")
             sys.exit(1)
     except KeyboardInterrupt:
-        print("\n\n⚠ Setup interrupted by user")
+        print("\n\nSetup interrupted by user")
         sys.exit(1)
     except Exception as e:
-        print(f"\n💥 Unexpected error during setup: {e}")
+        print(f"\nUnexpected error during setup: {e}")
         import traceback
         traceback.print_exc()
         sys.exit(1)
