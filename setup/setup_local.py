@@ -387,7 +387,7 @@ def provide_local_usage_instructions(gpu_info: Dict[str, any]):
     print("LOCAL DEVELOPMENT SETUP COMPLETE")
     print("=" * 70)
     
-    print("\n🎯 NEXT STEPS FOR LOCAL DEVELOPMENT:")
+    print("\nNEXT STEPS FOR LOCAL DEVELOPMENT:")
     
     print("\n1. Test your setup:")
     print("   python -c \"from utils.compatibility import apply_all_compatibility_patches; apply_all_compatibility_patches()\"")
@@ -396,7 +396,7 @@ def provide_local_usage_instructions(gpu_info: Dict[str, any]):
     print("   python -c \"")
     print("   from models.generators.quantum_sf_generator import QuantumSFGenerator")
     print("   gen = QuantumSFGenerator(n_modes=2, latent_dim=2)")
-    print("   print('✓ Local setup working!')\"")
+    print("   print('Local setup working!')\"")
     
     print("\n3. Try the tutorials locally:")
     print("   - Open tutorials/minimal_sf_qgan.ipynb in Jupyter")
@@ -408,10 +408,10 @@ def provide_local_usage_instructions(gpu_info: Dict[str, any]):
     print("   - The compatibility patches will work the same way")
     
     if gpu_info['available']:
-        print(f"\n🚀 LOCAL GPU DETECTED ({gpu_info['count']} GPU(s))")
+        print(f"\nLOCAL GPU DETECTED ({gpu_info['count']} GPU(s))")
         print("   You can test GPU acceleration locally!")
     else:
-        print("\n💻 CPU MODE (Local Development)")
+        print("\nCPU MODE (Local Development)")
         print("   Perfect for development and testing")
         print("   Switch to Colab GPU runtime for faster training")
     
@@ -508,11 +508,11 @@ def main() -> bool:
     overall_success = core_success and functionality_test and qgan_test
     
     if overall_success:
-        print("\n🎉 LOCAL SETUP COMPLETED SUCCESSFULLY!")
+        print("\nLOCAL SETUP COMPLETED SUCCESSFULLY!")
         provide_local_usage_instructions(gpu_info)
         return True
     else:
-        print("\n❌ LOCAL SETUP FAILED!")
+        print("\nLOCAL SETUP FAILED!")
         print("Check the error messages above for details.")
         return False
 
@@ -521,16 +521,16 @@ if __name__ == "__main__":
     try:
         success = main()
         if success:
-            print("\n✅ QNNCV local development environment is ready!")
+            print("\nQNNCV local development environment is ready!")
             print("You can now develop and test locally before deploying to Colab.")
         else:
-            print("\n❌ Local setup failed. Please check the errors above.")
+            print("\nLocal setup failed. Please check the errors above.")
             sys.exit(1)
     except KeyboardInterrupt:
-        print("\n\n⚠ Setup interrupted by user")
+        print("\n\nSetup interrupted by user")
         sys.exit(1)
     except Exception as e:
-        print(f"\n💥 Unexpected error during setup: {e}")
+        print(f"\nUnexpected error during setup: {e}")
         import traceback
         traceback.print_exc()
         sys.exit(1)
