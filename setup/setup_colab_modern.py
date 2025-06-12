@@ -173,6 +173,9 @@ def apply_compatibility_patches() -> bool:
     print("\nApplying compatibility patches...")
     
     try:
+        # Import utils package first to trigger auto-patching
+        import utils
+        
         # Import the compatibility module
         from utils.compatibility import apply_all_compatibility_patches
         

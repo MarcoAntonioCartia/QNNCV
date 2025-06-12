@@ -6,6 +6,7 @@ This module provides compatibility patches for modern package versions:
 - NumPy 2.0+ compatibility (restored deprecated aliases)
 - SciPy 1.14+ compatibility (simps -> simpson transition)
 - Strawberry Fields compatibility with modern packages
+- Automatic import hooks to ensure patches are applied before problematic imports
 
 Usage:
     from utils.compatibility import apply_all_compatibility_patches
@@ -13,11 +14,19 @@ Usage:
 
 Or import specific patches:
     from utils.compatibility import apply_numpy_2_compatibility, apply_scipy_compatibility
+
+Auto-patching:
+    The module automatically applies critical patches when imported to prevent
+    import-time failures with packages like Strawberry Fields.
 """
 
 import sys
 import warnings
-from typing import Optional, Dict, Any
+import importlib.util
+from typing import Optional, Dict, Any, Set
+
+# Global flag to track if patches have been applied
+_patches_applied: Set[str] = set()
 
 
 def get_package_version(package_name: str) -> Optional[str]:
@@ -31,6 +40,77 @@ def get_package_version(package_name: str) -> Optional[str]:
             return getattr(module, '__version__', 'unknown')
         except:
             return None
+
+
+def apply_scipy_compatibility_immediate() -> bool:
+    """
+    Apply SciPy compatibility patches immediately and silently.
+    
+    This is designed to be called before any problematic imports.
+    Returns True if successful, False otherwise.
+    """
+    if 'scipy_immediate' in _patches_applied:
+        return True
+    
+    try:
+        import scipy.integrate
+        
+        # Check if simps function exists
+        if not hasattr(scipy.integrate, 'simps'):
+            if hasattr(scipy.integrate, 'simpson'):
+                # Create simps as an alias to simpson
+                def simps(y, x=None, dx=1.0, axis=-1, even='avg'):
+                    """
+                    Compatibility wrapper for scipy.integrate.simpson.
+                    
+                    This function provides backward compatibility for the deprecated
+                    scipy.integrate.simps function by wrapping scipy.integrate.simpson.
+                    """
+                    # simpson doesn't have 'even' parameter, so we ignore it for compatibility
+                    return scipy.integrate.simpson(y, x=x, dx=dx, axis=axis)
+                
+                # Add the function to scipy.integrate
+                scipy.integrate.simps = simps
+                _patches_applied.add('scipy_immediate')
+                return True
+            else:
+                return False
+        else:
+            _patches_applied.add('scipy_immediate')
+            return True
+        
+    except Exception:
+        return False
+
+
+def install_import_hook():
+    """
+    Install an import hook that applies SciPy patches before Strawberry Fields imports.
+    """
+    if 'import_hook' in _patches_applied:
+        return
+    
+    # Store the original __import__ function
+    # __builtins__ can be either a module or a dict depending on context
+    if isinstance(__builtins__, dict):
+        original_import = __builtins__['__import__']
+    else:
+        original_import = __builtins__.__import__
+    
+    def patched_import(name, globals=None, locals=None, fromlist=(), level=0):
+        # If someone is trying to import strawberryfields, apply SciPy patch first
+        if name == 'strawberryfields' or (fromlist and 'strawberryfields' in str(fromlist)):
+            apply_scipy_compatibility_immediate()
+        
+        # Call the original import
+        return original_import(name, globals, locals, fromlist, level)
+    
+    # Replace the built-in __import__ with our patched version
+    if isinstance(__builtins__, dict):
+        __builtins__['__import__'] = patched_import
+    else:
+        __builtins__.__import__ = patched_import
+    _patches_applied.add('import_hook')
 
 
 def apply_numpy_2_compatibility() -> bool:
@@ -122,7 +202,8 @@ def apply_scipy_compatibility() -> bool:
                     This function provides backward compatibility for the deprecated
                     scipy.integrate.simps function by wrapping scipy.integrate.simpson.
                     """
-                    return scipy.integrate.simpson(y, x=x, dx=dx, axis=axis, even=even)
+                    # simpson doesn't have 'even' parameter, so we ignore it for compatibility
+                    return scipy.integrate.simpson(y, x=x, dx=dx, axis=axis)
                 
                 # Add the function to scipy.integrate
                 scipy.integrate.simps = simps
@@ -364,16 +445,22 @@ def apply_all_compatibility_patches() -> bool:
     return success and all_valid
 
 
-# Auto-apply patches when module is imported (optional)
-def auto_apply_patches():
-    """Automatically apply patches when module is imported."""
-    if hasattr(auto_apply_patches, '_already_applied'):
+def auto_apply_critical_patches():
+    """
+    Automatically apply critical patches that must be applied before imports.
+    This is called when the module is imported.
+    """
+    if 'auto_critical' in _patches_applied:
         return
     
-    print("Auto-applying compatibility patches...")
-    apply_all_compatibility_patches()
-    auto_apply_patches._already_applied = True
+    # Apply SciPy compatibility immediately and silently
+    apply_scipy_compatibility_immediate()
+    
+    # Install import hook for future imports
+    install_import_hook()
+    
+    _patches_applied.add('auto_critical')
 
 
-# Uncomment the next line to auto-apply patches on import
-# auto_apply_patches()
+# Auto-apply critical patches when module is imported
+auto_apply_critical_patches()
