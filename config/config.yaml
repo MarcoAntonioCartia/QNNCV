@@ -1,18 +1,51 @@
-training:  
-  epochs: 500  
-  batch_size: 32  
-  latent_dim: 10  
+training:
+  epochs: 100
+  batch_size: 8
+  latent_dim: 4
 
-components:  
-  generator:  
-    type: "quantum_continuous"  # Options: classical/quantum_discrete/quantum_continuous  
-    n_qumodes: 3  
-    cutoff_dim: 5  
+generator:
+  n_modes: 2
+  layers: 2
+  cutoff_dim: 8
+  encoding_strategy: 'coherent_state'  # Default: coherent state encoding
 
-  discriminator:  
-    type: "classical"  
-    hidden_units: 64  
+discriminator:
+  n_modes: 2
+  layers: 1
+  cutoff_dim: 8
 
-optimizer:  
-  learning_rate: 0.001  
-  beta_1: 0.9  
+optimizer:
+  generator_lr: 5e-4
+  discriminator_lr: 5e-4
+  beta1: 0.5
+  beta2: 0.999
+
+hardware:
+  gpu_memory_limit: null
+  quantum_device: 'cpu'
+  classical_device: 'auto'
+
+metrics:
+  compute_quantum_metrics: true
+  quantum_metrics_interval: 10
+  save_interval: 2
+
+# Experimental configurations for architecture exploration
+experiments:
+  minimal:
+    description: 'Minimal configuration for quick testing'
+    generator: {n_modes: 2, layers: 1, cutoff_dim: 6}
+    discriminator: {n_modes: 1, layers: 1, cutoff_dim: 6}
+    training: {batch_size: 4, epochs: 50}
+  
+  balanced:
+    description: 'Balanced configuration for general use'
+    generator: {n_modes: 2, layers: 2, cutoff_dim: 8}
+    discriminator: {n_modes: 1, layers: 1, cutoff_dim: 8}
+    training: {batch_size: 8, epochs: 100}
+  
+  expressive:
+    description: 'More expressive configuration for complex data'
+    generator: {n_modes: 4, layers: 3, cutoff_dim: 8}
+    discriminator: {n_modes: 2, layers: 2, cutoff_dim: 8}
+    training: {batch_size: 8, epochs: 100}

@@ -227,15 +227,6 @@ optimizer:
   beta2: 0.999
 ```
 
-## Research Applications
-
-This framework enables research in:
-
-- **Quantum Machine Learning**: Variational quantum algorithms for generative modeling
-- **Continuous Variable Quantum Computing**: Leveraging infinite-dimensional Hilbert spaces
-- **Hybrid Algorithms**: Quantum-classical optimization and learning
-- **Quantum Advantage**: Investigating potential quantum speedups in generative tasks
-
 ## System Requirements
 
 ### Minimum Requirements
@@ -252,7 +243,7 @@ This framework enables research in:
 
 Focus areas for contributions:
 
-- **Novel Quantum Architectures**: New circuit designs and parameterizations
+- **Quantum Architectures**: New circuit designs and parameterizations
 - **Training Methodologies**: Improved optimization strategies for quantum parameters
 - **Evaluation Metrics**: Quantum-specific quality measures
 - **Performance Optimization**: Faster quantum simulation techniques
@@ -263,7 +254,6 @@ Focus areas for contributions:
 - **v1.0**: Initial implementation with basic quantum components
 - **v1.1**: Added comprehensive training framework
 - **v1.2**: Google Colab compatibility and automatic setup
-- **v1.3**: Full compatibility patches for modern environments (current)
 
 ## License
 
@@ -272,15 +262,6 @@ Academic and research use. See LICENSE file for details.
 ## Citation
 
 If you use this framework in your research, please cite:
-
-```bibtex
-@software{qnncv2024,
-  title={Quantum Neural Networks for Continuous Variables},
-  author={Your Name},
-  year={2024},
-  url={https://github.com/your-repo/QNNCV}
-}
-```
 
 ## Support
 
