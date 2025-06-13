@@ -205,34 +205,97 @@ class QuantumSFGenerator:
         return self.layers * params_per_layer
     
     def _init_quantum_weights(self):
-        """FIXED: Initialize quantum weights using SF pattern (no tf.clip_by_value)."""
-        self.quantum_weights = self._init_weights_sf_style(
-            self.n_modes, 
-            self.layers,
-            active_sd=0.0001,
-            passive_sd=0.1
-        )
-        # CRITICAL FIX: No tf.clip_by_value here - it breaks gradients!
-        logger.info(f"Quantum weights initialized: shape {self.quantum_weights.shape}")
+        """GRADIENT FLOW FIX: Initialize individual quantum variables for maximum gradient flow."""
+        self._init_individual_quantum_variables()
+        logger.info(f"Individual quantum variables initialized: {len(self.individual_quantum_vars)} variables")
     
-    def _init_weights_sf_style(self, modes, layers, active_sd=0.0001, passive_sd=0.1):
-        """Initialize weights following SF tutorial pattern."""
-        M = int(modes * (modes - 1)) + max(1, modes - 1)
+    def _init_individual_quantum_variables(self):
+        """Initialize individual tf.Variable for each quantum parameter (GRADIENT FLOW FIX)."""
+        M = int(self.n_modes * (self.n_modes - 1)) + max(1, self.n_modes - 1)
         
-        # Create weights for each component (following SF tutorial)
-        int1_weights = tf.random.normal(shape=[layers, M], stddev=passive_sd)
-        s_weights = tf.random.normal(shape=[layers, modes], stddev=active_sd)
-        int2_weights = tf.random.normal(shape=[layers, M], stddev=passive_sd)
-        dr_weights = tf.random.normal(shape=[layers, modes], stddev=active_sd)
-        dp_weights = tf.random.normal(shape=[layers, modes], stddev=passive_sd)
-        k_weights = tf.random.normal(shape=[layers, modes], stddev=active_sd)
+        # Create individual variables for each quantum parameter type
+        self.individual_quantum_vars = {}
         
-        weights = tf.concat([
-            int1_weights, s_weights, int2_weights, 
-            dr_weights, dp_weights, k_weights
-        ], axis=1)
+        # Interferometer 1 parameters (individual variables)
+        self.individual_quantum_vars['int1'] = []
+        for layer in range(self.layers):
+            layer_int1 = []
+            for i in range(M):
+                var = tf.Variable(tf.random.normal([], stddev=0.1), name=f'int1_L{layer}_P{i}')
+                layer_int1.append(var)
+            self.individual_quantum_vars['int1'].append(layer_int1)
         
-        return tf.Variable(weights)
+        # Squeezing parameters (individual variables)
+        self.individual_quantum_vars['squeeze'] = []
+        for layer in range(self.layers):
+            layer_squeeze = []
+            for i in range(self.n_modes):
+                var = tf.Variable(tf.random.normal([], stddev=0.0001), name=f'squeeze_L{layer}_M{i}')
+                layer_squeeze.append(var)
+            self.individual_quantum_vars['squeeze'].append(layer_squeeze)
+        
+        # Interferometer 2 parameters (individual variables)
+        self.individual_quantum_vars['int2'] = []
+        for layer in range(self.layers):
+            layer_int2 = []
+            for i in range(M):
+                var = tf.Variable(tf.random.normal([], stddev=0.1), name=f'int2_L{layer}_P{i}')
+                layer_int2.append(var)
+            self.individual_quantum_vars['int2'].append(layer_int2)
+        
+        # Displacement r parameters (individual variables)
+        self.individual_quantum_vars['disp_r'] = []
+        for layer in range(self.layers):
+            layer_disp_r = []
+            for i in range(self.n_modes):
+                var = tf.Variable(tf.random.normal([], stddev=0.0001), name=f'disp_r_L{layer}_M{i}')
+                layer_disp_r.append(var)
+            self.individual_quantum_vars['disp_r'].append(layer_disp_r)
+        
+        # Displacement phi parameters (individual variables)
+        self.individual_quantum_vars['disp_phi'] = []
+        for layer in range(self.layers):
+            layer_disp_phi = []
+            for i in range(self.n_modes):
+                var = tf.Variable(tf.random.normal([], stddev=0.1), name=f'disp_phi_L{layer}_M{i}')
+                layer_disp_phi.append(var)
+            self.individual_quantum_vars['disp_phi'].append(layer_disp_phi)
+        
+        # Kerr parameters (individual variables)
+        self.individual_quantum_vars['kerr'] = []
+        for layer in range(self.layers):
+            layer_kerr = []
+            for i in range(self.n_modes):
+                var = tf.Variable(tf.random.normal([], stddev=0.0001), name=f'kerr_L{layer}_M{i}')
+                layer_kerr.append(var)
+            self.individual_quantum_vars['kerr'].append(layer_kerr)
+        
+        # Create backward compatibility quantum_weights property
+        self._create_quantum_weights_compatibility()
+    
+    def _create_quantum_weights_compatibility(self):
+        """Create quantum_weights property for backward compatibility."""
+        # This will be dynamically computed when needed
+        pass
+    
+    @property
+    def quantum_weights(self):
+        """Dynamic quantum_weights property that uses individual variables."""
+        # Flatten all individual variables into a single tensor (dynamically)
+        all_vars = []
+        for layer in range(self.layers):
+            # Add all parameters for this layer in the same order as before
+            all_vars.extend(self.individual_quantum_vars['int1'][layer])
+            all_vars.extend(self.individual_quantum_vars['squeeze'][layer])
+            all_vars.extend(self.individual_quantum_vars['int2'][layer])
+            all_vars.extend(self.individual_quantum_vars['disp_r'][layer])
+            all_vars.extend(self.individual_quantum_vars['disp_phi'][layer])
+            all_vars.extend(self.individual_quantum_vars['kerr'][layer])
+        
+        # Stack into matrix form for compatibility (dynamically computed)
+        vars_per_layer = len(all_vars) // self.layers
+        return tf.stack([tf.stack(all_vars[i:i+vars_per_layer]) 
+                        for i in range(0, len(all_vars), vars_per_layer)])
     
     def _create_symbolic_params(self):
         """Create SF symbolic parameters following tutorial pattern."""
@@ -302,9 +365,17 @@ class QuantumSFGenerator:
     
     @property
     def trainable_variables(self):
-        """Return all trainable parameters."""
-        variables = [self.quantum_weights]
+        """Return all individual trainable parameters (GRADIENT FLOW FIX)."""
+        variables = []
+        
+        # Add all individual quantum variables
+        for param_type in self.individual_quantum_vars:
+            for layer in self.individual_quantum_vars[param_type]:
+                variables.extend(layer)
+        
+        # Add classical encoder variables
         variables.extend(self.encoder.trainable_variables)
+        
         return variables
     
     def generate(self, z):
