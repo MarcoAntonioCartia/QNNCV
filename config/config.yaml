@@ -7,7 +7,7 @@ generator:
   n_modes: 2
   layers: 2
   cutoff_dim: 8
-  encoding_strategy: 'coherent_state'  # Default: coherent state encoding
+  encoding_strategy: coherent_state  # Default: coherent state encoding
 
 discriminator:
   n_modes: 2

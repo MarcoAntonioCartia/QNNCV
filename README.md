@@ -8,13 +8,22 @@ This project implements quantum generative adversarial networks (QGANs) using co
 
 ## Current Status
 
-**✅ WORKING IMPLEMENTATION** with full compatibility:
+**WORKING IMPLEMENTATION** with full compatibility:
 
 - **Quantum Components**: QuantumSFGenerator and QuantumSFDiscriminator with verified gradient flow
 - **Training Framework**: QGANSFTrainer with comprehensive monitoring and quality assessment
 - **Google Colab Ready**: Automatic compatibility patches for NumPy 2.0+, SciPy 1.15+, TensorFlow 2.18+
 - **Local Development**: Full local setup with CPU/GPU support
 - **Tutorial Notebooks**: Step-by-step examples for training quantum GANs
+
+**EXPERIMENTAL FEATURES** (early research stage):
+
+- **Quantum Encoding Strategies**: 5 experimental approaches for classical-to-quantum data encoding
+- **Enhanced Generator Architecture**: Extended SF-based generator with configurable encoding strategies
+- **Infrastructure Validation**: Basic testing framework for systematic component validation
+- **Configuration Management**: Early-stage config system for research parameter management
+
+*Note: Experimental features are in active development and may require refinement for production use.*
 
 ## Installation
 
@@ -109,9 +118,13 @@ QNNCV/
 │   │   ├── generators/           # QuantumSFGenerator
 │   │   └── discriminators/       # QuantumSFDiscriminator  
 │   ├── training/                 # QGANSFTrainer
+│   ├── quantum_encodings/        # Experimental encoding strategies (5 types)
+│   ├── config/                   # Configuration management (experimental)
 │   └── utils/                    # Compatibility patches, utilities
 │       ├── __init__.py           # Auto-applies compatibility
 │       ├── compatibility.py      # SciPy/NumPy/TF patches
+│       ├── quantum_metrics.py    # Quantum-specific metrics (experimental)
+│       ├── gpu_memory_manager.py # Resource management (experimental)
 │       └── scipy_compat.py       # SciPy integration fixes
 ├── tutorials/                    # Working examples and notebooks
 ├── legacy/                       # Deprecated implementations
@@ -251,9 +264,9 @@ Focus areas for contributions:
 
 ## Version History
 
-- **v1.0**: Initial implementation with basic quantum components
-- **v1.1**: Added comprehensive training framework
-- **v1.2**: Google Colab compatibility and automatic setup
+- **v0.0**: Initial implementation with basic quantum components
+- **v0.1**: Added comprehensive training framework
+- **v0.2**: Google Colab compatibility and automatic setup
 
 ## License
 

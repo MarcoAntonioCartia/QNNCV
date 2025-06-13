@@ -16,23 +16,47 @@ from strawberryfields import ops
 import logging
 from typing import Optional, Dict, Any
 
-# Import new infrastructure components
+# Initialize logger first
+logger = logging.getLogger(__name__)
+
+# Import new infrastructure components with robust fallback handling
+QuantumGANConfig = None
+QuantumEncodingFactory = None
+HybridGPUManager = None
+QuantumMetrics = None
+
 try:
+    # Try relative imports first (package context)
     from ..config.quantum_gan_config import QuantumGANConfig
-    from ..encodings.quantum_encodings import QuantumEncodingFactory
+    from ..quantum_encodings.quantum_encodings import QuantumEncodingFactory
     from ..utils.gpu_memory_manager import HybridGPUManager
     from ..utils.quantum_metrics import QuantumMetrics
+    logger.info("Infrastructure components imported via relative imports")
 except ImportError:
-    # Fallback for direct execution
-    import sys
-    import os
-    sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
-    from config.quantum_gan_config import QuantumGANConfig
-    from encodings.quantum_encodings import QuantumEncodingFactory
-    from utils.gpu_memory_manager import HybridGPUManager
-    from utils.quantum_metrics import QuantumMetrics
-
-logger = logging.getLogger(__name__)
+    try:
+        # Try direct imports (notebook/script context)
+        import sys
+        import os
+        
+        # Add src to path if not already there
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        src_dir = os.path.join(current_dir, '..', '..')
+        if src_dir not in sys.path:
+            sys.path.insert(0, src_dir)
+        
+        from config.quantum_gan_config import QuantumGANConfig
+        from quantum_encodings.quantum_encodings import QuantumEncodingFactory
+        from utils.gpu_memory_manager import HybridGPUManager
+        from utils.quantum_metrics import QuantumMetrics
+        logger.info("Infrastructure components imported via direct imports")
+    except ImportError as e:
+        # Graceful fallback - generator will work without enhanced features
+        logger.warning(f"Enhanced infrastructure not available: {e}")
+        logger.warning("Generator will work with basic functionality only")
+        QuantumGANConfig = None
+        QuantumEncodingFactory = None
+        HybridGPUManager = None
+        QuantumMetrics = None
 
 class QuantumSFGenerator:
     """
@@ -102,13 +126,19 @@ class QuantumSFGenerator:
         """Initialize configuration and resource management."""
         try:
             # Initialize GPU memory manager
-            self.gpu_manager = HybridGPUManager()
+            if HybridGPUManager is not None:
+                self.gpu_manager = HybridGPUManager()
+            else:
+                self.gpu_manager = None
             
             # Initialize quantum metrics
-            self.quantum_metrics = QuantumMetrics()
+            if QuantumMetrics is not None:
+                self.quantum_metrics = QuantumMetrics()
+            else:
+                self.quantum_metrics = None
             
             # Load configuration if not provided
-            if self.config is None:
+            if self.config is None and QuantumGANConfig is not None:
                 self.config = QuantumGANConfig()
             
             logger.info("Infrastructure components initialized successfully")
@@ -116,14 +146,20 @@ class QuantumSFGenerator:
         except Exception as e:
             logger.warning(f"Failed to initialize infrastructure: {e}")
             logger.warning("Continuing with basic functionality")
+            self.gpu_manager = None
+            self.quantum_metrics = None
     
     def _init_quantum_encoding(self):
         """Initialize quantum encoding strategy."""
         try:
-            self.quantum_encoder = QuantumEncodingFactory.create_encoding(
-                self.encoding_strategy
-            )
-            logger.info(f"Quantum encoding strategy '{self.encoding_strategy}' initialized")
+            if QuantumEncodingFactory is not None:
+                self.quantum_encoder = QuantumEncodingFactory.create_encoding(
+                    self.encoding_strategy
+                )
+                logger.info(f"Quantum encoding strategy '{self.encoding_strategy}' initialized")
+            else:
+                logger.warning("QuantumEncodingFactory not available")
+                self.quantum_encoder = None
             
         except Exception as e:
             logger.warning(f"Failed to initialize quantum encoding: {e}")

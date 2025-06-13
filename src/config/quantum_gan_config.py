@@ -211,42 +211,71 @@ class QuantumGANConfig:
             if section not in self.config:
                 issues.append(f"Missing required section: {section}")
         
+        # Helper function to safely convert to int
+        def safe_int(value, default=0):
+            try:
+                return int(value) if value is not None else default
+            except (ValueError, TypeError):
+                return default
+        
+        # Helper function to safely convert to float
+        def safe_float(value, default=0.0):
+            try:
+                return float(value) if value is not None else default
+            except (ValueError, TypeError):
+                return default
+        
         # Validate generator config
         gen_config = self.config.get('generator', {})
-        if gen_config.get('cutoff_dim', 0) < 4:
+        cutoff_dim = safe_int(gen_config.get('cutoff_dim', 0))
+        n_modes = safe_int(gen_config.get('n_modes', 0))
+        layers = safe_int(gen_config.get('layers', 0))
+        
+        if cutoff_dim < 4:
             issues.append("Generator cutoff_dim should be at least 4")
-        if gen_config.get('n_modes', 0) < 1:
+        if n_modes < 1:
             issues.append("Generator n_modes should be at least 1")
-        if gen_config.get('layers', 0) < 1:
+        if layers < 1:
             issues.append("Generator layers should be at least 1")
         
         # Validate discriminator config
         disc_config = self.config.get('discriminator', {})
-        if disc_config.get('cutoff_dim', 0) < 4:
+        disc_cutoff_dim = safe_int(disc_config.get('cutoff_dim', 0))
+        disc_n_modes = safe_int(disc_config.get('n_modes', 0))
+        disc_layers = safe_int(disc_config.get('layers', 0))
+        
+        if disc_cutoff_dim < 4:
             issues.append("Discriminator cutoff_dim should be at least 4")
-        if disc_config.get('n_modes', 0) < 1:
+        if disc_n_modes < 1:
             issues.append("Discriminator n_modes should be at least 1")
-        if disc_config.get('layers', 0) < 1:
+        if disc_layers < 1:
             issues.append("Discriminator layers should be at least 1")
         
         # Validate training config
         train_config = self.config.get('training', {})
-        if train_config.get('batch_size', 0) < 1:
+        batch_size = safe_int(train_config.get('batch_size', 0))
+        epochs = safe_int(train_config.get('epochs', 0))
+        latent_dim = safe_int(train_config.get('latent_dim', 0))
+        
+        if batch_size < 1:
             issues.append("Batch size should be at least 1")
-        if train_config.get('epochs', 0) < 1:
+        if epochs < 1:
             issues.append("Epochs should be at least 1")
-        if train_config.get('latent_dim', 0) < 1:
+        if latent_dim < 1:
             issues.append("Latent dimension should be at least 1")
         
         # Validate optimizer config
         opt_config = self.config.get('optimizer', {})
-        if opt_config.get('generator_lr', 0) <= 0:
+        gen_lr = safe_float(opt_config.get('generator_lr', 0))
+        disc_lr = safe_float(opt_config.get('discriminator_lr', 0))
+        
+        if gen_lr <= 0:
             issues.append("Generator learning rate should be positive")
-        if opt_config.get('discriminator_lr', 0) <= 0:
+        if disc_lr <= 0:
             issues.append("Discriminator learning rate should be positive")
         
         # Validate encoding strategy
-        encoding_strategy = gen_config.get('encoding_strategy', '')
+        encoding_strategy = str(gen_config.get('encoding_strategy', '')).strip().strip("'\"")
         valid_strategies = [
             'coherent_state', 'direct_displacement', 'angle_encoding', 
             'sparse_parameter', 'classical_neural'
