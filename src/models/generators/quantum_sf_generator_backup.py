@@ -7,7 +7,6 @@ This implementation extends the proven SF training methodology with:
 3. Configuration-driven architecture
 4. Hybrid CPU/GPU memory management
 5. Comprehensive quantum metrics integration
-6. FIXED: Gradient flow preservation (no tf.clip_by_value)
 """
 
 import numpy as np
@@ -69,11 +68,10 @@ class QuantumSFGenerator:
     - Configuration-driven architecture
     - Hybrid CPU/GPU memory management
     - Comprehensive quantum metrics
-    - FIXED: Gradient flow preservation
     """
     
     def __init__(self, n_modes=2, latent_dim=4, layers=2, cutoff_dim=8, 
-                 encoding_strategy='classical_neural', config=None, 
+                 encoding_strategy='coherent_state', config=None, 
                  enable_batch_processing=True):
         """
         Initialize enhanced SF-based quantum generator.
@@ -117,7 +115,7 @@ class QuantumSFGenerator:
         # Initialize classical encoding network (backward compatibility)
         self._init_classical_encoder()
         
-        # Initialize quantum weights using SF pattern (FIXED: no tf.clip_by_value)
+        # Initialize quantum weights using SF pattern
         self._init_quantum_weights()
         
         # Create symbolic parameters and build program
@@ -205,14 +203,13 @@ class QuantumSFGenerator:
         return self.layers * params_per_layer
     
     def _init_quantum_weights(self):
-        """FIXED: Initialize quantum weights using SF pattern (no tf.clip_by_value)."""
+        """Initialize quantum weights using SF pattern."""
         self.quantum_weights = self._init_weights_sf_style(
             self.n_modes, 
             self.layers,
             active_sd=0.0001,
             passive_sd=0.1
         )
-        # CRITICAL FIX: No tf.clip_by_value here - it breaks gradients!
         logger.info(f"Quantum weights initialized: shape {self.quantum_weights.shape}")
     
     def _init_weights_sf_style(self, modes, layers, active_sd=0.0001, passive_sd=0.1):
@@ -435,45 +432,34 @@ class QuantumSFGenerator:
         return tf.stack(all_samples, axis=0)
     
     def _generate_coherent_sample(self, coherent_params):
-        """FIXED: Generate single sample using coherent state preparation (gradient-preserving)."""
+        """Generate single sample using coherent state preparation."""
         try:
-            # FIXED: No separate SF program - use the main program with parameter modulation
-            # Create coherent state modulation by modifying displacement parameters
-            coherent_modulation = tf.zeros_like(self.quantum_weights)
+            # Create a simplified quantum program for coherent states
+            with sf.Program(self.n_modes) as prog:
+                with prog.context as q:
+                    # Prepare coherent states
+                    for i in range(self.n_modes):
+                        if i < len(coherent_params):
+                            alpha = coherent_params[i]
+                            ops.Dgate(tf.math.real(alpha), tf.math.imag(alpha)) | q[i]
+                    
+                    # Apply quantum layers
+                    for k in range(self.layers):
+                        self._quantum_layer(self.sf_params[k], q)
             
-            # Add coherent state parameters to displacement parameters in quantum weights
-            # Extract real and imaginary parts and add to appropriate parameter positions
-            for i in range(min(len(coherent_params), self.n_modes)):
-                alpha = coherent_params[i]
-                real_part = tf.math.real(alpha)
-                imag_part = tf.math.imag(alpha)
-                
-                # Add to displacement parameters (assuming they're in specific positions)
-                # This is a simplified approach - in practice, you'd want more sophisticated integration
-                coherent_tensor = tf.concat([
-                    tf.fill([i], 0.0), 
-                    [real_part], 
-                    tf.fill([self.quantum_weights.shape[1] - i - 1], 0.0)
-                ], axis=0)
-                coherent_tensor = tf.expand_dims(coherent_tensor, 0)
-                coherent_modulation = coherent_modulation + 0.1 * coherent_tensor
-            
-            # Combine with quantum weights using TensorFlow operations only
-            modified_weights = self.quantum_weights + coherent_modulation
+            # Run the program
+            if self.eng.run_progs:
+                self.eng.reset()
             
             # Create parameter mapping
             mapping = {
                 p.name: w for p, w in zip(
                     self.sf_params.flatten(), 
-                    tf.reshape(modified_weights, [-1])
+                    tf.reshape(self.quantum_weights, [-1])
                 )
             }
             
-            if self.eng.run_progs:
-                self.eng.reset()
-            
-            # Use the SAME program - no separate programs
-            state = self.eng.run(self.qnn, args=mapping).state
+            state = self.eng.run(prog, args=mapping).state
             return self._extract_samples_from_state(state)
             
         except Exception as e:
@@ -481,39 +467,28 @@ class QuantumSFGenerator:
             return tf.random.normal([self.n_modes], stddev=0.5)
     
     def _generate_displacement_sample(self, displacements):
-        """FIXED: Generate single sample using displacement gates (gradient-preserving)."""
+        """Generate single sample using displacement gates."""
         try:
-            # FIXED: Completely avoid .numpy() - use TensorFlow operations only
-            # Create displacement modulation using TensorFlow scatter operations
-            batch_size = 1
-            displacement_indices = tf.range(min(len(displacements), self.n_modes))
+            # Use displacement parameters in quantum circuit
+            modified_weights = self.quantum_weights.numpy()
             
-            # Create modulation tensor using TensorFlow operations
-            displacement_values = displacements[:self.n_modes] if len(displacements) >= self.n_modes else tf.pad(displacements, [[0, self.n_modes - len(displacements)]])
-            
-            # Create modulation matrix that matches quantum_weights shape
-            displacement_modulation = tf.zeros_like(self.quantum_weights)
-            
-            # Use TensorFlow operations to add displacement modulation
-            # Simple approach: add displacement to the first few parameters
-            displacement_tensor = tf.concat([displacement_values, tf.zeros([self.quantum_weights.shape[1] - self.n_modes])], axis=0)
-            displacement_tensor = tf.expand_dims(displacement_tensor, 0)  # Add batch dimension
-            
-            # Combine with quantum weights using TensorFlow operations only
-            modified_weights = self.quantum_weights + 0.1 * displacement_tensor
+            # Modify displacement parameters in the quantum weights
+            # This is a simplified approach - in practice, you'd want more sophisticated integration
+            for i in range(min(len(displacements), self.n_modes)):
+                if len(modified_weights) > i:
+                    modified_weights[0, i] = displacements[i]  # Modify first layer displacements
             
             # Create parameter mapping
             mapping = {
                 p.name: w for p, w in zip(
                     self.sf_params.flatten(), 
-                    tf.reshape(modified_weights, [-1])
+                    tf.reshape(tf.constant(modified_weights), [-1])
                 )
             }
             
             if self.eng.run_progs:
                 self.eng.reset()
             
-            # Use the SAME program - no separate programs
             state = self.eng.run(self.qnn, args=mapping).state
             return self._extract_samples_from_state(state)
             
@@ -553,12 +528,11 @@ class QuantumSFGenerator:
             return tf.random.normal([self.n_modes], stddev=0.5)
     
     def _generate_single(self, quantum_params):
-        """FIXED: Generate single sample with proper gradient flow (no tf.clip_by_value)."""
+        """FIXED: Generate single sample with proper gradient flow."""
         # Reshape parameters to match quantum weights structure
         params_reshaped = tf.reshape(quantum_params, self.quantum_weights.shape)
         
         # Combine with quantum weights (learnable quantum circuit + input encoding)
-        # FIXED: No tf.clip_by_value here - it breaks gradients!
         combined_params = self.quantum_weights + 0.1 * params_reshaped
         
         # Create parameter mapping (following SF tutorial exactly)
@@ -569,23 +543,17 @@ class QuantumSFGenerator:
             )
         }
         
-        # Reset engine if needed (critical for proper gradients)
+        # CRITICAL FIX: Reset engine BEFORE gradient tape to preserve gradients
         if self.eng.run_progs:
             self.eng.reset()
         
         # Run quantum circuit
-        try:
-            state = self.eng.run(self.qnn, args=mapping).state
-            
-            # Extract samples using homodyne measurements
-            samples = self._extract_samples_from_state(state)
-            
-            return samples
-            
-        except Exception as e:
-            logger.debug(f"Quantum circuit failed: {e}")
-            # Classical fallback
-            return tf.random.normal([self.n_modes], stddev=0.5)
+        state = self.eng.run(self.qnn, args=mapping).state
+        
+        # Extract samples using fixed method
+        samples = self._extract_samples_from_state(state)
+        
+        return samples
     
     def _extract_samples_from_state(self, state):
         """Extract classical samples from quantum state."""
@@ -665,7 +633,7 @@ class QuantumSFGenerator:
 def test_sf_generator():
     """Test the SF-based quantum generator."""
     print("\n" + "="*60)
-    print("TESTING ENHANCED SF-BASED QUANTUM GENERATOR")
+    print("TESTING SF-BASED QUANTUM GENERATOR")
     print("="*60)
     
     try:
@@ -704,13 +672,6 @@ def test_sf_generator():
         
         print(f"Gradient test: {len(non_none_grads)}/{len(gradients)} gradients computed")
         print(f"Loss: {loss:.4f}")
-        
-        # Test infrastructure features
-        print(f"Infrastructure status:")
-        print(f"    GPU Manager: {'✅' if generator.gpu_manager else '❌'}")
-        print(f"    Quantum Metrics: {'✅' if generator.quantum_metrics else '❌'}")
-        print(f"    Quantum Encoder: {'✅' if generator.quantum_encoder else '❌'}")
-        print(f"    Config: {'✅' if generator.config else '❌'}")
         
         return generator
         

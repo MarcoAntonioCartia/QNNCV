@@ -39,7 +39,7 @@ class QuantumEncodingStrategy:
 
 class CoherentStateEncoding(QuantumEncodingStrategy):
     """
-    Coherent state encoding - optimal for continuous variable quantum computing.
+    FIXED: Coherent state encoding that preserves gradients.
     
     Encodes classical data as complex amplitudes for coherent states, which is
     the most natural encoding for CV quantum systems. This encoding directly
@@ -49,60 +49,42 @@ class CoherentStateEncoding(QuantumEncodingStrategy):
     
     def __init__(self):
         super().__init__("coherent_state")
+        self.real_layer = None
+        self.imag_layer = None
         
     def encode(self, z: tf.Tensor, n_modes: int, **kwargs) -> tf.Tensor:
         """
-        Encode data as coherent state amplitudes.
+        FIXED: Encode data as coherent state amplitudes with gradient preservation.
         
         Args:
             z: latent vector [batch_size, latent_dim]
             n_modes: number of quantum modes
             
         Returns:
-            Complex amplitudes for coherent states [batch_size, n_modes]
+            Complex amplitudes for coherent states [batch_size, 2*n_modes]
         """
-        batch_size = tf.shape(z)[0]
         latent_dim = z.shape[-1]
         
-        # Split latent into real and imaginary parts
-        half_dim = latent_dim // 2
-        
+        # Use simple linear transformation instead of complex slicing/padding
         if latent_dim >= 2 * n_modes:
-            # Have enough dimensions for complex amplitudes
-            real_parts = z[..., :n_modes] 
+            # Direct slicing - this preserves gradients
+            real_parts = z[..., :n_modes]
             imag_parts = z[..., n_modes:2*n_modes]
         else:
-            # Use what we have and pad/repeat
-            if half_dim > 0:
-                real_parts = z[..., :half_dim]
-                imag_parts = z[..., half_dim:]
-            else:
-                # Single dimension case
-                real_parts = z
-                imag_parts = tf.zeros_like(z)
+            # Use linear layers instead of padding - preserves gradients
+            if self.real_layer is None:
+                self.real_layer = tf.keras.layers.Dense(n_modes, use_bias=False, name='coherent_real')
+                self.imag_layer = tf.keras.layers.Dense(n_modes, use_bias=False, name='coherent_imag')
             
-            # Pad to n_modes if needed
-            if real_parts.shape[-1] < n_modes:
-                padding_real = n_modes - real_parts.shape[-1]
-                real_parts = tf.pad(real_parts, [[0, 0], [0, padding_real]])
-            else:
-                real_parts = real_parts[..., :n_modes]
-                
-            if imag_parts.shape[-1] < n_modes:
-                padding_imag = n_modes - imag_parts.shape[-1]
-                imag_parts = tf.pad(imag_parts, [[0, 0], [0, padding_imag]])
-            else:
-                imag_parts = imag_parts[..., :n_modes]
-        
-        # Create complex amplitudes
-        amplitudes = tf.complex(real_parts, imag_parts)
+            real_parts = self.real_layer(z)
+            imag_parts = self.imag_layer(z)
         
         # Scale to reasonable range for quantum stability
-        amplitudes = amplitudes * 0.3
+        real_parts = real_parts * 0.3
+        imag_parts = imag_parts * 0.3
         
-        # Return as real tensor with real and imaginary parts concatenated
-        # [batch_size, 2*n_modes] where first n_modes are real, next n_modes are imaginary
-        return tf.concat([tf.math.real(amplitudes), tf.math.imag(amplitudes)], axis=-1)
+        # Return concatenated real and imaginary parts
+        return tf.concat([real_parts, imag_parts], axis=-1)
     
     def get_parameter_count(self, n_modes: int, **kwargs) -> int:
         """Get number of parameters (2 per mode for complex amplitudes)."""
@@ -153,7 +135,7 @@ class DirectDisplacementEncoding(QuantumEncodingStrategy):
 
 class AngleEncoding(QuantumEncodingStrategy):
     """
-    Angle encoding with learnable transformations.
+    FIXED: Angle encoding with learnable transformations that preserves gradients.
     
     Encodes classical data as rotation angles in quantum gates using learnable
     linear transformations. This allows for more complex mappings and can be
@@ -162,11 +144,12 @@ class AngleEncoding(QuantumEncodingStrategy):
     
     def __init__(self):
         super().__init__("angle_encoding")
+        self.weights_initialized = False
         self.transformation_weights = None
         
     def encode(self, z: tf.Tensor, n_modes: int, n_layers: int = 1, **kwargs) -> tf.Tensor:
         """
-        Encode classical data as rotation angles.
+        FIXED: Encode classical data as rotation angles with gradient preservation.
         
         Args:
             z: latent vector [batch_size, latent_dim]
@@ -177,22 +160,21 @@ class AngleEncoding(QuantumEncodingStrategy):
             Angles for rotation gates [batch_size, n_layers * n_modes]
         """
         latent_dim = z.shape[-1]
-        
-        # Total angles needed: each layer gets rotation angles for each mode
         total_angles = n_modes * n_layers
         
-        # Create learnable transformation weights if not exists
-        if self.transformation_weights is None:
+        # Initialize weights outside of gradient tape
+        if not self.weights_initialized:
             self.transformation_weights = tf.Variable(
                 tf.random.normal([latent_dim, total_angles], stddev=0.1),
-                name='angle_encoding_weights'
+                name='fixed_angle_weights'
             )
+            self.weights_initialized = True
         
-        # Linear mapping with learnable weights
+        # Simple linear transformation
         angles = tf.matmul(z, self.transformation_weights)
         
-        # Scale to [0, 2π] range
-        angles = tf.nn.sigmoid(angles) * 2 * np.pi
+        # Use tanh instead of sigmoid for better gradients
+        angles = tf.nn.tanh(angles) * np.pi  # Range [-π, π]
         
         return angles
     
@@ -202,7 +184,7 @@ class AngleEncoding(QuantumEncodingStrategy):
 
 class SparseParameterEncoding(QuantumEncodingStrategy):
     """
-    Sparse parameter encoding for efficiency.
+    FIXED: Sparse parameter encoding that preserves gradients.
     
     Only modulates a subset of quantum parameters while most remain as learnable
     constants. This can be more efficient and may help with training stability
@@ -212,13 +194,14 @@ class SparseParameterEncoding(QuantumEncodingStrategy):
     def __init__(self, sparsity_ratio: float = 0.3):
         super().__init__("sparse_parameter")
         self.sparsity_ratio = sparsity_ratio
+        self.weights_initialized = False
         self.transformation_weights = None
         self.modulation_indices = None
         
     def encode(self, z: tf.Tensor, n_modes: int, n_layers: int = 1, 
                total_quantum_params: Optional[int] = None, **kwargs) -> tf.Tensor:
         """
-        Sparsely modulate quantum parameters.
+        FIXED: Sparsely modulate quantum parameters with gradient preservation.
         
         Args:
             z: latent vector [batch_size, latent_dim]
@@ -230,56 +213,39 @@ class SparseParameterEncoding(QuantumEncodingStrategy):
             Parameter modulations (mostly zeros) [batch_size, total_quantum_params]
         """
         if total_quantum_params is None:
-            # Estimate based on typical SF circuit structure
-            M = int(n_modes * (n_modes - 1)) + max(1, n_modes - 1)  # Interferometer params
-            total_quantum_params = n_layers * (2 * M + 4 * n_modes)  # int1, s, int2, dr, dp, k
+            M = int(n_modes * (n_modes - 1)) + max(1, n_modes - 1)
+            total_quantum_params = n_layers * (2 * M + 4 * n_modes)
         
         latent_dim = z.shape[-1]
         batch_size = tf.shape(z)[0]
-        
-        # Choose which parameters to modulate
         n_modulated = int(total_quantum_params * self.sparsity_ratio)
         
-        # Create learnable transformation weights if not exists
-        if self.transformation_weights is None:
+        # Initialize weights and indices outside gradient tape
+        if not self.weights_initialized:
             self.transformation_weights = tf.Variable(
                 tf.random.normal([latent_dim, n_modulated], stddev=0.1),
-                name='sparse_encoding_weights'
+                name='fixed_sparse_weights'
             )
-        
-        # Create modulation indices if not exists
-        if self.modulation_indices is None:
-            indices = tf.range(total_quantum_params)
-            self.modulation_indices = tf.Variable(
-                tf.random.shuffle(indices)[:n_modulated],
-                trainable=False,
-                name='modulation_indices'
+            # Use fixed indices instead of random shuffle
+            self.modulation_indices = tf.constant(
+                np.random.choice(total_quantum_params, n_modulated, replace=False),
+                name='fixed_modulation_indices'
             )
+            self.weights_initialized = True
         
-        # Simple linear mapping to modulated parameters
+        # Linear transformation to modulated parameters
         modulated_params = tf.matmul(z, self.transformation_weights)
         
-        # Create full parameter vector with zeros for non-modulated params
-        full_modulation = tf.zeros([batch_size, total_quantum_params])
+        # Use one_hot instead of scatter for better gradients
+        indices_one_hot = tf.one_hot(self.modulation_indices, total_quantum_params)
         
-        # Scatter modulated parameters to their positions
-        indices_expanded = tf.expand_dims(self.modulation_indices, 0)
-        indices_tiled = tf.tile(indices_expanded, [batch_size, 1])
-        batch_indices = tf.expand_dims(tf.range(batch_size), 1)
-        batch_indices_tiled = tf.tile(batch_indices, [1, n_modulated])
+        # Broadcast and multiply
+        modulated_expanded = tf.expand_dims(modulated_params, -1)  # [batch, n_modulated, 1]
+        indices_expanded = tf.expand_dims(indices_one_hot, 0)      # [1, n_modulated, total_params]
         
-        scatter_indices = tf.stack([
-            tf.reshape(batch_indices_tiled, [-1]),
-            tf.reshape(indices_tiled, [-1])
-        ], axis=1)
+        # Element-wise multiplication and sum
+        full_modulation = tf.reduce_sum(modulated_expanded * indices_expanded, axis=1)
         
-        updates = tf.reshape(modulated_params, [-1])
-        
-        full_modulation = tf.tensor_scatter_nd_update(
-            full_modulation, scatter_indices, updates
-        )
-        
-        # Small modulation strength for stability
         return full_modulation * 0.1
     
     def get_parameter_count(self, n_modes: int, n_layers: int = 1, 

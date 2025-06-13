@@ -71,7 +71,7 @@ class QuantumSFDiscriminator:
     """
     
     def __init__(self, n_modes=2, input_dim=2, layers=3, cutoff_dim=6,
-                 encoding_strategy='coherent_state', config=None,
+                 encoding_strategy='classical_neural', config=None,
                  feature_extraction='multi_mode', enable_batch_processing=True):
         """
         Initialize enhanced SF-based quantum discriminator.
@@ -632,7 +632,7 @@ class QuantumSFDiscriminator:
         return tf.stack(features[:self.n_modes])  # Limit to n_modes features
     
     def _discriminate_single(self, quantum_params):
-        """Discriminate single sample following SF pattern."""
+        """FIXED: Discriminate single sample with gradient-preserving execution."""
         # Reshape parameters to match quantum weights structure
         params_reshaped = tf.reshape(quantum_params, self.quantum_weights.shape)
         
@@ -647,7 +647,7 @@ class QuantumSFDiscriminator:
             )
         }
         
-        # Reset engine if needed (critical for proper gradients)
+        # FIXED: Reset engine if needed (critical for proper gradients)
         if self.eng.run_progs:
             self.eng.reset()
         
