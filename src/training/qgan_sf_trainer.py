@@ -15,6 +15,15 @@ import logging
 import time
 from typing import Dict, Any, Optional
 
+try:
+    from ..utils.quantum_losses import QuantumWassersteinLoss, QuantumMMDLoss
+except ImportError:
+    # For direct execution
+    import sys
+    import os
+    sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+    from utils.quantum_losses import QuantumWassersteinLoss, QuantumMMDLoss
+
 # Import warning suppression utility
 try:
     from ..utils.warning_suppression import clean_training_output, QuantumTrainingLogger
@@ -40,7 +49,7 @@ class QGANSFTrainer:
     
     def __init__(self, generator, discriminator, latent_dim=4,
                  generator_lr=1e-4, discriminator_lr=1e-4,
-                 beta1=0.5, beta2=0.999):
+                 beta1=0.5, beta2=0.999, loss_type='quantum_wasserstein'):
         """
         Initialize SF-based quantum GAN trainer.
         
@@ -56,6 +65,20 @@ class QGANSFTrainer:
         self.generator = generator
         self.discriminator = discriminator
         self.latent_dim = latent_dim
+        # Initialize loss function
+        if loss_type == 'quantum_wasserstein':
+            self.loss_fn = QuantumWassersteinLoss(
+                lambda_gp=10.0,
+                lambda_entropy=0.5,
+                lambda_physics=1.0
+            )
+        elif loss_type == 'quantum_mmd':
+            self.loss_fn = QuantumMMDLoss(sigma=1.0, lambda_entropy=0.1)
+        else:
+            self.loss_fn = None  # Use standard GAN loss
+
+        self.loss_type = loss_type
+        logger.info(f"Using loss function: {loss_type}")
         
         # Initialize optimizers (following SF tutorial pattern)
         self.g_optimizer = tf.keras.optimizers.Adam(
@@ -126,7 +149,7 @@ class QGANSFTrainer:
     
     def train_step_sf(self, real_samples):
         """
-        Single training step following SF methodology.
+        Single training step following SF methodology with quantum loss function.
         
         This follows the exact pattern from SF tutorial:
         1. Reset engines if needed
@@ -150,7 +173,15 @@ class QGANSFTrainer:
             fake_samples = self.generator.generate(z)
             
             # Compute discriminator loss
-            d_loss, _ = self.quantum_gan_loss(real_samples, fake_samples)
+            if self.loss_fn is not None:
+                # Use quantum-enhanced loss
+                d_loss, g_loss, metrics = self.loss_fn(
+                    real_samples, fake_samples, self.generator, self.discriminator
+                )
+            else:
+                # Fallback to standard loss
+                d_loss, g_loss = self.quantum_gan_loss(real_samples, fake_samples)
+                metrics = {}
         
         # Compute and apply discriminator gradients
         d_gradients = d_tape.gradient(d_loss, self.discriminator.trainable_variables)
@@ -168,7 +199,15 @@ class QGANSFTrainer:
             fake_samples = self.generator.generate(z)
             
             # Compute generator loss
-            _, g_loss = self.quantum_gan_loss(real_samples, fake_samples)
+            if self.loss_fn is not None:
+                # Use quantum-enhanced loss
+                _, g_loss, metrics = self.loss_fn(
+                    real_samples, fake_samples, self.generator, self.discriminator
+                )
+            else:
+                # Fallback to standard loss
+                _, g_loss = self.quantum_gan_loss(real_samples, fake_samples)
+                metrics = {}
         
         # Compute and apply generator gradients
         g_gradients = g_tape.gradient(g_loss, self.generator.trainable_variables)
@@ -186,7 +225,8 @@ class QGANSFTrainer:
             'g_loss': g_loss,
             'g_grad_norm': g_grad_norm,
             'd_grad_norm': d_grad_norm,
-            'stability_metric': stability_metric
+            'stability_metric': stability_metric,
+            **metrics
         }
     
     def compute_quantum_metrics(self):
