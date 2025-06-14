@@ -71,7 +71,7 @@ class QuantumSFDiscriminator:
     """
     
     def __init__(self, n_modes=2, input_dim=2, layers=3, cutoff_dim=6,
-                 encoding_strategy='classical_neural', config=None,
+                 encoding_strategy='coherent_state', config=None,
                  feature_extraction='multi_mode', enable_batch_processing=True):
         """
         Initialize enhanced SF-based quantum discriminator.

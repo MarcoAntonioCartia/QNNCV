@@ -73,7 +73,7 @@ class QuantumSFGenerator:
     """
     
     def __init__(self, n_modes=2, latent_dim=4, layers=2, cutoff_dim=8, 
-                 encoding_strategy='classical_neural', config=None, 
+                 encoding_strategy='coherent_state', config=None, 
                  enable_batch_processing=True):
         """
         Initialize enhanced SF-based quantum generator.
