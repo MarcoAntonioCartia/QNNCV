@@ -10,3 +10,12 @@ env/
 
 # Documentation notebooks (external references)
 tutorials/run_quantum_neural_network.ipynb
+src/models/generators/run_state_learner.ipynb
+src/models/generators/run_tutorial_training.ipynb
+
+# Test files (development artifacts)
+test_*.py
+*_test.py
+gradient_preserving_trainer.py
+simplified_infrastructure_test.py
+enhanced_quantum_encodings_design.py
