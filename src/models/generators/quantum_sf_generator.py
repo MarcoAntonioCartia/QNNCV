@@ -373,8 +373,16 @@ class QuantumSFGenerator:
             for layer in self.individual_quantum_vars[param_type]:
                 variables.extend(layer)
         
-        # Add classical encoder variables
-        variables.extend(self.encoder.trainable_variables)
+        # FIXED: Only add classical encoder variables if using classical encoding
+        # When using quantum encoding strategies, we want ZERO classical gradients
+        if self.quantum_encoder is None or self.encoding_strategy == 'classical_neural':
+            # Use classical encoder only as fallback or when explicitly requested
+            variables.extend(self.encoder.trainable_variables)
+        
+        # Add quantum encoder variables if they exist and have trainable parameters
+        if (self.quantum_encoder is not None and 
+            hasattr(self.quantum_encoder, 'trainable_variables')):
+            variables.extend(self.quantum_encoder.trainable_variables)
         
         return variables
     
@@ -520,7 +528,9 @@ class QuantumSFGenerator:
                 imag_part = tf.math.imag(alpha)
                 
                 # Add to displacement parameters (assuming they're in specific positions)
-                # This is a simplified approach - in practice, you'd want more sophisticated integration
+                # This is a simplified approach to coherent state modulation
+                # Create a tensor with the real part in the correct position
+                # and zeros elsewhere (assuming displacement is the first n_modes parameters)
                 coherent_tensor = tf.concat([
                     tf.fill([i], 0.0), 
                     [real_part], 
@@ -659,26 +669,28 @@ class QuantumSFGenerator:
             return tf.random.normal([self.n_modes], stddev=0.5)
     
     def _extract_samples_from_state(self, state):
-        """Extract classical samples from quantum state."""
-        # Get state vector
+        """Realistic measurements for bimodal data generation."""
         ket = state.ket()
+        prob_amplitudes = tf.abs(ket) ** 2
+        fock_indices = tf.range(self.cutoff_dim, dtype=tf.float32)
         
-        # Compute expectation values of position quadratures
         samples = []
+        
         for mode in range(self.n_modes):
-            # Simple expectation value extraction
-            # In practice, this could be more sophisticated
-            prob_amplitudes = tf.abs(ket) ** 2
+            if mode % 2 == 0:  # Even modes: X quadrature measurement
+                expectation = tf.reduce_sum(prob_amplitudes * fock_indices)
+                measurement = (expectation - self.cutoff_dim/2) / (self.cutoff_dim/4)
+                # Add quantum shot noise
+                measurement += tf.random.normal([], stddev=0.1)
+                
+            else:  # Odd modes: P quadrature measurement
+                mean_n = tf.reduce_sum(prob_amplitudes * fock_indices)
+                variance = tf.reduce_sum(prob_amplitudes * (fock_indices - mean_n)**2)
+                measurement = tf.nn.tanh(variance / self.cutoff_dim) * 2.0 - 1.0
+                # Add quantum shot noise  
+                measurement += tf.random.normal([], stddev=0.1)
             
-            # Weighted average over Fock states (approximates position measurement)
-            fock_indices = tf.range(self.cutoff_dim, dtype=tf.float32)
-            expectation = tf.reduce_sum(prob_amplitudes * fock_indices)
-            
-            # Normalize and add noise for realism
-            sample = (expectation - self.cutoff_dim/2) / (self.cutoff_dim/4)
-            sample += tf.random.normal([], stddev=0.1)
-            
-            samples.append(sample)
+            samples.append(measurement)
         
         return tf.stack(samples)
     

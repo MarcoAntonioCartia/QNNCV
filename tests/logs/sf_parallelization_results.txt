@@ -1,0 +1,33 @@
+STRAWBERRY FIELDS PARALLELIZATION TEST RESULTS
+============================================================
+
+Time Scaling Results:
+
+1 circuits:
+  Sequential: 4.606s
+  Batch: 0.009s
+  Threading: 0.010s
+
+2 circuits:
+  Sequential: 0.011s
+  Batch: 0.013s
+  Threading: 0.017s
+
+4 circuits:
+  Sequential: 0.023s
+  Batch: 0.021s
+  Threading: 0.037s
+
+8 circuits:
+  Sequential: 0.044s
+  Batch: 0.050s
+  Threading: 0.078s
+
+16 circuits:
+  Sequential: 0.087s
+  Batch: 0.095s
+  Threading: 0.132s
+
+
+Conclusion: Strawberry Fields processes quantum circuits SEQUENTIALLY.
+No meaningful parallelization is possible with the current architecture.
