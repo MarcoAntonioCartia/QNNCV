@@ -398,15 +398,19 @@ class QuantumSFDiscriminator:
             for layer in self.individual_quantum_vars[param_type]:
                 variables.extend(layer)
         
-        # Add encoder variables (backward compatibility)
-        if hasattr(self, 'encoder'):
-            variables.extend(self.encoder.trainable_variables)
+        # FIXED: Only add classical encoder variables if using classical encoding
+        # When using quantum encoding strategies, we want ZERO classical gradients
+        if self.quantum_encoder is None or self.encoding_strategy == 'classical_neural':
+            # Use classical encoder only as fallback or when explicitly requested
+            if hasattr(self, 'encoder'):
+                variables.extend(self.encoder.trainable_variables)
         
-        # Add quantum encoder variables if available
-        if hasattr(self, 'quantum_encoder') and self.quantum_encoder is not None:
-            if hasattr(self.quantum_encoder, 'trainable_variables'):
-                variables.extend(self.quantum_encoder.trainable_variables)
+        # Add quantum encoder variables if they exist and have trainable parameters
+        if (self.quantum_encoder is not None and 
+            hasattr(self.quantum_encoder, 'trainable_variables')):
+            variables.extend(self.quantum_encoder.trainable_variables)
         
+        # Always add output processor (needed for final classification)
         variables.extend(self.output_processor.trainable_variables)
         return variables
     

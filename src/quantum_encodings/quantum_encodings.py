@@ -39,22 +39,20 @@ class QuantumEncodingStrategy:
 
 class CoherentStateEncoding(QuantumEncodingStrategy):
     """
-    FIXED: Coherent state encoding that preserves gradients.
+    FIXED: Coherent state encoding with ZERO trainable parameters.
     
-    Encodes classical data as complex amplitudes for coherent states, which is
-    the most natural encoding for CV quantum systems. This encoding directly
-    prepares coherent states |α⟩ where α are complex amplitudes derived from
-    classical data.
+    Encodes classical data as complex amplitudes for coherent states using
+    static mathematical transformations only. No tf.keras layers are used.
     """
     
     def __init__(self):
         super().__init__("coherent_state")
-        self.real_layer = None
-        self.imag_layer = None
+        self.static_weights_real = None
+        self.static_weights_imag = None
         
     def encode(self, z: tf.Tensor, n_modes: int, **kwargs) -> tf.Tensor:
         """
-        FIXED: Encode data as coherent state amplitudes with gradient preservation.
+        FIXED: Encode data as coherent state amplitudes with ZERO trainable parameters.
         
         Args:
             z: latent vector [batch_size, latent_dim]
@@ -71,13 +69,25 @@ class CoherentStateEncoding(QuantumEncodingStrategy):
             real_parts = z[..., :n_modes]
             imag_parts = z[..., n_modes:2*n_modes]
         else:
-            # Use linear layers instead of padding - preserves gradients
-            if self.real_layer is None:
-                self.real_layer = tf.keras.layers.Dense(n_modes, use_bias=False, name='coherent_real')
-                self.imag_layer = tf.keras.layers.Dense(n_modes, use_bias=False, name='coherent_imag')
+            # Use STATIC transformation matrices (NO trainable parameters)
+            if self.static_weights_real is None:
+                # Create fixed random transformation matrices (Xavier initialization)
+                import numpy as np
+                np.random.seed(42)  # Fixed seed for reproducibility
+                self.static_weights_real = tf.constant(
+                    np.random.randn(latent_dim, n_modes) * np.sqrt(2.0 / (latent_dim + n_modes)),
+                    dtype=tf.float32,
+                    name='static_coherent_real'
+                )
+                self.static_weights_imag = tf.constant(
+                    np.random.randn(latent_dim, n_modes) * np.sqrt(2.0 / (latent_dim + n_modes)),
+                    dtype=tf.float32,
+                    name='static_coherent_imag'
+                )
             
-            real_parts = self.real_layer(z)
-            imag_parts = self.imag_layer(z)
+            # Apply static transformation (NO trainable variables)
+            real_parts = tf.matmul(z, self.static_weights_real)
+            imag_parts = tf.matmul(z, self.static_weights_imag)
         
         # Scale to reasonable range for quantum stability
         real_parts = real_parts * 0.3
