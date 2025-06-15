@@ -114,11 +114,11 @@ class QuantumSFGenerator:
         # Initialize SF engine and program
         self._init_sf_components()
         
-        # Initialize classical encoding network (backward compatibility)
-        self._init_classical_encoder()
-        
         # Initialize quantum weights using SF pattern (FIXED: no tf.clip_by_value)
         self._init_quantum_weights()
+        
+        # Initialize classical encoding network (backward compatibility) - AFTER quantum weights
+        self._init_classical_encoder()
         
         # Create symbolic parameters and build program
         self._create_symbolic_params()
@@ -183,8 +183,8 @@ class QuantumSFGenerator:
     
     def _init_classical_encoder(self):
         """Initialize classical encoding network (latent → quantum parameters)."""
-        # Calculate number of quantum parameters needed
-        self.num_quantum_params = self._calculate_quantum_params()
+        # Use the parameter count from SF tutorial weights
+        # (This will be set after _init_quantum_weights is called)
         
         self.encoder = tf.keras.Sequential([
             tf.keras.layers.Dense(16, activation='tanh', name='encoder_hidden'),
@@ -205,9 +205,33 @@ class QuantumSFGenerator:
         return self.layers * params_per_layer
     
     def _init_quantum_weights(self):
-        """GRADIENT FLOW FIX: Initialize individual quantum variables for maximum gradient flow."""
-        self._init_individual_quantum_variables()
-        logger.info(f"Individual quantum variables initialized: {len(self.individual_quantum_vars)} variables")
+        """Initialize quantum weights using SF tutorial pattern (FIXED)."""
+        # Use SF tutorial approach: single TensorFlow Variable containing all parameters
+        self.weights = self._init_weights_sf_style(self.n_modes, self.layers)
+        self.num_quantum_params = int(np.prod(self.weights.shape))
+        
+        logger.info(f"SF-style quantum weights initialized: shape {self.weights.shape}")
+        logger.info(f"Total parameters: {self.num_quantum_params}")
+    
+    def _init_weights_sf_style(self, modes, layers, active_sd=0.0001, passive_sd=0.1):
+        """Initialize weights exactly like SF tutorial."""
+        # Number of interferometer parameters
+        M = int(modes * (modes - 1)) + max(1, modes - 1)
+        
+        # Create TensorFlow variables (matching SF tutorial exactly)
+        int1_weights = tf.random.normal(shape=[layers, M], stddev=passive_sd)
+        s_weights = tf.random.normal(shape=[layers, modes], stddev=active_sd)
+        int2_weights = tf.random.normal(shape=[layers, M], stddev=passive_sd)
+        dr_weights = tf.random.normal(shape=[layers, modes], stddev=active_sd)
+        dp_weights = tf.random.normal(shape=[layers, modes], stddev=passive_sd)
+        k_weights = tf.random.normal(shape=[layers, modes], stddev=active_sd)
+        
+        weights = tf.concat(
+            [int1_weights, s_weights, int2_weights, dr_weights, dp_weights, k_weights], 
+            axis=1
+        )
+        
+        return tf.Variable(weights)
     
     def _init_individual_quantum_variables(self):
         """Initialize individual tf.Variable for each quantum parameter (GRADIENT FLOW FIX)."""
@@ -230,7 +254,7 @@ class QuantumSFGenerator:
         for layer in range(self.layers):
             layer_squeeze = []
             for i in range(self.n_modes):
-                var = tf.Variable(tf.random.normal([], stddev=0.0001), name=f'squeeze_L{layer}_M{i}')
+                var = tf.Variable(tf.random.normal([], stddev=0.01), name=f'squeeze_L{layer}_M{i}')
                 layer_squeeze.append(var)
             self.individual_quantum_vars['squeeze'].append(layer_squeeze)
         
@@ -280,32 +304,18 @@ class QuantumSFGenerator:
     
     @property
     def quantum_weights(self):
-        """Dynamic quantum_weights property that uses individual variables."""
-        # Flatten all individual variables into a single tensor (dynamically)
-        all_vars = []
-        for layer in range(self.layers):
-            # Add all parameters for this layer in the same order as before
-            all_vars.extend(self.individual_quantum_vars['int1'][layer])
-            all_vars.extend(self.individual_quantum_vars['squeeze'][layer])
-            all_vars.extend(self.individual_quantum_vars['int2'][layer])
-            all_vars.extend(self.individual_quantum_vars['disp_r'][layer])
-            all_vars.extend(self.individual_quantum_vars['disp_phi'][layer])
-            all_vars.extend(self.individual_quantum_vars['kerr'][layer])
-        
-        # Stack into matrix form for compatibility (dynamically computed)
-        vars_per_layer = len(all_vars) // self.layers
-        return tf.stack([tf.stack(all_vars[i:i+vars_per_layer]) 
-                        for i in range(0, len(all_vars), vars_per_layer)])
+        """Return the SF tutorial style weights."""
+        return self.weights
     
     def _create_symbolic_params(self):
-        """Create SF symbolic parameters following tutorial pattern."""
-        num_params = np.prod(self.quantum_weights.shape)
+        """Create SF symbolic parameters following tutorial exactly."""
+        num_params = self.num_quantum_params
         
-        # Create symbolic parameter array (following SF tutorial exactly)
-        sf_params = np.arange(num_params).reshape(self.quantum_weights.shape).astype(str)
+        # Create symbolic parameter array (SF tutorial pattern)
+        sf_params = np.arange(num_params).reshape(self.weights.shape).astype(str)
         self.sf_params = np.array([self.qnn.params(*i) for i in sf_params])
         
-        logger.info(f"Created {num_params} symbolic parameters")
+        logger.info(f"Created {num_params} symbolic parameters (SF tutorial style)")
     
     def _build_quantum_program(self):
         """Build quantum program using SF layer pattern."""
@@ -365,24 +375,20 @@ class QuantumSFGenerator:
     
     @property
     def trainable_variables(self):
-        """Return all individual trainable parameters (GRADIENT FLOW FIX)."""
-        variables = []
+        """Return trainable variables (SF tutorial style)."""
+        variables = [self.weights]  # Single weights variable like SF tutorial
         
-        # Add all individual quantum variables
-        for param_type in self.individual_quantum_vars:
-            for layer in self.individual_quantum_vars[param_type]:
-                variables.extend(layer)
-        
-        # FIXED: Only add classical encoder variables if using classical encoding
-        # When using quantum encoding strategies, we want ZERO classical gradients
-        if self.quantum_encoder is None or self.encoding_strategy == 'classical_neural':
-            # Use classical encoder only as fallback or when explicitly requested
+        # Add classical encoder if used for backward compatibility
+        if hasattr(self, 'encoder') and self.encoder is not None:
             variables.extend(self.encoder.trainable_variables)
         
         # Add quantum encoder variables if they exist and have trainable parameters
         if (self.quantum_encoder is not None and 
             hasattr(self.quantum_encoder, 'trainable_variables')):
-            variables.extend(self.quantum_encoder.trainable_variables)
+            try:
+                variables.extend(self.quantum_encoder.trainable_variables)
+            except AttributeError:
+                pass  # Quantum encoder doesn't have trainable variables
         
         return variables
     
@@ -634,39 +640,29 @@ class QuantumSFGenerator:
             return tf.random.normal([self.n_modes], stddev=0.5)
     
     def _generate_single(self, quantum_params):
-        """FIXED: Generate single sample with proper gradient flow (no tf.clip_by_value)."""
-        # Reshape parameters to match quantum weights structure
-        params_reshaped = tf.reshape(quantum_params, self.quantum_weights.shape)
+        """Generate using SF tutorial mapping approach (FIXED)."""
         
-        # Combine with quantum weights (learnable quantum circuit + input encoding)
-        # FIXED: No tf.clip_by_value here - it breaks gradients!
-        combined_params = self.quantum_weights + 0.1 * params_reshaped
-        
-        # Create parameter mapping (following SF tutorial exactly)
+        # Create mapping exactly like SF tutorial
         mapping = {
             p.name: w for p, w in zip(
                 self.sf_params.flatten(), 
-                tf.reshape(combined_params, [-1])
+                tf.reshape(self.weights, [-1])
             )
         }
         
-        # Reset engine if needed (critical for proper gradients)
+        # Add small input encoding influence (optional - can be removed for pure SF approach)
+        if quantum_params is not None:
+            input_offset = tf.reshape(quantum_params * 0.01, [-1])  # Very small influence
+            param_keys = list(mapping.keys())
+            for i, key in enumerate(param_keys[:len(input_offset)]):
+                mapping[key] = mapping[key] + input_offset[i]
+        
+        # Reset and run with SF tutorial mapping
         if self.eng.run_progs:
             self.eng.reset()
         
-        # Run quantum circuit
-        try:
-            state = self.eng.run(self.qnn, args=mapping).state
-            
-            # Extract samples using homodyne measurements
-            samples = self._extract_samples_from_state(state)
-            
-            return samples
-            
-        except Exception as e:
-            logger.debug(f"Quantum circuit failed: {e}")
-            # Classical fallback
-            return tf.random.normal([self.n_modes], stddev=0.5)
+        state = self.eng.run(self.qnn, args=mapping).state
+        return self._extract_samples_from_state(state)
     
     def _extract_samples_from_state(self, state):
         """Realistic measurements for bimodal data generation."""
