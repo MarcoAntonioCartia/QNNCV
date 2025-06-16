@@ -92,7 +92,7 @@ class QuantumSFGenerator:
         
         # Mode selection network (small classical component for stable mode selection)
         self.mode_selector = tf.Variable(
-            tf.random.normal([self.latent_dim, 1], stddev=0.1),
+            tf.random.normal([self.late+nt_dim, 1], stddev=0.1),
             name="mode_selector"
         )
         
