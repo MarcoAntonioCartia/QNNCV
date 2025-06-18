@@ -14,6 +14,7 @@ from abc import ABC, abstractmethod
 from quantum.core import PureQuantumCircuit
 from quantum.measurements import RawMeasurementExtractor, HolisticMeasurementExtractor
 from models.transformations import StaticTransformationMatrix
+from utils.tensor_utils import safe_tensor_indexing, ensure_tensor
 
 logger = logging.getLogger(__name__)
 
@@ -122,8 +123,9 @@ class PureQuantumDiscriminator(QuantumDiscriminatorBase):
         # Execute quantum circuits for each sample
         quantum_states = []
         for i in range(batch_size):
-            # Create parameter modulation for this sample
-            sample_encoding = param_encoding[i:i+1]
+            # Create parameter modulation for this sample - use safe indexing
+            sample_encoding = safe_tensor_indexing(param_encoding, i)
+            sample_encoding = tf.expand_dims(sample_encoding, 0)  # Add batch dimension
             
             # Get parameter names for modulation
             param_names = [var.name.split(':')[0] for var in self.circuit.trainable_variables]
@@ -133,7 +135,8 @@ class PureQuantumDiscriminator(QuantumDiscriminatorBase):
             encoding_values = tf.reshape(sample_encoding, [-1])
             for j, name in enumerate(param_names):
                 if j < tf.shape(encoding_values)[0]:
-                    modulation[name] = encoding_values[j] * 0.1  # Small modulation
+                    # Use ensure_tensor for safety
+                    modulation[name] = ensure_tensor(encoding_values[j] * 0.1)  # Small modulation
             
             # Execute circuit without modulation for now
             # TODO: Fix parameter modulation mapping
@@ -169,14 +172,18 @@ class PureQuantumDiscriminator(QuantumDiscriminatorBase):
         
         quantum_states = []
         for i in range(batch_size):
-            sample_encoding = param_encoding[i:i+1]
+            # Use safe tensor indexing
+            sample_encoding = safe_tensor_indexing(param_encoding, i)
+            sample_encoding = tf.expand_dims(sample_encoding, 0)  # Add batch dimension
+            
             param_names = [var.name.split(':')[0] for var in self.circuit.trainable_variables]
             
             modulation = {}
             encoding_values = tf.reshape(sample_encoding, [-1])
             for j, name in enumerate(param_names):
                 if j < tf.shape(encoding_values)[0]:
-                    modulation[name] = encoding_values[j] * 0.1
+                    # Use ensure_tensor for safety
+                    modulation[name] = ensure_tensor(encoding_values[j] * 0.1)
             
             state = self.circuit.execute(modulation)
             quantum_states.append(state)
@@ -228,24 +235,26 @@ class QuantumWassersteinDiscriminator(PureQuantumDiscriminator):
         """
         batch_size = tf.shape(real_data)[0]
         
-        # Interpolate between real and fake
-        alpha = tf.random.uniform([batch_size, 1], 0.0, 1.0)
+        # Interpolate between real and fake - use integer minval for random_uniform
+        alpha = tf.random.uniform([batch_size, 1], minval=0, maxval=1, dtype=tf.float32)
         interpolated = alpha * real_data + (1 - alpha) * fake_data
         
         # Get quantum features for interpolated data
         with tf.GradientTape() as tape:
             tape.watch(interpolated)
             features = self.get_quantum_features(interpolated)
-            # Use L2 norm of features as the critic output
-            critic_output = tf.reduce_sum(features ** 2, axis=1, keepdims=True)
+            # Use L2 norm of features as the critic output - use tf.square instead of ** 2
+            critic_output = tf.reduce_sum(tf.square(features), axis=1, keepdims=True)
         
         # Compute gradients with respect to interpolated data
         gradients = tape.gradient(critic_output, interpolated)
         
         # Compute gradient penalty
         if gradients is not None:
-            gradients_norm = tf.sqrt(tf.reduce_sum(gradients ** 2, axis=1) + 1e-8)
-            gradient_penalty = tf.reduce_mean((gradients_norm - 1.0) ** 2)
+            # Use tf.square instead of ** operator for better compatibility
+            gradients_squared = tf.square(gradients)
+            gradients_norm = tf.sqrt(tf.reduce_sum(gradients_squared, axis=1) + 1e-8)
+            gradient_penalty = tf.reduce_mean(tf.square(gradients_norm - 1.0))
         else:
             gradient_penalty = tf.constant(0.0)
         

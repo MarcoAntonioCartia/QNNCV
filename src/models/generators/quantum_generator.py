@@ -14,6 +14,7 @@ from abc import ABC, abstractmethod
 from quantum.core import PureQuantumCircuit
 from quantum.measurements import RawMeasurementExtractor, HolisticMeasurementExtractor
 from models.transformations import TransformationPair, StaticTransformationMatrix
+from utils.tensor_utils import safe_tensor_indexing, ensure_tensor
 
 logger = logging.getLogger(__name__)
 
@@ -118,8 +119,9 @@ class PureQuantumGenerator(QuantumGeneratorBase):
         # Execute quantum circuits for each sample
         quantum_states = []
         for i in range(batch_size):
-            # Create parameter modulation for this sample
-            sample_encoding = param_encoding[i:i+1]  # Keep batch dimension
+            # Create parameter modulation for this sample - use safe indexing
+            sample_encoding = safe_tensor_indexing(param_encoding, i)
+            sample_encoding = tf.expand_dims(sample_encoding, 0)  # Add batch dimension
             
             # Get parameter names for modulation - use the actual variable names
             param_names = []
@@ -134,7 +136,8 @@ class PureQuantumGenerator(QuantumGeneratorBase):
             encoding_values = tf.reshape(sample_encoding, [-1])  # Flatten
             for j, name in enumerate(param_names):
                 if j < tf.shape(encoding_values)[0]:
-                    modulation[name] = encoding_values[j] * 0.1  # Small modulation
+                    # Use ensure_tensor to guarantee tensor type
+                    modulation[name] = ensure_tensor(encoding_values[j] * 0.1)  # Small modulation
             
             # Execute circuit without modulation for now
             # TODO: Fix parameter modulation mapping
@@ -172,14 +175,18 @@ class PureQuantumGenerator(QuantumGeneratorBase):
         
         batch_size = tf.shape(z)[0]
         for i in range(batch_size):
-            sample_encoding = param_encoding[i:i+1]
+            # Use safe tensor indexing
+            sample_encoding = safe_tensor_indexing(param_encoding, i)
+            sample_encoding = tf.expand_dims(sample_encoding, 0)  # Add batch dimension
+            
             param_names = [var.name.split(':')[0] for var in self.circuit.trainable_variables]
             # Direct modulation
             modulation = {}
             encoding_values = tf.reshape(sample_encoding, [-1])  # Flatten
             for j, name in enumerate(param_names):
                 if j < tf.shape(encoding_values)[0]:
-                    modulation[name] = encoding_values[j] * 0.1
+                    # Use ensure_tensor for safety
+                    modulation[name] = ensure_tensor(encoding_values[j] * 0.1)
             state = self.circuit.execute(modulation)
             quantum_states.append(state)
         

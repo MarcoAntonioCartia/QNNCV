@@ -14,7 +14,7 @@ from datetime import datetime
 
 from .generators import PureQuantumGenerator
 from .discriminators import PureQuantumDiscriminator, QuantumWassersteinDiscriminator
-from utils.quantum_losses import QuantumWassersteinLoss, compute_gradient_penalty
+from losses.quantum_gan_loss import QuantumWassersteinLoss, compute_gradient_penalty
 from utils.quantum_metrics import QuantumMetrics
 from utils.visualization import plot_results, plot_training_history
 

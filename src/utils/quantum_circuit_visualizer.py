@@ -23,13 +23,19 @@ class QuantumCircuitVisualizer:
         Initialize visualizer with a quantum circuit.
         
         Args:
-            quantum_circuit: PureQuantumCircuitCorrected instance
+            quantum_circuit: PureQuantumCircuit instance from our modular architecture
         """
         self.circuit = quantum_circuit
         self.n_modes = quantum_circuit.n_modes
         self.layers = quantum_circuit.layers
-        self.param_names = quantum_circuit.param_names
         self.gate_params = quantum_circuit.trainable_variables
+        
+        # Get parameter names from the gate parameter manager
+        self.param_names = []
+        for var in self.gate_params:
+            # Extract the base name without :0 suffix
+            var_name = var.name.split(':')[0]
+            self.param_names.append(var_name)
         
         # Create parameter mapping
         self._create_parameter_mapping()
@@ -41,9 +47,9 @@ class QuantumCircuitVisualizer:
         for i, param_name in enumerate(self.param_names):
             # Parse parameter name: L{layer}_{gate_type}_{param_type}_{index}
             parts = param_name.split('_')
-            layer = int(parts[0][1:])  # Remove 'L' and convert to int
-            gate_type = parts[1]
-            param_type = parts[2] if len(parts) > 3 else parts[2]
+            layer = int(parts[0][1:]) if parts[0].startswith('L') else 0  # Remove 'L' and convert to int
+            gate_type = parts[1] if len(parts) > 1 else "UNKNOWN"
+            param_type = parts[2] if len(parts) > 2 else "param"
             index = int(parts[-1]) if parts[-1].isdigit() else 0
             
             self.param_map[param_name] = {
@@ -329,7 +335,7 @@ def visualize_circuit(quantum_circuit, style='full', show_values=False, show_gra
     Convenience function to visualize a quantum circuit.
     
     Args:
-        quantum_circuit: PureQuantumCircuitCorrected instance
+        quantum_circuit: PureQuantumCircuit instance
         style (str): 'full', 'compact', or 'list'
         show_values (bool): Show parameter values
         show_gradients (bool): Show gradient information
@@ -351,15 +357,19 @@ def demo_circuit_visualization():
     print("🚀 QUANTUM CIRCUIT VISUALIZATION DEMO")
     print("="*50)
     
-    # Import the corrected circuit class
+    # Import the circuit class from our modular architecture
     try:
-        from pure_quantum_static_matrices import PureQuantumCircuitCorrected
+        import sys
+        import os
+        sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        
+        from quantum.core.quantum_circuit import PureQuantumCircuit
         
         # Create sample circuit
-        circuit = PureQuantumCircuitCorrected(n_modes=3, layers=2, cutoff_dim=6)
+        circuit = PureQuantumCircuit(n_modes=3, layers=2, cutoff_dim=6)
         
         print(f"Created circuit: {circuit.n_modes} modes, {circuit.layers} layers")
-        print(f"Total parameters: {circuit.get_parameter_count()}")
+        print(f"Total parameters: {len(circuit.trainable_variables)}")
         
         # Show different visualization styles
         print("\n" + "🔍 FULL CIRCUIT DIAGRAM:")
@@ -379,8 +389,8 @@ def demo_circuit_visualization():
         return circuit, visualizer
         
     except ImportError as e:
-        print(f"❌ Could not import PureQuantumCircuitCorrected: {e}")
-        print("Make sure pure_quantum_static_matrices.py is in the same directory")
+        print(f"❌ Could not import PureQuantumCircuit: {e}")
+        print("Make sure you're running from the src directory")
         return None, None
 
 
