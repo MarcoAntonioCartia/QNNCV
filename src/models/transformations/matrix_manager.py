@@ -74,7 +74,7 @@ class StaticTransformationMatrix(TransformationMatrixBase):
             
             if self.output_dim > self.input_dim:
                 # Pad with zeros
-                padding = np.zeros((self.input_dim, self.output_dim - self.input_dim))
+                padding = np.zeros((self.input_dim, self.output_dim - self.input_dim), dtype=np.float32)
                 matrix = np.concatenate([orthogonal_base, padding], axis=1)
             else:
                 matrix = orthogonal_base
@@ -88,8 +88,8 @@ class StaticTransformationMatrix(TransformationMatrixBase):
         # Scale for reasonable range
         matrix = matrix * 0.5
         
-        # Convert to constant tensor
-        return tf.constant(matrix, name=f"{self.name}_matrix")
+        # Convert to constant tensor with float32 dtype
+        return tf.constant(matrix, dtype=tf.float32, name=f"{self.name}_matrix")
     
     def transform(self, x: tf.Tensor) -> tf.Tensor:
         """Apply static transformation."""

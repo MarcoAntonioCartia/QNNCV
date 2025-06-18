@@ -120,20 +120,20 @@ class GateParameterManager:
             n_bs = self.n_modes * (self.n_modes - 1) // 2
             n_rot = max(1, self.n_modes - 1)
             
-            layer_symbols['bs1_theta'] = [prog.params(f'L{layer}_BS1_theta_{i}') for i in range(n_bs)]
-            layer_symbols['bs1_phi'] = [prog.params(f'L{layer}_BS1_phi_{i}') for i in range(n_bs)]
-            layer_symbols['rot1_phi'] = [prog.params(f'L{layer}_ROT1_phi_{i}') for i in range(n_rot)]
+            layer_symbols['bs1_theta'] = [prog.params(f'L{layer}_bs1_theta_{i}') for i in range(n_bs)]
+            layer_symbols['bs1_phi'] = [prog.params(f'L{layer}_bs1_phi_{i}') for i in range(n_bs)]
+            layer_symbols['rot1_phi'] = [prog.params(f'L{layer}_rot1_phi_{i}') for i in range(n_rot)]
             
-            layer_symbols['squeeze_r'] = [prog.params(f'L{layer}_SQUEEZE_r_{i}') for i in range(self.n_modes)]
+            layer_symbols['squeeze_r'] = [prog.params(f'L{layer}_squeeze_r_{i}') for i in range(self.n_modes)]
             
-            layer_symbols['bs2_theta'] = [prog.params(f'L{layer}_BS2_theta_{i}') for i in range(n_bs)]
-            layer_symbols['bs2_phi'] = [prog.params(f'L{layer}_BS2_phi_{i}') for i in range(n_bs)]
-            layer_symbols['rot2_phi'] = [prog.params(f'L{layer}_ROT2_phi_{i}') for i in range(n_rot)]
+            layer_symbols['bs2_theta'] = [prog.params(f'L{layer}_bs2_theta_{i}') for i in range(n_bs)]
+            layer_symbols['bs2_phi'] = [prog.params(f'L{layer}_bs2_phi_{i}') for i in range(n_bs)]
+            layer_symbols['rot2_phi'] = [prog.params(f'L{layer}_rot2_phi_{i}') for i in range(n_rot)]
             
-            layer_symbols['disp_r'] = [prog.params(f'L{layer}_DISP_r_{i}') for i in range(self.n_modes)]
-            layer_symbols['disp_phi'] = [prog.params(f'L{layer}_DISP_phi_{i}') for i in range(self.n_modes)]
+            layer_symbols['disp_r'] = [prog.params(f'L{layer}_disp_r_{i}') for i in range(self.n_modes)]
+            layer_symbols['disp_phi'] = [prog.params(f'L{layer}_disp_phi_{i}') for i in range(self.n_modes)]
             
-            layer_symbols['kerr_kappa'] = [prog.params(f'L{layer}_KERR_kappa_{i}') for i in range(self.n_modes)]
+            layer_symbols['kerr_kappa'] = [prog.params(f'L{layer}_kerr_kappa_{i}') for i in range(self.n_modes)]
             
             symbolic_params[layer_key] = layer_symbols
         
@@ -157,7 +157,8 @@ class GateParameterManager:
             
             for param_type, param_list in gate_params.items():
                 for i, param_var in enumerate(param_list):
-                    param_name = f'L{layer}_{param_type.upper()}_{i}'
+                    # Use the exact parameter name format that matches the symbolic parameters
+                    param_name = f'L{layer}_{param_type}_{i}'
                     
                     # Get base parameter value
                     base_value = param_var
