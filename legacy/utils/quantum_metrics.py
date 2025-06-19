@@ -1,11 +1,11 @@
 """
 Quantum metrics for evaluating quantum GANs.
 
-This module provides metrics for quantum generative models including:
-- Quantum entanglement entropy (Von Neumann entropy)
-- Multivariate Wasserstein distance for distribution matching
+This module provides alot of metrics for quantum generative models including:
+- Quantum entanglement entropy (Von Neumann entropy, bells inquality-ish test)
+- Multivariate Wasserstein distance for distribution matching (more accurate than 1D approximations)
 - Gradient penalty score for training stability
-- Additional quantum state characterization metrics
+- Additional quantum state characterization metrics (Must improve over time....)
 """
 
 import numpy as np
@@ -145,42 +145,6 @@ class QuantumMetrics:
             logger.warning(f"1D Wasserstein fallback failed: {e}")
             return tf.constant(float('inf'), dtype=tf.float32)
     
-    def quantum_state_purity(self, quantum_state: tf.Tensor) -> tf.Tensor:
-        """
-        Compute quantum state purity: Tr(ρ²).
-        
-        Purity measures how "mixed" a quantum state is:
-        - Pure states: purity = 1
-        - Maximally mixed states: purity = 1/d (d = dimension)
-        
-        Args:
-            quantum_state: Quantum state vector or density matrix
-            
-        Returns:
-            Purity of the quantum state
-        """
-        try:
-            # Convert state vector to density matrix if needed
-            if len(quantum_state.shape) == 2 and quantum_state.shape[0] != quantum_state.shape[1]:
-                # State vector case
-                state_conj = tf.math.conj(quantum_state)
-                density_matrix = tf.einsum('bi,bj->bij', quantum_state, state_conj)
-            else:
-                # Already density matrix
-                density_matrix = quantum_state
-            
-            # Compute ρ²
-            rho_squared = tf.matmul(density_matrix, density_matrix)
-            
-            # Purity = Tr(ρ²)
-            purity = tf.linalg.trace(rho_squared)
-            
-            return tf.math.real(purity)
-            
-        except Exception as e:
-            logger.warning(f"Quantum state purity computation failed: {e}")
-            return tf.constant(0.0, dtype=tf.float32)
-    
     def gradient_penalty_score(self, discriminator, real_batch: tf.Tensor, 
                              fake_batch: tf.Tensor, lambda_gp: float = 10.0) -> tf.Tensor:
         """
@@ -226,6 +190,77 @@ class QuantumMetrics:
             
         except Exception as e:
             logger.warning(f"Gradient penalty computation failed: {e}")
+            return tf.constant(0.0, dtype=tf.float32)
+    
+    def quantum_state_purity(self, quantum_state: tf.Tensor) -> tf.Tensor:
+        """
+        Compute quantum state purity: Tr(ρ²).
+        
+        Purity measures how "mixed" a quantum state is:
+        - Pure states: purity = 1
+        - Maximally mixed states: purity = 1/d (d = dimension)
+        
+        Args:
+            quantum_state: Quantum state vector or density matrix
+            
+        Returns:
+            Purity of the quantum state
+        """
+        try:
+            # Convert state vector to density matrix if needed
+            if len(quantum_state.shape) == 2 and quantum_state.shape[0] != quantum_state.shape[1]:
+                # State vector case
+                state_conj = tf.math.conj(quantum_state)
+                density_matrix = tf.einsum('bi,bj->bij', quantum_state, state_conj)
+            else:
+                # Already density matrix
+                density_matrix = quantum_state
+            
+            # Compute ρ²
+            rho_squared = tf.matmul(density_matrix, density_matrix)
+            
+            # Purity = Tr(ρ²)
+            purity = tf.linalg.trace(rho_squared)
+            
+            return tf.math.real(purity)
+            
+        except Exception as e:
+            logger.warning(f"Quantum state purity computation failed: {e}")
+            return tf.constant(0.0, dtype=tf.float32)
+    
+    def quantum_fidelity(self, state1: tf.Tensor, state2: tf.Tensor) -> tf.Tensor:
+        """
+        Compute quantum fidelity between two quantum states.
+        
+        Fidelity measures the "closeness" or "alikeness" of two quantum states:
+        F(ρ,σ) = Tr(√(√ρ σ √ρ))
+        
+        For pure states: F(|ψ⟩,|φ⟩) = |⟨ψ|φ⟩|²
+        
+        Args:
+            state1: First quantum state
+            state2: Second quantum state
+            
+        Returns:
+            Quantum fidelity between the states
+        """
+        try:
+            # For pure states (state vectors), use overlap formula
+            if len(state1.shape) == 1:
+                state1 = tf.expand_dims(state1, 0)
+            if len(state2.shape) == 1:
+                state2 = tf.expand_dims(state2, 0)
+            
+            # Compute overlap ⟨ψ|φ⟩
+            overlap = tf.reduce_sum(tf.math.conj(state1) * state2, axis=-1)
+            
+            # Fidelity = |⟨ψ|φ⟩|²
+            fidelity = tf.abs(overlap) ** 2
+            
+            return fidelity
+            
+        except Exception as e:
+            logger.warning(f"Quantum fidelity computation failed: {e}")
             return tf.constant(0.0, dtype=tf.float32)
     
     def classical_distribution_metrics(self, real_samples: tf.Tensor, 
@@ -349,3 +384,96 @@ class QuantumMetrics:
             )
         
         return metrics
+
+def test_quantum_metrics():
+    """Test quantum metrics functionality."""
+    print("Testing Quantum Metrics...")
+    print("=" * 50)
+    
+    # Create test data
+    batch_size = 100
+    n_features = 2
+    state_dim = 8
+    
+    # Generate test samples
+    real_samples = tf.random.normal([batch_size, n_features])
+    generated_samples = tf.random.normal([batch_size, n_features]) + 0.5
+    
+    # Generate test quantum state
+    quantum_state = tf.random.normal([batch_size, state_dim], dtype=tf.complex64)
+    quantum_state = quantum_state / tf.linalg.norm(quantum_state, axis=-1, keepdims=True)
+    
+    # Initialize metrics
+    metrics = QuantumMetrics()
+    
+    print(f"Test data shapes:")
+    print(f"  Real samples: {real_samples.shape}")
+    print(f"  Generated samples: {generated_samples.shape}")
+    print(f"  Quantum state: {quantum_state.shape}")
+    
+    # Test quantum entanglement entropy
+    print(f"\nTesting quantum entanglement entropy...")
+    try:
+        entropy = metrics.quantum_entanglement_entropy(quantum_state)
+        print(f"✓ Entanglement entropy: {tf.reduce_mean(entropy):.4f}")
+    except Exception as e:
+        print(f"✗ Entanglement entropy failed: {e}")
+    
+    # Test multivariate Wasserstein distance
+    print(f"\nTesting multivariate Wasserstein distance...")
+    try:
+        wd = metrics.wasserstein_distance_multivariate(real_samples, generated_samples)
+        print(f"✓ Wasserstein distance: {wd:.4f}")
+    except Exception as e:
+        print(f"✗ Wasserstein distance failed: {e}")
+    
+    # Test quantum state purity
+    print(f"\nTesting quantum state purity...")
+    try:
+        purity = metrics.quantum_state_purity(quantum_state)
+        print(f"✓ State purity: {tf.reduce_mean(purity):.4f}")
+    except Exception as e:
+        print(f"✗ State purity failed: {e}")
+    
+    # Test quantum fidelity
+    print(f"\nTesting quantum fidelity...")
+    try:
+        state2 = quantum_state + 0.1 * tf.random.normal(quantum_state.shape, dtype=tf.complex64)
+        state2 = state2 / tf.linalg.norm(state2, axis=-1, keepdims=True)
+        fidelity = metrics.quantum_fidelity(quantum_state, state2)
+        print(f"✓ Quantum fidelity: {tf.reduce_mean(fidelity):.4f}")
+    except Exception as e:
+        print(f"✗ Quantum fidelity failed: {e}")
+    
+    # Test classical distribution metrics
+    print(f"\nTesting classical distribution metrics...")
+    try:
+        classical_metrics = metrics.classical_distribution_metrics(real_samples, generated_samples)
+        print(f"✓ Classical metrics computed:")
+        for key, value in classical_metrics.items():
+            print(f"    {key}: {value:.4f}")
+    except Exception as e:
+        print(f"✗ Classical metrics failed: {e}")
+    
+    # Test comprehensive metrics
+    print(f"\nTesting comprehensive metrics...")
+    try:
+        comprehensive = metrics.compute_comprehensive_metrics(
+            real_samples, generated_samples, quantum_state
+        )
+        print(f"✓ Comprehensive metrics computed:")
+        for key, value in comprehensive.items():
+            if isinstance(value, tf.Tensor):
+                if len(value.shape) == 0:  # Scalar
+                    print(f"    {key}: {value:.4f}")
+                else:  # Vector
+                    print(f"    {key}: mean={tf.reduce_mean(value):.4f}")
+            else:
+                print(f"    {key}: {value}")
+    except Exception as e:
+        print(f"✗ Comprehensive metrics failed: {e}")
+    
+    print(f"\n✓ Quantum metrics testing completed!")
+
+if __name__ == "__main__":
+    test_quantum_metrics()

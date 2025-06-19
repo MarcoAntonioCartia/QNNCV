@@ -1,5 +1,8 @@
 import numpy as np
 import logging
+from typing import Dict, Any, Optional, Tuple, Union
+from scipy.stats import wasserstein_distance
+from scipy.spatial.distance import cdist
 
 # Try to import TensorFlow, but don't fail if it's not available
 try:
@@ -11,6 +14,9 @@ except ImportError:
 # Set up logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# Import QuantumMetrics from quantum_metrics.py
+from .quantum_metrics import QuantumMetrics
 
 def compute_wasserstein_distance(real_samples, generated_samples):
     """
