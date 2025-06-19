@@ -11,10 +11,10 @@ import logging
 from typing import Dict, List, Optional, Any
 from abc import ABC, abstractmethod
 
-from quantum.core import PureQuantumCircuit
-from quantum.measurements import RawMeasurementExtractor, HolisticMeasurementExtractor
-from models.transformations import StaticTransformationMatrix
-from utils.tensor_utils import safe_tensor_indexing, ensure_tensor
+from src.quantum.core import PureQuantumCircuit
+from src.quantum.measurements import RawMeasurementExtractor, HolisticMeasurementExtractor
+from src.models.transformations import StaticTransformationMatrix
+from src.utils.tensor_utils import safe_tensor_indexing, ensure_tensor
 
 logger = logging.getLogger(__name__)
 
