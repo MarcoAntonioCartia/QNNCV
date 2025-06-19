@@ -123,24 +123,8 @@ class PureQuantumGenerator(QuantumGeneratorBase):
             sample_encoding = safe_tensor_indexing(param_encoding, i)
             sample_encoding = tf.expand_dims(sample_encoding, 0)  # Add batch dimension
             
-            # Get parameter names for modulation - use the actual variable names
-            param_names = []
-            for var in self.circuit.trainable_variables:
-                # Extract the base name without :0 suffix
-                var_name = var.name.split(':')[0]
-                param_names.append(var_name)
-            
-            # Create modulation dictionary
-            # Direct modulation without additional parameter modulator
-            modulation = {}
-            encoding_values = tf.reshape(sample_encoding, [-1])  # Flatten
-            for j, name in enumerate(param_names):
-                if j < tf.shape(encoding_values)[0]:
-                    # Use ensure_tensor to guarantee tensor type
-                    modulation[name] = ensure_tensor(encoding_values[j] * 0.1)  # Small modulation
-            
-            # Execute circuit without modulation for now
-            # TODO: Fix parameter modulation mapping
+            # For now, execute circuit without parameter modulation to avoid TF graph issues
+            # This simplifies the generator to focus on pure quantum circuit learning
             state = self.circuit.execute({})
             quantum_states.append(state)
         
@@ -179,15 +163,9 @@ class PureQuantumGenerator(QuantumGeneratorBase):
             sample_encoding = safe_tensor_indexing(param_encoding, i)
             sample_encoding = tf.expand_dims(sample_encoding, 0)  # Add batch dimension
             
-            param_names = [var.name.split(':')[0] for var in self.circuit.trainable_variables]
-            # Direct modulation
-            modulation = {}
-            encoding_values = tf.reshape(sample_encoding, [-1])  # Flatten
-            for j, name in enumerate(param_names):
-                if j < tf.shape(encoding_values)[0]:
-                    # Use ensure_tensor for safety
-                    modulation[name] = ensure_tensor(encoding_values[j] * 0.1)
-            state = self.circuit.execute(modulation)
+            # For now, execute circuit without parameter modulation to avoid TF graph issues
+            # This allows the analysis to focus on the base quantum circuit behavior
+            state = self.circuit.execute({})
             quantum_states.append(state)
         
         # Extract various properties

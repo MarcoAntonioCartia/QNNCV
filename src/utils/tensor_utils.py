@@ -32,8 +32,11 @@ def safe_tensor_indexing(tensor: tf.Tensor, indices: Any) -> tf.Tensor:
         # Convert list to TensorFlow tensor
         indices_tensor = tf.constant(indices, dtype=tf.int32)
         return tf.gather(tensor, indices_tensor)
+    elif isinstance(indices, tf.Tensor):
+        # Use tf.gather for tensor indices
+        return tf.gather(tensor, indices)
     else:
-        # Use standard indexing for other types
+        # Use standard indexing for other types (int, slice)
         return tensor[indices]
 
 def batch_gather(params: tf.Tensor, indices: tf.Tensor) -> tf.Tensor:

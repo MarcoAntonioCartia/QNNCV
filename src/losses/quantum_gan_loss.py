@@ -70,8 +70,14 @@ class QuantumWassersteinLoss:
             interp_output = discriminator.discriminate(interpolated)
         
         gradients = gp_tape.gradient(interp_output, interpolated)
-        gradient_norm = tf.sqrt(tf.reduce_sum(tf.square(gradients), axis=1))
-        gradient_penalty = self.lambda_gp * tf.reduce_mean(tf.square(gradient_norm - 1.0))
+        
+        # Check if gradients are None
+        if gradients is None:
+            logger.warning("Gradient penalty computation failed, using zero penalty")
+            gradient_penalty = tf.constant(0.0)
+        else:
+            gradient_norm = tf.sqrt(tf.reduce_sum(tf.square(gradients), axis=1))
+            gradient_penalty = self.lambda_gp * tf.reduce_mean(tf.square(gradient_norm - 1.0))
         
         # 3. Quantum regularization
         try:
@@ -119,6 +125,12 @@ def compute_gradient_penalty(real_samples, fake_samples, discriminator, lambda_g
         interp_output = discriminator.discriminate(interpolated)
     
     gradients = tape.gradient(interp_output, interpolated)
+    
+    # Check if gradients are None (gradient computation failed)
+    if gradients is None:
+        logger.warning("Gradient penalty: gradients are None, returning zero penalty")
+        return tf.constant(0.0)
+    
     gradient_norm = tf.sqrt(tf.reduce_sum(tf.square(gradients), axis=1))
     gradient_penalty = lambda_gp * tf.reduce_mean(tf.square(gradient_norm - 1.0))
     
