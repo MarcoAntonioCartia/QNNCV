@@ -14,10 +14,10 @@ from datetime import datetime
 
 from .generators import PureQuantumGenerator
 from .discriminators import PureQuantumDiscriminator, QuantumWassersteinDiscriminator
-from losses.quantum_gan_loss import QuantumWassersteinLoss, compute_gradient_penalty
-from utils.quantum_metrics import QuantumMetrics
-from utils.visualization import plot_results, plot_training_history
-from utils.gradient_manager import create_quantum_gradient_manager
+from src.losses.quantum_gan_loss import QuantumWassersteinLoss, compute_gradient_penalty
+from src.utils.quantum_metrics import QuantumMetrics
+from src.utils.visualization import plot_results, plot_training_history
+from src.utils.gradient_manager import create_quantum_gradient_manager
 
 logger = logging.getLogger(__name__)
 
