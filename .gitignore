@@ -7,11 +7,13 @@ env/
 *.csv
 *.dat
 *.pdf
+*.png
 
 # Documentation notebooks (external references)
 tutorials/run_quantum_neural_network.ipynb
 src/models/generators/run_state_learner.ipynb
 src/models/generators/run_tutorial_training.ipynb
+PULL_REQUEST_PHASE_3.md
 
 # Test files (development artifacts)
 test_*.py
@@ -19,3 +21,19 @@ test_*.py
 gradient_preserving_trainer.py
 simplified_infrastructure_test.py
 enhanced_quantum_encodings_design.py
+
+# Jupyter Notebook checkpoints
+*.ipynb_checkpoints
+
+# Pytest cache
+.cache/ 
+
+# Coverage reports
+.coverage
+
+# Legacy files
+legacy/*
+
+
+# Log files
+*.log
