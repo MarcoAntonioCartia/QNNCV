@@ -140,26 +140,20 @@ class QuantumGAN:
                     'd_loss_fake': d_loss_fake
                 }
         
-        # Apply gradients - handle None gradients from quantum circuits
-        d_gradients = tape.gradient(d_loss, self.discriminator.trainable_variables)
+        # Apply gradients using gradient manager for robustness
+        d_gradients = self.d_gradient_manager.safe_gradient(tape, d_loss, self.discriminator.trainable_variables)
         
-        # Check if gradients are None (common with quantum simulators)
-        if d_gradients is None or all(grad is None for grad in d_gradients):
-            logger.warning("Discriminator gradients are None - quantum circuit not differentiable")
-            metrics['d_gradient_warning'] = tf.constant(1.0)
-        else:
-            # Filter out None gradients and apply only valid ones
-            valid_grads_and_vars = [
-                (grad, var) for grad, var in zip(d_gradients, self.discriminator.trainable_variables)
-                if grad is not None
-            ]
-            
-            if valid_grads_and_vars:
-                self.d_optimizer.apply_gradients(valid_grads_and_vars)
-                metrics['d_gradient_warning'] = tf.constant(0.0)
-            else:
-                logger.warning("No valid gradients for discriminator update")
-                metrics['d_gradient_warning'] = tf.constant(1.0)
+        # Apply gradients safely with bounds checking
+        success = self.d_gradient_manager.apply_gradients_safely(
+            self.d_optimizer,
+            d_gradients, 
+            self.discriminator.trainable_variables
+        )
+        
+        # Add gradient manager metrics
+        gradient_summary = self.d_gradient_manager.get_summary()
+        metrics['d_gradient_success'] = tf.constant(1.0 if success else 0.0)
+        metrics['d_gradient_norm'] = tf.constant(gradient_summary.get('recent_gradient_norm', 0.0))
         
         return metrics
     
@@ -185,27 +179,20 @@ class QuantumGAN:
             
             metrics = {'g_loss': g_loss}
         
-        # Apply gradients - handle None gradients from quantum circuits
-        g_gradients = tape.gradient(g_loss, self.generator.trainable_variables)
+        # Apply gradients using gradient manager for robustness
+        g_gradients = self.g_gradient_manager.safe_gradient(tape, g_loss, self.generator.trainable_variables)
         
-        # Check if gradients are None (common with quantum simulators)
-        if g_gradients is None or all(grad is None for grad in g_gradients):
-            logger.warning("Generator gradients are None - quantum circuit not differentiable")
-            # Use a simple parameter perturbation instead
-            metrics['gradient_warning'] = tf.constant(1.0)
-        else:
-            # Filter out None gradients and apply only valid ones
-            valid_grads_and_vars = [
-                (grad, var) for grad, var in zip(g_gradients, self.generator.trainable_variables)
-                if grad is not None
-            ]
-            
-            if valid_grads_and_vars:
-                self.g_optimizer.apply_gradients(valid_grads_and_vars)
-                metrics['gradient_warning'] = tf.constant(0.0)
-            else:
-                logger.warning("No valid gradients for generator update")
-                metrics['gradient_warning'] = tf.constant(1.0)
+        # Apply gradients safely with bounds checking
+        success = self.g_gradient_manager.apply_gradients_safely(
+            self.g_optimizer,
+            g_gradients, 
+            self.generator.trainable_variables
+        )
+        
+        # Add gradient manager metrics
+        gradient_summary = self.g_gradient_manager.get_summary()
+        metrics['g_gradient_success'] = tf.constant(1.0 if success else 0.0)
+        metrics['g_gradient_norm'] = tf.constant(gradient_summary.get('recent_gradient_norm', 0.0))
         
         return metrics
     

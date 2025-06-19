@@ -40,7 +40,7 @@ class GateParameterManager:
         logger.info(f"Gate parameter manager initialized: {self.get_parameter_count()} parameters")
     
     def _init_gate_parameters(self) -> None:
-        """Initialize individual tf.Variable for each quantum gate."""
+        """Initialize individual tf.Variable for each quantum gate with SF-stable values."""
         for layer in range(self.layers):
             layer_params = {}
             
@@ -48,53 +48,53 @@ class GateParameterManager:
             n_bs = self.n_modes * (self.n_modes - 1) // 2
             n_rot = max(1, self.n_modes - 1)
             
-            # Interferometer 1 parameters
+            # Interferometer 1 parameters - small, stable values
             layer_params['bs1_theta'] = [
-                tf.Variable(tf.random.normal([], stddev=0.1), name=f'L{layer}_BS1_theta_{i}')
+                tf.Variable(tf.random.normal([], stddev=0.01, mean=0.1), name=f'L{layer}_BS1_theta_{i}')
                 for i in range(n_bs)
             ]
             layer_params['bs1_phi'] = [
-                tf.Variable(tf.random.normal([], stddev=0.1), name=f'L{layer}_BS1_phi_{i}')
+                tf.Variable(tf.random.normal([], stddev=0.01, mean=0.1), name=f'L{layer}_BS1_phi_{i}')
                 for i in range(n_bs)
             ]
             layer_params['rot1_phi'] = [
-                tf.Variable(tf.random.uniform([], 0, 2*np.pi), name=f'L{layer}_ROT1_phi_{i}')
+                tf.Variable(tf.random.uniform([], 0.1, 0.5), name=f'L{layer}_ROT1_phi_{i}')
                 for i in range(n_rot)
             ]
             
-            # Squeezing parameters
+            # Squeezing parameters - very small to avoid numerical issues
             layer_params['squeeze_r'] = [
-                tf.Variable(tf.random.normal([], stddev=0.01), name=f'L{layer}_SQUEEZE_r_{i}')
+                tf.Variable(tf.random.normal([], stddev=0.001, mean=0.001), name=f'L{layer}_SQUEEZE_r_{i}')
                 for i in range(self.n_modes)
             ]
             
             # Interferometer 2 parameters
             layer_params['bs2_theta'] = [
-                tf.Variable(tf.random.normal([], stddev=0.1), name=f'L{layer}_BS2_theta_{i}')
+                tf.Variable(tf.random.normal([], stddev=0.01, mean=0.1), name=f'L{layer}_BS2_theta_{i}')
                 for i in range(n_bs)
             ]
             layer_params['bs2_phi'] = [
-                tf.Variable(tf.random.normal([], stddev=0.1), name=f'L{layer}_BS2_phi_{i}')
+                tf.Variable(tf.random.normal([], stddev=0.01, mean=0.1), name=f'L{layer}_BS2_phi_{i}')
                 for i in range(n_bs)
             ]
             layer_params['rot2_phi'] = [
-                tf.Variable(tf.random.uniform([], 0, 2*np.pi), name=f'L{layer}_ROT2_phi_{i}')
+                tf.Variable(tf.random.uniform([], 0.1, 0.5), name=f'L{layer}_ROT2_phi_{i}')
                 for i in range(n_rot)
             ]
             
-            # Displacement parameters
+            # Displacement parameters - very small magnitudes
             layer_params['disp_r'] = [
-                tf.Variable(tf.random.normal([], stddev=0.01), name=f'L{layer}_DISP_r_{i}')
+                tf.Variable(tf.random.normal([], stddev=0.001, mean=0.001), name=f'L{layer}_DISP_r_{i}')
                 for i in range(self.n_modes)
             ]
             layer_params['disp_phi'] = [
-                tf.Variable(tf.random.uniform([], 0, 2*np.pi), name=f'L{layer}_DISP_phi_{i}')
+                tf.Variable(tf.random.uniform([], 0.0, 0.2), name=f'L{layer}_DISP_phi_{i}')
                 for i in range(self.n_modes)
             ]
             
-            # Kerr nonlinearity parameters
+            # Kerr nonlinearity parameters - extremely small
             layer_params['kerr_kappa'] = [
-                tf.Variable(tf.random.normal([], stddev=0.001), name=f'L{layer}_KERR_kappa_{i}')
+                tf.Variable(tf.random.normal([], stddev=0.0001, mean=0.0001), name=f'L{layer}_KERR_kappa_{i}')
                 for i in range(self.n_modes)
             ]
             
