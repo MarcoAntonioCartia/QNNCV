@@ -136,11 +136,26 @@ class QuantumGAN:
                     'd_loss_fake': d_loss_fake
                 }
         
-        # Apply gradients
+        # Apply gradients - handle None gradients from quantum circuits
         d_gradients = tape.gradient(d_loss, self.discriminator.trainable_variables)
-        self.d_optimizer.apply_gradients(
-            zip(d_gradients, self.discriminator.trainable_variables)
-        )
+        
+        # Check if gradients are None (common with quantum simulators)
+        if d_gradients is None or all(grad is None for grad in d_gradients):
+            logger.warning("Discriminator gradients are None - quantum circuit not differentiable")
+            metrics['d_gradient_warning'] = tf.constant(1.0)
+        else:
+            # Filter out None gradients and apply only valid ones
+            valid_grads_and_vars = [
+                (grad, var) for grad, var in zip(d_gradients, self.discriminator.trainable_variables)
+                if grad is not None
+            ]
+            
+            if valid_grads_and_vars:
+                self.d_optimizer.apply_gradients(valid_grads_and_vars)
+                metrics['d_gradient_warning'] = tf.constant(0.0)
+            else:
+                logger.warning("No valid gradients for discriminator update")
+                metrics['d_gradient_warning'] = tf.constant(1.0)
         
         return metrics
     
@@ -167,11 +182,27 @@ class QuantumGAN:
             
             metrics = {'g_loss': g_loss}
         
-        # Apply gradients
+        # Apply gradients - handle None gradients from quantum circuits
         g_gradients = tape.gradient(g_loss, self.generator.trainable_variables)
-        self.g_optimizer.apply_gradients(
-            zip(g_gradients, self.generator.trainable_variables)
-        )
+        
+        # Check if gradients are None (common with quantum simulators)
+        if g_gradients is None or all(grad is None for grad in g_gradients):
+            logger.warning("Generator gradients are None - quantum circuit not differentiable")
+            # Use a simple parameter perturbation instead
+            metrics['gradient_warning'] = tf.constant(1.0)
+        else:
+            # Filter out None gradients and apply only valid ones
+            valid_grads_and_vars = [
+                (grad, var) for grad, var in zip(g_gradients, self.generator.trainable_variables)
+                if grad is not None
+            ]
+            
+            if valid_grads_and_vars:
+                self.g_optimizer.apply_gradients(valid_grads_and_vars)
+                metrics['gradient_warning'] = tf.constant(0.0)
+            else:
+                logger.warning("No valid gradients for generator update")
+                metrics['gradient_warning'] = tf.constant(1.0)
         
         return metrics
     

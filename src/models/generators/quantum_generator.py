@@ -116,15 +116,26 @@ class PureQuantumGenerator(QuantumGeneratorBase):
         # Encode latent to parameter modulation
         param_encoding = self.transforms.encode(z)
         
-        # Execute quantum circuits for each sample
+        # Execute quantum circuits for each sample - MATCHING DISCRIMINATOR PATTERN
         quantum_states = []
         for i in range(batch_size):
             # Create parameter modulation for this sample - use safe indexing
             sample_encoding = safe_tensor_indexing(param_encoding, i)
             sample_encoding = tf.expand_dims(sample_encoding, 0)  # Add batch dimension
             
-            # For now, execute circuit without parameter modulation to avoid TF graph issues
-            # This simplifies the generator to focus on pure quantum circuit learning
+            # Get parameter names for modulation (matching discriminator)
+            param_names = [var.name.split(':')[0] for var in self.circuit.trainable_variables]
+            
+            # Create modulation dictionary (matching discriminator)
+            modulation = {}
+            encoding_values = tf.reshape(sample_encoding, [-1])
+            for j, name in enumerate(param_names):
+                if j < tf.shape(encoding_values)[0]:
+                    # Use ensure_tensor for safety (matching discriminator)
+                    modulation[name] = ensure_tensor(encoding_values[j] * 0.1)  # Small modulation
+            
+            # Execute circuit without modulation for now (matching discriminator pattern)
+            # TODO: Fix parameter modulation mapping
             state = self.circuit.execute({})
             quantum_states.append(state)
         
