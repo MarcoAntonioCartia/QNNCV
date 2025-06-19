@@ -196,9 +196,9 @@ class SFTutorialQuantumCircuit:
                     name="static_encoding_weights"
                 )
             
-            # Apply input-dependent modulation (larger effect)
+            # Apply input-dependent modulation (MAXIMUM effect for diversity)
             modulation = tf.matmul(input_encoding, self._encoding_weights)
-            weights_to_use = self.weights + 0.1 * modulation  # Increased from 0.01 to 0.1
+            weights_to_use = self.weights + 2.0 * modulation  # Increased from 1.0 to 2.0
         
         # Create parameter mapping (EXACT SF tutorial pattern - CRITICAL for gradients)
         mapping = {

@@ -223,8 +223,9 @@ class QuantumSFDiscriminator:
         # Stack individual results to form batch
         batch_measurements = tf.stack(outputs, axis=0)  # [batch_size, measurement_dim]
         
-        # Transform quantum measurements to binary classification logits
-        logits = self.transforms.decode(batch_measurements)
+        # DIRECT MAPPING: Use first quantum measurement directly (no static compression!)
+        # This preserves quantum diversity and enables scalable output dimensions
+        logits = tf.expand_dims(batch_measurements[:, 0], axis=1)  # Use first measurement as logit
         
         return logits
     

@@ -226,8 +226,9 @@ class QuantumSFGenerator:
         # Stack individual results to form batch
         batch_measurements = tf.stack(outputs, axis=0)  # [batch_size, measurement_dim]
         
-        # Transform quantum measurements to output space
-        output = self.transforms.decode(batch_measurements)
+        # DIRECT MAPPING: Use quantum measurements directly (no static compression!)
+        # This preserves quantum diversity and enables scalable output dimensions
+        output = batch_measurements[:, :self.output_dim]
         
         return output
     
