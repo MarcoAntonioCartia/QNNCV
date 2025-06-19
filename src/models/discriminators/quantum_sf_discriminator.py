@@ -99,7 +99,7 @@ class QuantumSFDiscriminator:
         
         # PURE QUANTUM LEARNING: Static input encoding (NOT trainable)
         self.input_encoder = tf.constant(
-            tf.random.normal([input_dim, 12], stddev=0.01),  # Fixed small encoding: 2D → 12
+            tf.random.normal([input_dim, 12], stddev=0.1),  # 10x larger - noticeable quantum effect
             name="static_input_encoder"
         )
         
@@ -205,23 +205,23 @@ class QuantumSFDiscriminator:
         # Encode input data to quantum parameter modulation
         input_encoding = tf.matmul(x, self.input_encoder)
         
-        # For batch processing, we use mean encoding (SF tutorial limitation)
-        # This preserves gradient flow while handling multiple samples
-        mean_encoding = tf.reduce_mean(input_encoding, axis=0, keepdims=True)
+        # CRITICAL FIX: Process each sample individually (NO AVERAGING!)
+        # This preserves sample diversity and enables proper discrimination learning
+        outputs = []
+        for i in range(batch_size):
+            # Extract individual sample encoding (keep batch dimension)
+            sample_encoding = input_encoding[i:i+1]  # Shape: [1, encoding_dim]
+            
+            # Execute quantum circuit for this specific sample
+            state = self.quantum_circuit.execute(sample_encoding)
+            measurements = self.quantum_circuit.extract_measurements(state)
+            
+            # Flatten measurements and store
+            measurements_flat = tf.reshape(measurements, [-1])
+            outputs.append(measurements_flat)
         
-        # Execute SF tutorial quantum circuit (100% gradient flow!)
-        state = self.quantum_circuit.execute(mean_encoding)
-        
-        # Extract measurements using SF tutorial circuit's built-in method
-        measurements = self.quantum_circuit.extract_measurements(state)
-        
-        # Handle tensor shape properly for batching
-        measurements_flat = tf.reshape(measurements, [-1])  # Flatten to 1D
-        
-        # Replicate measurements for each sample in batch
-        # (SF tutorial limitation - single execution per batch)
-        measurements_expanded = tf.expand_dims(measurements_flat, 0)  # Add batch dimension
-        batch_measurements = tf.tile(measurements_expanded, [batch_size, 1])
+        # Stack individual results to form batch
+        batch_measurements = tf.stack(outputs, axis=0)  # [batch_size, measurement_dim]
         
         # Transform quantum measurements to binary classification logits
         logits = self.transforms.decode(batch_measurements)

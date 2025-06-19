@@ -165,10 +165,7 @@ class SFTutorialQuantumCircuit:
     
     def _calculate_measurement_dim(self) -> int:
         """Calculate the dimension of measurement output for modular integration."""
-        # For CV systems, typical measurement extractions include:
-        # - Real and imaginary parts of state amplitudes
-        # - Quadrature measurements
-        # For compatibility with existing measurement system, return 2 * n_modes
+        # Using homodyne X and P measurements: two measurements per mode
         return 2 * self.n_modes
     
     def execute(self, input_encoding: Optional[tf.Tensor] = None) -> Any:
@@ -184,23 +181,24 @@ class SFTutorialQuantumCircuit:
         # SF tutorial pattern: start with base weights
         weights_to_use = self.weights
         
-        # Optional input encoding for data-dependent generation
+        # CRITICAL FIX: NO BATCH AVERAGING - use individual sample encoding
         if input_encoding is not None:
-            # Small modulation to preserve quantum circuit stability
-            # This enables input-dependent quantum parameters while maintaining gradients
-            input_encoding = tf.reduce_mean(input_encoding, axis=0, keepdims=True)  # Handle batch
+            # Ensure single sample processing (remove batch averaging!)
+            if len(input_encoding.shape) > 1 and input_encoding.shape[0] > 1:
+                # Take first sample only - this should be called per sample
+                input_encoding = input_encoding[0:1]
             
-            # Create encoding weights for input-dependent modulation
-            encoding_weight_shape = [tf.shape(input_encoding)[1], tf.shape(self.weights)[1]]
-            encoding_weights = tf.Variable(
-                tf.random.normal(encoding_weight_shape, stddev=0.001),
-                trainable=False,  # These are just for encoding, not trained
-                name="input_encoding_weights"
-            )
+            # Create static encoding weights (not trainable, just for input modulation)
+            if not hasattr(self, '_encoding_weights'):
+                encoding_weight_shape = [tf.shape(input_encoding)[1], tf.shape(self.weights)[1]]
+                self._encoding_weights = tf.constant(
+                    tf.random.normal(encoding_weight_shape, stddev=0.001),
+                    name="static_encoding_weights"
+                )
             
-            # Apply small modulation
-            modulation = tf.matmul(input_encoding, encoding_weights)
-            weights_to_use = self.weights + 0.01 * modulation
+            # Apply input-dependent modulation (larger effect)
+            modulation = tf.matmul(input_encoding, self._encoding_weights)
+            weights_to_use = self.weights + 0.1 * modulation  # Increased from 0.01 to 0.1
         
         # Create parameter mapping (EXACT SF tutorial pattern - CRITICAL for gradients)
         mapping = {
@@ -220,24 +218,32 @@ class SFTutorialQuantumCircuit:
     
     def extract_measurements(self, state: Any) -> tf.Tensor:
         """
-        Extract measurements from quantum state for modular integration.
+        Extract physically realistic homodyne X and P measurements.
         
         Args:
             state: Quantum state from SF
             
         Returns:
-            Measurement tensor for downstream processing
+            Measurement tensor with X and P quadrature measurements for each mode
         """
-        # Get state vector
-        ket = state.ket()
+        # Perform both X and P quadrature measurements on each mode
+        # This is physically realistic (standard CV measurements) and differentiable in SF
+        measurements = []
         
-        # Extract real and imaginary parts of relevant amplitudes
-        # This provides a bridge to our existing measurement system
-        real_parts = tf.math.real(ket[:self.n_modes])
-        imag_parts = tf.math.imag(ket[:self.n_modes])
+        for mode in range(self.n_modes):
+            # X quadrature measurement (position-like)
+            x_val = state.quad_expectation(mode, 0)  # 0 = X quadrature
+            measurements.append(x_val)
+            
+            # P quadrature measurement (momentum-like) 
+            p_val = state.quad_expectation(mode, 1)  # 1 = P quadrature
+            measurements.append(p_val)
         
-        # Combine into measurement vector
-        measurements = tf.concat([real_parts, imag_parts], axis=0)
+        # Convert to tensor [x0, p0, x1, p1, x2, p2, x3, p3]
+        measurements = tf.stack(measurements)
+        
+        # Ensure real-valued output (should already be real from quadrature measurements)
+        measurements = tf.cast(measurements, tf.float32)
         
         return measurements
     
