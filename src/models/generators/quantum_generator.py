@@ -123,20 +123,24 @@ class PureQuantumGenerator(QuantumGeneratorBase):
             sample_encoding = safe_tensor_indexing(param_encoding, i)
             sample_encoding = tf.expand_dims(sample_encoding, 0)  # Add batch dimension
             
-            # Get parameter names for modulation (matching discriminator)
-            param_names = [var.name.split(':')[0] for var in self.circuit.trainable_variables]
+            # Get CORRECT parameter mapping keys (not TF variable names)
+            base_mapping = self.circuit.get_parameter_mapping()
+            param_names = list(base_mapping.keys())
             
-            # Create modulation dictionary (matching discriminator)
+            # Create modulation dictionary with CORRECT parameter names
             modulation = {}
             encoding_values = tf.reshape(sample_encoding, [-1])
             for j, name in enumerate(param_names):
                 if j < tf.shape(encoding_values)[0]:
-                    # Use ensure_tensor for safety (matching discriminator)
-                    modulation[name] = ensure_tensor(encoding_values[j] * 0.1)  # Small modulation
+                    # Use ensure_tensor for safety
+                    modulation[name] = ensure_tensor(encoding_values[j] * 0.001)  # Very small modulation for stability
+                else:
+                    # Initialize in else branch for TensorFlow AutoGraph compatibility
+                    modulation[name] = ensure_tensor(0.0)  # Default to zero modulation
             
-            # Execute circuit without modulation for now (matching discriminator pattern)
-            # TODO: Fix parameter modulation mapping
-            state = self.circuit.execute({})
+            # Execute circuit WITH modulation - this connects input to quantum parameters!
+            # This is the KEY fix for gradient flow through quantum circuits
+            state = self.circuit.execute(modulation)
             quantum_states.append(state)
         
         # Extract measurements from quantum states

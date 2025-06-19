@@ -17,6 +17,7 @@ from .discriminators import PureQuantumDiscriminator, QuantumWassersteinDiscrimi
 from losses.quantum_gan_loss import QuantumWassersteinLoss, compute_gradient_penalty
 from utils.quantum_metrics import QuantumMetrics
 from utils.visualization import plot_results, plot_training_history
+from utils.gradient_manager import create_quantum_gradient_manager
 
 logger = logging.getLogger(__name__)
 
@@ -77,6 +78,10 @@ class QuantumGAN:
         # Initialize metrics
         self.metrics = QuantumMetrics()
         
+        # Initialize gradient managers for robust training
+        self.g_gradient_manager = create_quantum_gradient_manager(verbose=True)
+        self.d_gradient_manager = create_quantum_gradient_manager(verbose=True)
+        
         # Training history
         self.history = {
             'g_loss': [],
@@ -92,7 +97,6 @@ class QuantumGAN:
         logger.info(f"  Generator params: {len(self.generator.trainable_variables)}")
         logger.info(f"  Discriminator params: {len(self.discriminator.trainable_variables)}")
     
-    @tf.function
     def train_discriminator_step(self, real_batch: tf.Tensor, z_batch: tf.Tensor) -> Dict[str, tf.Tensor]:
         """Single discriminator training step."""
         with tf.GradientTape() as tape:
@@ -159,7 +163,6 @@ class QuantumGAN:
         
         return metrics
     
-    @tf.function
     def train_generator_step(self, z_batch: tf.Tensor) -> Dict[str, tf.Tensor]:
         """Single generator training step."""
         with tf.GradientTape() as tape:

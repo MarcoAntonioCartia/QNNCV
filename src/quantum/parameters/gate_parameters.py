@@ -147,7 +147,7 @@ class GateParameterManager:
             modulation: Optional parameter modulation
             
         Returns:
-            Dictionary mapping parameter names to values
+            Dictionary mapping parameter names to TensorFlow tensors (preserves gradients)
         """
         mapping = {}
         
@@ -169,6 +169,7 @@ class GateParameterManager:
                     else:
                         modulated_value = base_value
                     
+                    # Keep as TensorFlow tensor for gradient flow - SF TF backend can handle this
                     mapping[param_name] = modulated_value
         
         return mapping

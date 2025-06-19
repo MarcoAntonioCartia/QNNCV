@@ -8,13 +8,16 @@ is preserved through a single SF program while maintaining modularity.
 import numpy as np
 import tensorflow as tf
 import strawberryfields as sf
-from strawberryfields import ops
+from strawberryfields.ops import *
 import logging
 from abc import ABC, abstractmethod
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional, Tuple, Any
+from dataclasses import dataclass
+
+# Force eager execution for SF gradient compatibility
+tf.config.run_functions_eagerly(True)
 
 logger = logging.getLogger(__name__)
-
 
 class QuantumCircuitBase(ABC):
     """
@@ -153,6 +156,7 @@ class PureQuantumCircuit(QuantumCircuitBase):
     
     def get_parameter_mapping(self, modulation: Optional[Dict[str, tf.Tensor]] = None) -> Dict[str, tf.Tensor]:
         """Get parameter mapping including optional modulation."""
+        # Get the tensor mapping from parameter manager - preserves gradients!
         return self.param_manager.get_parameter_mapping(modulation)
     
     @property
