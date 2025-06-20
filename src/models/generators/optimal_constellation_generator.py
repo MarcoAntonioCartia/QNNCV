@@ -491,75 +491,95 @@ class OptimalConstellationGenerator:
         Returns:
             Comprehensive state validation report
         """
-        if not self.enable_state_validation:
-            return {'error': 'State validation disabled'}
-        
-        print("🔍 VALIDATING QUANTUM STATES AFTER OPTIMAL ENCODING...")
-        
-        # Generate with validation
-        generated_samples = self.generate(z)
-        
-        # Analyze the quantum parameters and states
+        # Create default validation report structure with all expected keys
         validation_report = {
             'input_shape': z.shape.as_list(),
-            'output_shape': generated_samples.shape.as_list(),
-            'optimal_parameters_applied': True,
+            'output_shape': [],
+            'optimal_parameters_applied': self.enable_state_validation,
             'spatial_separation_verified': False,
             'squeezing_optimization_verified': False,
-            'mode_analysis': []
+            'validation_passed': False,
+            'min_mode_separation': 0.0,
+            'average_squeeze_strength': 0.0,
+            'measurement_variance': 0.0,
+            'measurement_range': 0.0,
+            'measurement_dimension': 0,
+            'mode_analysis': [],
+            'error': None
         }
         
-        if self.last_parameters is not None:
-            # Analyze spatial separation (FIX 1)
-            mode_locations = []
-            for mode in range(self.n_modes):
-                param_key = f'sample_0_mode_{mode}'  # Check first sample
-                if param_key in self.last_parameters:
-                    mode_params = self.last_parameters[param_key]
-                    location = mode_params['modulated_location']
-                    mode_locations.append({
-                        'mode': mode,
-                        'base_location': mode_params['base_location'],
-                        'modulated_location': (float(location[0]), float(location[1])),
-                        'displacement_r': float(mode_params['displacement_r']),
-                        'squeeze_r': float(mode_params['squeeze_r']),
-                        'squeeze_angle': float(mode_params['squeeze_phi'])
-                    })
-            
-            validation_report['mode_analysis'] = mode_locations
-            
-            # Check spatial separation
-            min_separation = float('inf')
-            for i in range(len(mode_locations)):
-                for j in range(i+1, len(mode_locations)):
-                    loc1 = mode_locations[i]['modulated_location']
-                    loc2 = mode_locations[j]['modulated_location']
-                    distance = np.sqrt((loc1[0] - loc2[0])**2 + (loc1[1] - loc2[1])**2)
-                    min_separation = min(min_separation, distance)
-            
-            validation_report['min_mode_separation'] = min_separation
-            validation_report['spatial_separation_verified'] = min_separation > 1.0
-            
-            # Check squeezing optimization (FIX 2)
-            squeeze_strengths = [mode['squeeze_r'] for mode in mode_locations]
-            squeeze_angles = [mode['squeeze_angle'] for mode in mode_locations]
-            
-            optimal_squeeze_achieved = all(abs(s - self.squeeze_r) < 0.1 for s in squeeze_strengths)
-            validation_report['squeezing_optimization_verified'] = optimal_squeeze_achieved
-            validation_report['average_squeeze_strength'] = float(np.mean(squeeze_strengths))
-            
-        if self.last_measurements is not None:
-            # Analyze measurement diversity
-            measurements_array = self.last_measurements.numpy()
-            validation_report['measurement_variance'] = float(np.var(measurements_array))
-            validation_report['measurement_range'] = float(np.ptp(measurements_array))
-            validation_report['measurement_dimension'] = len(measurements_array)
+        if not self.enable_state_validation:
+            validation_report['error'] = 'State validation disabled'
+            return validation_report
         
-        # Overall validation status
-        validation_report['validation_passed'] = (
-            validation_report['spatial_separation_verified'] and
-            validation_report['squeezing_optimization_verified']
-        )
+        try:
+            print("🔍 VALIDATING QUANTUM STATES AFTER OPTIMAL ENCODING...")
+            
+            # Generate with validation
+            generated_samples = self.generate(z)
+            validation_report['output_shape'] = generated_samples.shape.as_list()
+        except Exception as e:
+            validation_report['error'] = f'Generation failed: {str(e)}'
+            return validation_report
+        
+        try:
+            if self.last_parameters is not None:
+                # Analyze spatial separation (FIX 1)
+                mode_locations = []
+                for mode in range(self.n_modes):
+                    param_key = f'sample_0_mode_{mode}'  # Check first sample
+                    if param_key in self.last_parameters:
+                        mode_params = self.last_parameters[param_key]
+                        location = mode_params['modulated_location']
+                        mode_locations.append({
+                            'mode': mode,
+                            'base_location': mode_params['base_location'],
+                            'modulated_location': (float(location[0]), float(location[1])),
+                            'displacement_r': float(mode_params['displacement_r']),
+                            'squeeze_r': float(mode_params['squeeze_r']),
+                            'squeeze_angle': float(mode_params['squeeze_phi'])
+                        })
+                
+                validation_report['mode_analysis'] = mode_locations
+                
+                # Check spatial separation
+                if len(mode_locations) > 1:
+                    min_separation = float('inf')
+                    for i in range(len(mode_locations)):
+                        for j in range(i+1, len(mode_locations)):
+                            loc1 = mode_locations[i]['modulated_location']
+                            loc2 = mode_locations[j]['modulated_location']
+                            distance = np.sqrt((loc1[0] - loc2[0])**2 + (loc1[1] - loc2[1])**2)
+                            min_separation = min(min_separation, distance)
+                    
+                    validation_report['min_mode_separation'] = min_separation
+                    validation_report['spatial_separation_verified'] = min_separation > 1.0
+                
+                # Check squeezing optimization (FIX 2)
+                if mode_locations:
+                    squeeze_strengths = [mode['squeeze_r'] for mode in mode_locations]
+                    squeeze_angles = [mode['squeeze_angle'] for mode in mode_locations]
+                    
+                    optimal_squeeze_achieved = all(abs(s - self.squeeze_r) < 0.1 for s in squeeze_strengths)
+                    validation_report['squeezing_optimization_verified'] = optimal_squeeze_achieved
+                    validation_report['average_squeeze_strength'] = float(np.mean(squeeze_strengths))
+                
+            if self.last_measurements is not None:
+                # Analyze measurement diversity
+                measurements_array = self.last_measurements.numpy()
+                validation_report['measurement_variance'] = float(np.var(measurements_array))
+                validation_report['measurement_range'] = float(np.ptp(measurements_array))
+                validation_report['measurement_dimension'] = len(measurements_array)
+            
+            # Overall validation status
+            validation_report['validation_passed'] = (
+                validation_report['spatial_separation_verified'] and
+                validation_report['squeezing_optimization_verified']
+            )
+            
+        except Exception as e:
+            validation_report['error'] = f'Validation analysis failed: {str(e)}'
+            validation_report['validation_passed'] = False
         
         return validation_report
     
