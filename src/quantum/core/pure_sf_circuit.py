@@ -36,20 +36,26 @@ class PureSFQuantumCircuit:
                  n_modes: int, 
                  n_layers: int, 
                  cutoff_dim: int = 6,
-                 circuit_type: str = "basic"):
+                 circuit_type: str = "basic",
+                 use_constellation: bool = False,
+                 constellation_radius: float = 1.5):
         """
-        Initialize pure SF quantum circuit.
+        Initialize pure SF quantum circuit with optional constellation pipeline.
         
         Args:
             n_modes: Number of quantum modes
             n_layers: Number of circuit layers
             cutoff_dim: Fock space cutoff dimension
             circuit_type: Type of circuit ("basic", "interferometer", "variational")
+            use_constellation: Enable constellation initialization pipeline
+            constellation_radius: Radius of constellation (if enabled)
         """
         self.n_modes = n_modes
         self.n_layers = n_layers
         self.cutoff_dim = cutoff_dim
         self.circuit_type = circuit_type
+        self.use_constellation = use_constellation
+        self.constellation_radius = constellation_radius
         
         # SF Program-Engine components
         self.prog = sf.Program(n_modes)
@@ -64,19 +70,46 @@ class PureSFQuantumCircuit:
         self.sf_param_names = []  # SF parameter names
         self.param_mapping = {}  # name → tf.Variable mapping
         
+        # 🌟 CONSTELLATION PIPELINE INTEGRATION
+        self.static_constellation_points = None
+        if self.use_constellation:
+            # Import here to avoid circular imports
+            from src.quantum.core.multimode_constellation_circuit import MultimodalConstellationCircuit
+            self.static_constellation_points = MultimodalConstellationCircuit.get_static_constellation_points(
+                n_modes, constellation_radius
+            )
+            logger.info(f"🌟 Constellation pipeline enabled with {len(self.static_constellation_points)} static points")
+        
         # Build the symbolic program
         self._build_symbolic_program()
         self._create_tf_parameters()
         
         logger.info(f"Pure SF Circuit initialized: {n_modes} modes, {n_layers} layers")
         logger.info(f"  Circuit type: {circuit_type}")
+        logger.info(f"  Constellation enabled: {use_constellation}")
         logger.info(f"  Total SF parameters: {len(self.sf_param_names)}")
         logger.info(f"  Program built successfully")
     
     def _build_symbolic_program(self) -> None:
-        """Build symbolic SF program using prog.params() - SF tutorial compatible."""
+        """Build symbolic SF program with optional constellation pipeline."""
         
         with self.prog.context as q:
+            
+            # 🌟 STAGE 1: CONSTELLATION INITIALIZATION (STATIC - NOT TRAINABLE)
+            if self.use_constellation and self.static_constellation_points:
+                from src.quantum.core.multimode_constellation_circuit import MultimodalConstellationCircuit
+                displacements = MultimodalConstellationCircuit.create_constellation_displacements(
+                    self.static_constellation_points
+                )
+                
+                # Apply static constellation displacements (these are NOT parameters)
+                for mode, (magnitude, phase) in enumerate(displacements):
+                    # Use static values directly (no prog.params() - NOT trainable!)
+                    ops.Dgate(magnitude, phase) | q[mode]
+                
+                logger.info(f"🌟 Added static constellation initialization to program")
+            
+            # 🌟 STAGE 2: VARIATIONAL QUANTUM LAYERS (TRAINABLE)
             for layer in range(self.n_layers):
                 
                 # Layer 1: Squeezing operations (SF tutorial pattern)
@@ -107,7 +140,8 @@ class PureSFQuantumCircuit:
                         ops.Dgate(alpha_param) | q[mode]
                         self.sf_param_names.append(f'displacement_{layer}_{mode}')
         
-        logger.info(f"Symbolic program built with {len(self.sf_param_names)} parameters")
+        constellation_info = f" (+ constellation)" if self.use_constellation else ""
+        logger.info(f"Symbolic program built with {len(self.sf_param_names)} trainable parameters{constellation_info}")
     
     def _create_tf_parameters(self) -> None:
         """Create TensorFlow variables for all SF parameters."""

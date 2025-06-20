@@ -86,7 +86,10 @@ class MultimodalConstellationCircuit:
     
     def _create_constellation_points(self) -> List[complex]:
         """
-        Create constellation of coherent state starting points.
+        Create constellation of coherent state starting points using communication theory.
+        
+        Uses perfect equally-spaced constellation (like QPSK, 16-QAM) for maximum
+        orthogonality and mode separation - no randomness!
         
         Returns:
             List of complex alpha values for each mode
@@ -94,29 +97,22 @@ class MultimodalConstellationCircuit:
         constellation_points = []
         
         for i in range(self.n_modes):
-            # Create constellation points distributed around a circle
-            # Each mode gets a unique position in phase space
-            
             if self.n_modes == 1:
                 # Single mode at origin (fallback)
                 alpha = 0.0 + 0.0j
             else:
-                # Distribute modes around constellation circle
-                angle = 2 * np.pi * i / self.n_modes
+                # 🌟 COMMUNICATION THEORY CONSTELLATION: Perfect equal spacing
+                # No randomness - maximum orthogonality and separation
+                angle = 2 * np.pi * i / self.n_modes  # Perfect geometric spacing
+                radius = self.constellation_radius    # Fixed radius for all modes
                 
-                # Add some randomness to avoid perfect symmetry
-                angle_jitter = np.random.uniform(-0.2, 0.2)
-                radius_jitter = np.random.uniform(0.8, 1.2)
-                
-                radius = self.constellation_radius * radius_jitter
-                theta = angle + angle_jitter
-                
-                # Complex amplitude: α = r * e^(iθ)
-                alpha = radius * np.exp(1j * theta)
+                # Complex amplitude: α = r * e^(iθ) 
+                alpha = radius * np.exp(1j * angle)
             
             constellation_points.append(alpha)
         
-        logger.info(f"Created constellation with {len(constellation_points)} unique coherent states")
+        logger.info(f"Created communication theory constellation with {len(constellation_points)} equally-spaced coherent states")
+        logger.info(f"Perfect angular separation: {360/self.n_modes:.1f}° between modes")
         
         return constellation_points
     
@@ -434,6 +430,61 @@ class MultimodalConstellationCircuit:
             'parameter_count': len(self.tf_parameters),
             'measurement_dim': self.get_measurement_dimension()
         }
+    
+    @staticmethod
+    def get_static_constellation_points(n_modes: int, 
+                                       constellation_radius: float = 1.5) -> List[complex]:
+        """
+        Get static constellation points for pipeline integration.
+        
+        This method provides the constellation points as static constants
+        for use in other quantum circuits without creating a full constellation circuit.
+        Perfect for pipeline integration with PureSFQuantumCircuit.
+        
+        Args:
+            n_modes: Number of quantum modes
+            constellation_radius: Radius of constellation circle
+            
+        Returns:
+            List of static constellation points (not trainable)
+        """
+        constellation_points = []
+        
+        for i in range(n_modes):
+            if n_modes == 1:
+                alpha = 0.0 + 0.0j
+            else:
+                # 🌟 COMMUNICATION THEORY CONSTELLATION: Perfect equal spacing
+                angle = 2 * np.pi * i / n_modes  # Perfect geometric spacing
+                radius = constellation_radius    # Fixed radius for all modes
+                alpha = radius * np.exp(1j * angle)
+            
+            constellation_points.append(alpha)
+        
+        logger.info(f"Generated static constellation: {n_modes} modes, radius={constellation_radius}")
+        logger.info(f"Perfect angular separation: {360/n_modes:.1f}° between modes")
+        
+        return constellation_points
+    
+    @staticmethod
+    def create_constellation_displacements(constellation_points: List[complex]) -> List[Tuple[float, float]]:
+        """
+        Convert constellation points to SF displacement parameters.
+        
+        Args:
+            constellation_points: List of complex constellation points
+            
+        Returns:
+            List of (magnitude, phase) tuples for SF Dgate operations
+        """
+        displacements = []
+        
+        for alpha in constellation_points:
+            magnitude = abs(alpha)
+            phase = np.angle(alpha)
+            displacements.append((magnitude, phase))
+        
+        return displacements
 
 
 def test_constellation_circuit():
