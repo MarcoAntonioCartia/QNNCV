@@ -45,6 +45,7 @@ class QuantumGANTrainer:
                  n_critic: int = 5,
                  learning_rate_g: float = 1e-3,
                  learning_rate_d: float = 1e-3,
+                 entropy_weight: float = 0.01,
                  verbose: bool = True):
         """
         Initialize quantum GAN trainer.
@@ -56,12 +57,14 @@ class QuantumGANTrainer:
             n_critic: Train discriminator n_critic times per generator step
             learning_rate_g: Generator learning rate
             learning_rate_d: Discriminator learning rate
+            entropy_weight: Weight for entropy regularization (diversity)
             verbose: Enable detailed logging
         """
         self.generator = generator
         self.discriminator = discriminator
         self.loss_type = loss_type
         self.n_critic = n_critic
+        self.entropy_weight = entropy_weight
         self.verbose = verbose
         
         # Initialize loss function
@@ -116,6 +119,7 @@ class QuantumGANTrainer:
             logger.info(f"  Discriminator parameters: {len(discriminator.trainable_variables)}")
             logger.info(f"  Loss type: {loss_type}")
             logger.info(f"  n_critic: {n_critic}")
+            logger.info(f"  entropy_weight: {entropy_weight}")
     
     def train_discriminator_step(self, real_batch: tf.Tensor, z_batch: tf.Tensor) -> Dict[str, Any]:
         """
@@ -212,7 +216,7 @@ class QuantumGANTrainer:
             # Entropy regularization (encourage diverse quantum states)
             # Use variance of generated samples as diversity proxy
             sample_variance = tf.math.reduce_variance(fake_batch)
-            entropy_bonus = -0.01 * sample_variance  # Negative because we want to maximize variance
+            entropy_bonus = -self.entropy_weight * sample_variance  # Negative because we want to maximize variance
             
             # Total generator loss
             g_loss = base_loss + physics_penalty - entropy_bonus
