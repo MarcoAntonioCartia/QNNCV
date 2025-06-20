@@ -1,18 +1,13 @@
 """
-Comprehensive Quantum Visualization Manager for Pure SF Quantum GANs
+ENHANCED Corrected Quantum Visualization Manager for Pure SF Quantum GANs
 
-This module provides a complete visualization system specifically designed for Pure SF
-quantum circuits, integrating circuit structure, quantum states, measurements, and
-training dynamics visualization.
-
-Features:
-- Real-time quantum state visualization during training
-- Pure SF circuit structure analysis and visualization
-- Measurement outcome tracking and analysis
-- Parameter evolution monitoring
-- Entanglement and correlation analysis
-- Training dynamics dashboards
-- Interactive 3D quantum state visualization
+This enhanced version combines the corrected base with proven SF-compatible features:
+1. Proper SF state methods compatibility
+2. Individual gate parameter analysis
+3. 3D Wigner function visualization (SF actually supports this!)
+4. Enhanced training dashboards
+5. QGAN comparison functionality
+6. Robust error handling throughout
 """
 
 import numpy as np
@@ -23,34 +18,26 @@ import strawberryfields as sf
 from strawberryfields import ops
 import logging
 from typing import List, Dict, Any, Optional, Tuple, Union
-import plotly.graph_objects as go
-import plotly.subplots as sp
 from datetime import datetime
-import seaborn as sns
-import pandas as pd
-from scipy.stats import entropy
-from sklearn.decomposition import PCA
 import warnings
 
 logger = logging.getLogger(__name__)
 
 
-class QuantumVisualizationManager:
+class CorrectedQuantumVisualizationManager:
     """
-    Advanced visualization manager for Pure SF Quantum GANs.
+    ENHANCED Corrected visualization manager for Pure SF Quantum GANs.
     
-    This class provides comprehensive visualization capabilities specifically
-    designed for Pure SF circuits, including real-time state monitoring,
-    circuit analysis, and training visualization.
+    Fixed to work properly with:
+    - Strawberry Fields actual API
+    - Pure quantum circuit architecture  
+    - Individual gate parameters
+    - Static transformation matrices
+    + Added proven SF-compatible enhancements
     """
     
     def __init__(self, save_directory: str = "visualizations"):
-        """
-        Initialize the visualization manager.
-        
-        Args:
-            save_directory: Directory to save visualization outputs
-        """
+        """Initialize the enhanced corrected visualization manager."""
         self.save_dir = save_directory
         self.visualization_history = []
         self.parameter_history = []
@@ -62,17 +49,14 @@ class QuantumVisualizationManager:
         os.makedirs(save_directory, exist_ok=True)
         
         # Set up plotting style
-        plt.style.use('seaborn-v0_8-darkgrid')
-        sns.set_palette("husl")
-        
-        # Suppress warnings for cleaner output
+        plt.style.use('default')  # More compatible
         warnings.filterwarnings('ignore', category=UserWarning)
         
-        logger.info(f"QuantumVisualizationManager initialized")
+        logger.info(f"Enhanced Corrected QuantumVisualizationManager initialized")
         logger.info(f"  Save directory: {save_directory}")
     
     # =====================================================================
-    # PURE SF CIRCUIT VISUALIZATION
+    # FIXED PURE SF CIRCUIT VISUALIZATION
     # =====================================================================
     
     def visualize_pure_sf_circuit(self, circuit, title: str = "Pure SF Circuit", 
@@ -80,140 +64,157 @@ class QuantumVisualizationManager:
                                  show_values: bool = True,
                                  save: bool = True):
         """
-        Visualize Pure SF circuit structure with detailed parameter analysis.
+        FIXED: Visualize Pure SF circuit structure with proper parameter analysis.
         
-        Args:
-            circuit: PureSFCircuit instance
-            title: Plot title
-            show_parameters: Show parameter names
-            show_values: Show parameter values
-            save: Save the visualization
+        Compatible with PureQuantumCircuitCorrected architecture.
         """
-        print(f"{title.upper()}")
+        print(f"🔬 {title.upper()}")
         print("=" * 60)
         
-        # Circuit configuration
+        # Circuit configuration - FIXED to match your pure quantum architecture
         print(f"Circuit Configuration:")
-        print(f"  Architecture: Pure SF (Program-Engine)")
+        print(f"  Architecture: Pure SF with Individual Gate Parameters")
         print(f"  Modes: {circuit.n_modes}")
-        print(f"  Layers: {circuit.layers}")
-        print(f"  Parameters: {len(circuit.trainable_variables)}")
+        print(f"  Layers: {circuit.n_layers}")
         print(f"  Cutoff: {circuit.cutoff_dim}")
-        print(f"  Circuit type: {getattr(circuit, 'circuit_type', 'variational')}")
         
-        # Parameter analysis
-        if show_parameters and hasattr(circuit, 'trainable_variables'):
-            self._analyze_circuit_parameters(circuit, show_values)
+        # FIXED: Check for trainable_variables (individual gate parameters)
+        if hasattr(circuit, 'trainable_variables'):
+            print(f"  Individual Parameters: {len(circuit.trainable_variables)}")
+            
+            # FIXED: Parameter analysis for individual gate parameters
+            if show_parameters:
+                self._analyze_individual_gate_parameters(circuit, show_values)
         
-        # Circuit structure visualization
-        if hasattr(circuit, 'build_program'):
-            try:
-                # Build symbolic program for visualization
-                prog = circuit.build_program({})
-                print(f"\n📋 Circuit Structure:")
-                print("-" * 40)
-                prog.print()
-                
-                # Save circuit diagram if requested
-                if save:
-                    self._save_circuit_diagram(prog, title)
-                    
-            except Exception as e:
-                logger.warning(f"Could not build circuit program for visualization: {e}")
+        # FIXED: Circuit structure analysis using param_names
+        if hasattr(circuit, 'param_names') and hasattr(circuit, 'gate_params'):
+            self._visualize_circuit_structure(circuit)
         
-        # Parameter distribution analysis
+        # FIXED: Parameter distribution analysis
         if hasattr(circuit, 'trainable_variables') and len(circuit.trainable_variables) > 0:
             self._visualize_parameter_distribution(circuit, title, save)
     
-    def _analyze_circuit_parameters(self, circuit, show_values: bool = True):
-        """Analyze and display circuit parameters."""
-        print(f"\n Parameter Analysis ({len(circuit.trainable_variables)} parameters):")
+    def _analyze_individual_gate_parameters(self, circuit, show_values: bool = True):
+        """FIXED: Analyze individual gate parameters properly."""
+        print(f"\n🎛️  Individual Gate Parameter Analysis:")
         print("-" * 40)
         
+        # Group parameters by gate type
         param_groups = {}
-        for i, var in enumerate(circuit.trainable_variables):
-            param_name = var.name.split(':')[0]
-            param_type = param_name.split('_')[0]  # e.g., 'squeeze', 'displacement', etc.
-            
-            if param_type not in param_groups:
-                param_groups[param_type] = []
-            
-            if show_values:
-                value = float(var.numpy())
-                param_groups[param_type].append((param_name, value))
-                print(f"  {i:2d}. {param_name:<25} = {value:8.4f}")
-            else:
-                param_groups[param_type].append((param_name, None))
-                print(f"  {i:2d}. {param_name}")
+        
+        if hasattr(circuit, 'param_names') and hasattr(circuit, 'gate_params'):
+            for i, (param_name, tf_var) in enumerate(zip(circuit.param_names, circuit.gate_params)):
+                # Parse parameter name: L{layer}_{gate_type}_{param_type}_{index}
+                parts = param_name.split('_')
+                if len(parts) >= 3:
+                    gate_type = parts[1]  # BS1, SQUEEZE, DISP, etc.
+                    
+                    if gate_type not in param_groups:
+                        param_groups[gate_type] = []
+                    
+                    if show_values:
+                        value = float(tf_var.numpy())
+                        param_groups[gate_type].append((param_name, value))
+                        print(f"  {i:2d}. {param_name:<30} = {value:8.4f}")
+                    else:
+                        param_groups[gate_type].append((param_name, None))
+                        print(f"  {i:2d}. {param_name}")
+        elif hasattr(circuit, 'trainable_variables'):
+            # Fallback for standard trainable variables
+            for i, var in enumerate(circuit.trainable_variables):
+                param_name = var.name.split(':')[0]
+                if show_values:
+                    value = float(var.numpy())
+                    print(f"  {i:2d}. {param_name:<30} = {value:8.4f}")
+                else:
+                    print(f"  {i:2d}. {param_name}")
         
         # Parameter type summary
-        print(f"\nParameter Type Summary:")
-        for param_type, params in param_groups.items():
-            print(f"  {param_type.capitalize()}: {len(params)} parameters")
+        if param_groups:
+            print(f"\n📊 Gate Type Summary:")
+            for gate_type, params in param_groups.items():
+                print(f"  {gate_type}: {len(params)} parameters")
     
-    def _save_circuit_diagram(self, prog, title: str):
-        """Save circuit diagram to file."""
-        try:
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            filename = f"{self.save_dir}/circuit_{title.lower().replace(' ', '_')}_{timestamp}.txt"
+    def _visualize_circuit_structure(self, circuit):
+        """FIXED: Visualize circuit structure using actual parameter names."""
+        print(f"\n📋 Circuit Structure Analysis:")
+        print("-" * 40)
+        
+        if hasattr(circuit, 'param_names'):
+            # Analyze structure by layers
+            layer_structure = {}
             
-            # Capture program print output
-            import io
-            import contextlib
+            for param_name in circuit.param_names:
+                parts = param_name.split('_')
+                if len(parts) >= 2:
+                    layer = parts[0]  # L0, L1, etc.
+                    gate_type = parts[1]  # BS1, SQUEEZE, etc.
+                    
+                    if layer not in layer_structure:
+                        layer_structure[layer] = {}
+                    
+                    if gate_type not in layer_structure[layer]:
+                        layer_structure[layer][gate_type] = 0
+                    
+                    layer_structure[layer][gate_type] += 1
             
-            buffer = io.StringIO()
-            with contextlib.redirect_stdout(buffer):
-                prog.print()
-            
-            circuit_text = buffer.getvalue()
-            
-            with open(filename, 'w') as f:
-                f.write(f"Circuit Diagram: {title}\n")
-                f.write(f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
-                f.write("=" * 60 + "\n\n")
-                f.write(circuit_text)
-            
-            logger.info(f"Circuit diagram saved to {filename}")
-            
-        except Exception as e:
-            logger.warning(f"Could not save circuit diagram: {e}")
+            # Print layer-by-layer structure
+            for layer, gates in layer_structure.items():
+                print(f"  {layer}:")
+                for gate_type, count in gates.items():
+                    print(f"    {gate_type}: {count} parameters")
     
     def _visualize_parameter_distribution(self, circuit, title: str, save: bool = True):
-        """Visualize parameter value distributions."""
+        """FIXED: Visualize parameter distributions with proper error handling."""
         if not hasattr(circuit, 'trainable_variables') or len(circuit.trainable_variables) == 0:
+            print("⚠️  No trainable variables found for parameter distribution analysis")
             return
         
-        # Extract parameter values
-        param_values = [float(var.numpy()) for var in circuit.trainable_variables]
-        param_names = [var.name.split(':')[0] for var in circuit.trainable_variables]
-        
-        # Create parameter analysis plots
-        fig, axes = plt.subplots(2, 2, figsize=(15, 10))
-        
-        # Parameter value histogram
-        axes[0, 0].hist(param_values, bins=20, alpha=0.7, color='skyblue', edgecolor='black')
-        axes[0, 0].set_title('Parameter Value Distribution')
-        axes[0, 0].set_xlabel('Parameter Value')
-        axes[0, 0].set_ylabel('Frequency')
-        axes[0, 0].grid(True, alpha=0.3)
-        
-        # Parameter values by index
-        axes[0, 1].plot(param_values, 'o-', alpha=0.7, markersize=4)
-        axes[0, 1].set_title('Parameter Values by Index')
-        axes[0, 1].set_xlabel('Parameter Index')
-        axes[0, 1].set_ylabel('Parameter Value')
-        axes[0, 1].grid(True, alpha=0.3)
-        
-        # Parameter magnitude
-        param_magnitudes = [abs(val) for val in param_values]
-        axes[1, 0].bar(range(len(param_magnitudes)), param_magnitudes, alpha=0.7, color='coral')
-        axes[1, 0].set_title('Parameter Magnitudes')
-        axes[1, 0].set_xlabel('Parameter Index')
-        axes[1, 0].set_ylabel('|Parameter Value|')
-        axes[1, 0].grid(True, alpha=0.3)
-        
-        # Parameter statistics
-        stats_text = f"""Parameter Statistics:
+        try:
+            # Extract parameter values safely
+            param_values = []
+            param_names = []
+            
+            for var in circuit.trainable_variables:
+                try:
+                    param_values.append(float(var.numpy()))
+                    param_names.append(var.name.split(':')[0])
+                except:
+                    logger.warning(f"Could not extract value from parameter {var.name}")
+            
+            if not param_values:
+                print("⚠️  No parameter values could be extracted")
+                return
+            
+            # Create parameter analysis plots
+            fig, axes = plt.subplots(2, 2, figsize=(15, 10))
+            
+            # Parameter value histogram
+            axes[0, 0].hist(param_values, bins=min(20, len(param_values)), 
+                           alpha=0.7, color='skyblue', edgecolor='black')
+            axes[0, 0].set_title('Parameter Value Distribution')
+            axes[0, 0].set_xlabel('Parameter Value')
+            axes[0, 0].set_ylabel('Frequency')
+            axes[0, 0].grid(True, alpha=0.3)
+            
+            # Parameter values by index
+            axes[0, 1].plot(param_values, 'o-', alpha=0.7, markersize=4)
+            axes[0, 1].set_title('Parameter Values by Index')
+            axes[0, 1].set_xlabel('Parameter Index')
+            axes[0, 1].set_ylabel('Parameter Value')
+            axes[0, 1].grid(True, alpha=0.3)
+            
+            # Parameter magnitude
+            param_magnitudes = [abs(val) for val in param_values]
+            axes[1, 0].bar(range(len(param_magnitudes)), param_magnitudes, 
+                          alpha=0.7, color='coral')
+            axes[1, 0].set_title('Parameter Magnitudes')
+            axes[1, 0].set_xlabel('Parameter Index')
+            axes[1, 0].set_ylabel('|Parameter Value|')
+            axes[1, 0].grid(True, alpha=0.3)
+            
+            # Parameter statistics
+            stats_text = f"""Parameter Statistics:
 Mean: {np.mean(param_values):.4f}
 Std:  {np.std(param_values):.4f}
 Min:  {np.min(param_values):.4f}
@@ -223,612 +224,346 @@ Range: {np.max(param_values) - np.min(param_values):.4f}
 Total Parameters: {len(param_values)}
 Zero Parameters: {sum(1 for v in param_values if abs(v) < 1e-6)}
 Large Parameters: {sum(1 for v in param_values if abs(v) > 1.0)}"""
-        
-        axes[1, 1].text(0.1, 0.9, stats_text, transform=axes[1, 1].transAxes,
-                        fontsize=10, verticalalignment='top', fontfamily='monospace',
-                        bbox=dict(boxstyle='round', facecolor='lightgray', alpha=0.8))
-        axes[1, 1].set_title('Parameter Statistics')
-        axes[1, 1].axis('off')
-        
-        plt.suptitle(f'{title} - Parameter Analysis', fontsize=16)
-        plt.tight_layout()
-        
-        if save:
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            filename = f"{self.save_dir}/params_{title.lower().replace(' ', '_')}_{timestamp}.png"
-            plt.savefig(filename, dpi=300, bbox_inches='tight')
-            logger.info(f"Parameter analysis saved to {filename}")
-        
-        plt.show()
+            
+            axes[1, 1].text(0.1, 0.9, stats_text, transform=axes[1, 1].transAxes,
+                            fontsize=10, verticalalignment='top', fontfamily='monospace',
+                            bbox=dict(boxstyle='round', facecolor='lightgray', alpha=0.8))
+            axes[1, 1].set_title('Parameter Statistics')
+            axes[1, 1].axis('off')
+            
+            plt.suptitle(f'{title} - Parameter Analysis', fontsize=16)
+            plt.tight_layout()
+            
+            if save:
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                filename = f"{self.save_dir}/params_{title.lower().replace(' ', '_')}_{timestamp}.png"
+                plt.savefig(filename, dpi=300, bbox_inches='tight')
+                logger.info(f"Parameter analysis saved to {filename}")
+            
+            plt.show()
+            
+        except Exception as e:
+            logger.error(f"Failed to visualize parameter distribution: {e}")
     
     # =====================================================================
-    # QUANTUM STATE VISUALIZATION
+    # ENHANCED QUANTUM STATE VISUALIZATION  
     # =====================================================================
     
     def visualize_quantum_state(self, state, title: str = "Quantum State",
                                modes: Optional[List[int]] = None,
-                               x_range: Tuple[float, float] = (-4, 4),
-                               p_range: Tuple[float, float] = (-4, 4),
-                               resolution: int = 100,
                                save: bool = True):
         """
-        Comprehensive quantum state visualization.
-        
-        Args:
-            state: SF quantum state object
-            title: Visualization title
-            modes: List of modes to visualize (default: all)
-            x_range: X quadrature range
-            p_range: P quadrature range
-            resolution: Grid resolution
-            save: Save visualizations
+        ENHANCED: Quantum state visualization with 3D Wigner functions.
         """
         if modes is None:
-            modes = list(range(min(state.num_modes, 4)))  # Limit to 4 modes for display
+            modes = list(range(min(state.num_modes, 2)))  # Limit for visualization
         
         print(f"🎭 {title.upper()} - QUANTUM STATE ANALYSIS")
         print("=" * 60)
         print(f"State Configuration:")
         print(f"  Modes: {state.num_modes}")
-        print(f"  Cutoff: {getattr(state, 'cutoff_dim', 'Unknown')}")
         print(f"  Visualizing modes: {modes}")
         
-        # 1. 3D Wigner function mountains
-        self._create_wigner_mountains(state, modes, title, x_range, p_range, resolution, save)
-        
-        # 2. Fock probability distributions
-        self._visualize_fock_distributions(state, modes, title, save)
-        
-        # 3. Quadrature distributions
-        self._visualize_quadrature_distributions(state, modes, title, save)
-        
-        # 4. State entropy analysis
-        self._analyze_state_entropy(state, modes, title, save)
-    
-    def _create_wigner_mountains(self, state, modes: List[int], title: str,
-                                x_range: Tuple[float, float], p_range: Tuple[float, float],
-                                resolution: int, save: bool):
-        """Create 3D Wigner function visualizations."""
-        print(f"\n Creating Wigner function mountains...")
-        
-        n_modes = len(modes)
-        cols = min(2, n_modes)
-        rows = (n_modes + cols - 1) // cols
-        
-        fig = plt.figure(figsize=(8*cols, 6*rows))
-        
-        # Create coordinate grids
-        x = np.linspace(x_range[0], x_range[1], resolution)
-        p = np.linspace(p_range[0], p_range[1], resolution)
-        X, P = np.meshgrid(x, p)
-        
-        for i, mode in enumerate(modes):
-            ax = fig.add_subplot(rows, cols, i+1, projection='3d')
+        try:
+            # 1. NEW: 3D Wigner function visualization (SF supports this!)
+            self._create_wigner_mountains(state, modes, title, save)
             
-            try:
-                # Calculate Wigner function
-                W = state.wigner(mode, x, p)
+            # 2. Fock probability analysis
+            self._analyze_fock_probabilities(state, modes, title, save)
+            
+            # 3. State vector analysis
+            self._analyze_state_vector(state, title, save)
+            
+        except Exception as e:
+            logger.error(f"State visualization failed: {e}")
+    
+    def _create_wigner_mountains(self, state, modes: List[int], title: str, save: bool):
+        """NEW: Create 3D Wigner function visualizations (SF actually supports this!)."""
+        print(f"\n🏔️  Creating 3D Wigner function mountains...")
+        
+        try:
+            n_modes = len(modes)
+            cols = min(2, n_modes)
+            rows = (n_modes + cols - 1) // cols
+            
+            fig = plt.figure(figsize=(8*cols, 6*rows))
+            
+            # Create coordinate grids
+            x = np.linspace(-4, 4, 60)  # Reduced resolution for performance
+            p = np.linspace(-4, 4, 60)
+            X, P = np.meshgrid(x, p)
+            
+            for i, mode in enumerate(modes):
+                if mode >= state.num_modes:
+                    continue
+                    
+                ax = fig.add_subplot(rows, cols, i+1, projection='3d')
                 
-                # Create 3D surface
-                surface = ax.plot_surface(X, P, W, cmap='RdYlBu_r',
-                                        alpha=0.9, linewidth=0.3,
-                                        rstride=max(1, resolution//40),
-                                        cstride=max(1, resolution//40))
+                try:
+                    # Calculate Wigner function - SF DOES support this!
+                    W = state.wigner(mode, x, p)
+                    
+                    # Create 3D surface
+                    surface = ax.plot_surface(X, P, W, cmap='RdYlBu_r',
+                                            alpha=0.9, linewidth=0.3,
+                                            rstride=2, cstride=2)
+                    
+                    # Add contour lines at base
+                    contour_levels = np.linspace(np.min(W), np.max(W), 8)
+                    ax.contour(X, P, W, levels=contour_levels, colors='gray',
+                              alpha=0.5, offset=np.min(W)-0.02)
+                    
+                    # Styling
+                    ax.set_title(f'Mode {mode} Wigner Function', fontsize=12, pad=10)
+                    ax.set_xlabel('Position (x)', fontsize=10)
+                    ax.set_ylabel('Momentum (p)', fontsize=10)
+                    ax.set_zlabel('W(x,p)', fontsize=10)
+                    ax.grid(True, alpha=0.3)
+                    
+                    # Analyze state properties
+                    max_w = np.max(W)
+                    min_w = np.min(W)
+                    neg_volume = np.sum(W[W < 0]) * (x[1] - x[0]) * (p[1] - p[0])
+                    
+                    print(f"    Mode {mode}: W_max={max_w:.3f}, W_min={min_w:.3f}, Neg_vol={neg_volume:.3f}")
+                    
+                except Exception as e:
+                    logger.warning(f"Could not create Wigner function for mode {mode}: {e}")
+                    # Create placeholder
+                    ax.text(0.5, 0.5, 0.5, f'Mode {mode}\nWigner N/A', 
+                           ha='center', va='center', transform=ax.transData)
+            
+            plt.suptitle(f'{title} - Wigner Function Mountains', fontsize=16)
+            plt.tight_layout()
+            
+            if save:
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                filename = f"{self.save_dir}/wigner_{title.lower().replace(' ', '_')}_{timestamp}.png"
+                plt.savefig(filename, dpi=300, bbox_inches='tight')
+                logger.info(f"Wigner functions saved to {filename}")
+            
+            plt.show()
+            
+        except Exception as e:
+            logger.warning(f"Could not create Wigner visualizations: {e}")
+    
+    def _analyze_fock_probabilities(self, state, modes: List[int], title: str, save: bool):
+        """FIXED: Analyze Fock probabilities using actual SF state methods."""
+        print(f"\n📊 Analyzing Fock state probabilities...")
+        
+        try:
+            # Get state vector (this works in SF)
+            ket = state.ket()
+            prob_amplitudes = tf.abs(ket) ** 2
+            
+            # For single mode, we can extract marginal probabilities
+            if len(modes) == 1 and state.num_modes == 1:
+                mode = modes[0]
+                cutoff = len(prob_amplitudes)
                 
-                # Add contour lines at base
-                contour_levels = np.linspace(np.min(W), np.max(W), 10)
-                ax.contour(X, P, W, levels=contour_levels, colors='gray',
-                          alpha=0.5, offset=np.min(W)-0.02)
+                fig, ax = plt.subplots(1, 1, figsize=(8, 6))
                 
-                # Styling
-                ax.set_title(f'Mode {mode} Wigner Function', fontsize=12, pad=10)
-                ax.set_xlabel('Position (x)', fontsize=10)
-                ax.set_ylabel('Momentum (p)', fontsize=10)
-                ax.set_zlabel('W(x,p)', fontsize=10)
+                # Plot Fock probabilities
+                fock_probs = prob_amplitudes.numpy()
+                bars = ax.bar(range(cutoff), fock_probs, alpha=0.7, color='skyblue')
+                ax.set_title(f'{title} - Fock State Probabilities')
+                ax.set_xlabel('Fock Number |n⟩')
+                ax.set_ylabel('Probability')
                 ax.grid(True, alpha=0.3)
                 
-                # Analyze state properties
-                max_w = np.max(W)
-                min_w = np.min(W)
-                neg_volume = np.sum(W[W < 0]) * (x[1] - x[0]) * (p[1] - p[0])
-                
-                print(f"    Mode {mode}: W_max={max_w:.3f}, W_min={min_w:.3f}, Neg_vol={neg_volume:.3f}")
-                
-            except Exception as e:
-                logger.warning(f"Could not create Wigner function for mode {mode}: {e}")
-        
-        plt.suptitle(f'{title} - Wigner Function Mountains', fontsize=16)
-        plt.tight_layout()
-        
-        if save:
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            filename = f"{self.save_dir}/wigner_{title.lower().replace(' ', '_')}_{timestamp}.png"
-            plt.savefig(filename, dpi=300, bbox_inches='tight')
-            logger.info(f"Wigner functions saved to {filename}")
-        
-        plt.show()
-    
-    def _visualize_fock_distributions(self, state, modes: List[int], title: str, save: bool):
-        """Visualize Fock state probability distributions."""
-        print(f"\nAnalyzing Fock state distributions...")
-        
-        cutoff = min(8, getattr(state, 'cutoff_dim', 8))
-        n_modes = len(modes)
-        
-        fig, axes = plt.subplots(1, n_modes, figsize=(4*n_modes, 4))
-        if n_modes == 1:
-            axes = [axes]
-        
-        for i, mode in enumerate(modes):
-            try:
-                # Calculate Fock probabilities
-                fock_probs = []
-                for n in range(cutoff):
-                    fock_state = [0] * state.num_modes
-                    fock_state[mode] = n
-                    prob = state.fock_prob(fock_state)
-                    fock_probs.append(prob)
-                
-                # Plot distribution
-                bars = axes[i].bar(range(cutoff), fock_probs, alpha=0.7, 
-                                  color=plt.cm.viridis(i/max(1, n_modes-1)))
-                axes[i].set_title(f'Mode {mode} Fock Distribution')
-                axes[i].set_xlabel('Fock Number |n⟩')
-                axes[i].set_ylabel('Probability')
-                axes[i].grid(True, alpha=0.3)
-                
-                # Add value labels on bars
-                for j, (bar, prob) in enumerate(zip(bars, fock_probs)):
-                    if prob > 0.01:  # Only label significant probabilities
-                        axes[i].text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.005,
-                                   f'{prob:.3f}', ha='center', va='bottom', fontsize=8)
+                # Add value labels
+                for i, (bar, prob) in enumerate(zip(bars, fock_probs)):
+                    if prob > 0.01:
+                        ax.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.005,
+                               f'{prob:.3f}', ha='center', va='bottom', fontsize=8)
                 
                 # Calculate mean photon number
                 mean_n = sum(n * prob for n, prob in enumerate(fock_probs))
-                axes[i].axvline(mean_n, color='red', linestyle='--', alpha=0.8, 
-                               label=f'⟨n⟩={mean_n:.2f}')
-                axes[i].legend()
+                ax.axvline(mean_n, color='red', linestyle='--', alpha=0.8, 
+                          label=f'⟨n⟩={mean_n:.2f}')
+                ax.legend()
                 
                 print(f"    Mode {mode}: ⟨n⟩={mean_n:.3f}, max_prob={max(fock_probs):.3f}")
                 
-            except Exception as e:
-                logger.warning(f"Could not analyze Fock distribution for mode {mode}: {e}")
-        
-        plt.suptitle(f'{title} - Fock State Distributions', fontsize=14)
-        plt.tight_layout()
-        
-        if save:
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            filename = f"{self.save_dir}/fock_{title.lower().replace(' ', '_')}_{timestamp}.png"
-            plt.savefig(filename, dpi=300, bbox_inches='tight')
-        
-        plt.show()
-    
-    def _visualize_quadrature_distributions(self, state, modes: List[int], title: str, save: bool):
-        """Visualize quadrature (X and P) distributions."""
-        print(f"\nAnalyzing quadrature distributions...")
-        
-        fig, axes = plt.subplots(2, len(modes), figsize=(4*len(modes), 8))
-        if len(modes) == 1:
-            axes = axes.reshape(-1, 1)
-        
-        x_vals = np.linspace(-4, 4, 200)
-        
-        for i, mode in enumerate(modes):
-            try:
-                # Calculate quadrature distributions
-                x_quad = state.quad_expectation(mode, 0)  # X quadrature (phi=0)
-                p_quad = state.quad_expectation(mode, np.pi/2)  # P quadrature (phi=π/2)
-                
-                # X quadrature distribution
-                x_probs = [state.quad_prob(mode, x, 0) for x in x_vals]
-                axes[0, i].plot(x_vals, x_probs, 'b-', linewidth=2, label='X quadrature')
-                axes[0, i].axvline(x_quad, color='red', linestyle='--', label=f'⟨X⟩={x_quad:.3f}')
-                axes[0, i].set_title(f'Mode {mode} X Quadrature')
-                axes[0, i].set_xlabel('x')
-                axes[0, i].set_ylabel('P(x)')
-                axes[0, i].grid(True, alpha=0.3)
-                axes[0, i].legend()
-                
-                # P quadrature distribution
-                p_probs = [state.quad_prob(mode, p, np.pi/2) for p in x_vals]
-                axes[1, i].plot(x_vals, p_probs, 'g-', linewidth=2, label='P quadrature')
-                axes[1, i].axvline(p_quad, color='red', linestyle='--', label=f'⟨P⟩={p_quad:.3f}')
-                axes[1, i].set_title(f'Mode {mode} P Quadrature')
-                axes[1, i].set_xlabel('p')
-                axes[1, i].set_ylabel('P(p)')
-                axes[1, i].grid(True, alpha=0.3)
-                axes[1, i].legend()
-                
-                print(f"    Mode {mode}: ⟨X⟩={x_quad:.3f}, ⟨P⟩={p_quad:.3f}")
-                
-            except Exception as e:
-                logger.warning(f"Could not analyze quadratures for mode {mode}: {e}")
-                # Fill with placeholder
-                axes[0, i].text(0.5, 0.5, f'Mode {mode}\nN/A', ha='center', va='center', 
-                               transform=axes[0, i].transAxes)
-                axes[1, i].text(0.5, 0.5, f'Mode {mode}\nN/A', ha='center', va='center',
-                               transform=axes[1, i].transAxes)
-        
-        plt.suptitle(f'{title} - Quadrature Distributions', fontsize=16)
-        plt.tight_layout()
-        
-        if save:
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            filename = f"{self.save_dir}/quadratures_{title.lower().replace(' ', '_')}_{timestamp}.png"
-            plt.savefig(filename, dpi=300, bbox_inches='tight')
-        
-        plt.show()
-    
-    def _analyze_state_entropy(self, state, modes: List[int], title: str, save: bool):
-        """Analyze quantum state entropy and entanglement properties."""
-        print(f"\n🔬 Analyzing state entropy and entanglement...")
-        
-        try:
-            # Calculate various entropy measures
-            cutoff = min(6, getattr(state, 'cutoff_dim', 6))
-            
-            entropies = {}
-            for mode in modes:
-                # Calculate single-mode entropy (approximation using Fock probabilities)
-                fock_probs = []
-                for n in range(cutoff):
-                    fock_state = [0] * state.num_modes
-                    fock_state[mode] = n
-                    prob = state.fock_prob(fock_state)
-                    fock_probs.append(prob)
-                
-                # Renormalize (in case of truncation)
-                total_prob = sum(fock_probs)
-                if total_prob > 0:
-                    fock_probs = [p/total_prob for p in fock_probs]
-                    
-                    # Calculate von Neumann entropy (approximation)
-                    mode_entropy = entropy(fock_probs, base=2) if any(p > 0 for p in fock_probs) else 0
-                    entropies[mode] = mode_entropy
-                    
-                    print(f"    Mode {mode}: von Neumann entropy ≈ {mode_entropy:.3f} bits")
-            
-            # Create entropy visualization
-            if entropies:
-                fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5))
-                
-                # Entropy by mode
-                modes_list = list(entropies.keys())
-                entropy_vals = list(entropies.values())
-                bars = ax1.bar(modes_list, entropy_vals, alpha=0.7, color='purple')
-                ax1.set_title('Von Neumann Entropy by Mode')
-                ax1.set_xlabel('Mode')
-                ax1.set_ylabel('Entropy (bits)')
-                ax1.grid(True, alpha=0.3)
-                
-                # Add value labels
-                for bar, val in zip(bars, entropy_vals):
-                    ax1.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.01,
-                            f'{val:.3f}', ha='center', va='bottom')
-                
-                # Entropy statistics
-                if len(entropy_vals) > 1:
-                    mean_entropy = np.mean(entropy_vals)
-                    std_entropy = np.std(entropy_vals)
-                    total_entropy = sum(entropy_vals)
-                    
-                    stats_text = f"""Entropy Statistics:
-Mean: {mean_entropy:.3f} bits
-Std:  {std_entropy:.3f} bits
-Total: {total_entropy:.3f} bits
-Max:  {max(entropy_vals):.3f} bits
-Min:  {min(entropy_vals):.3f} bits
-
-Modes analyzed: {len(entropies)}
-Cutoff used: {cutoff}"""
-                else:
-                    stats_text = f"""Single Mode Analysis:
-Entropy: {entropy_vals[0]:.3f} bits
-Mode: {modes_list[0]}
-Cutoff: {cutoff}"""
-                
-                ax2.text(0.1, 0.9, stats_text, transform=ax2.transAxes,
-                        fontsize=11, verticalalignment='top', fontfamily='monospace',
-                        bbox=dict(boxstyle='round', facecolor='lightblue', alpha=0.8))
-                ax2.set_title('Entropy Analysis')
-                ax2.axis('off')
-                
-                plt.suptitle(f'{title} - Quantum State Entropy Analysis', fontsize=14)
-                plt.tight_layout()
-                
                 if save:
                     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                    filename = f"{self.save_dir}/entropy_{title.lower().replace(' ', '_')}_{timestamp}.png"
+                    filename = f"{self.save_dir}/fock_{title.lower().replace(' ', '_')}_{timestamp}.png"
                     plt.savefig(filename, dpi=300, bbox_inches='tight')
                 
                 plt.show()
+            else:
+                print("    Multi-mode Fock analysis not implemented (requires state tomography)")
+                
+        except Exception as e:
+            logger.warning(f"Could not analyze Fock probabilities: {e}")
+    
+    def _analyze_state_vector(self, state, title: str, save: bool):
+        """FIXED: Analyze state vector using actual SF methods."""
+        print(f"\n🔬 Analyzing state vector...")
+        
+        try:
+            ket = state.ket()
+            prob_amplitudes = tf.abs(ket) ** 2
+            
+            # State vector analysis
+            fig, axes = plt.subplots(1, 3, figsize=(15, 5))
+            
+            # Amplitude magnitudes
+            amplitudes = tf.abs(ket).numpy()
+            axes[0].plot(amplitudes, 'o-', alpha=0.7, markersize=4)
+            axes[0].set_title('State Amplitude Magnitudes')
+            axes[0].set_xlabel('Basis State Index')
+            axes[0].set_ylabel('|⟨n|ψ⟩|')
+            axes[0].grid(True, alpha=0.3)
+            
+            # Probability distribution
+            probs = prob_amplitudes.numpy()
+            axes[1].bar(range(len(probs)), probs, alpha=0.7, color='coral')
+            axes[1].set_title('Probability Distribution')
+            axes[1].set_xlabel('Basis State Index')
+            axes[1].set_ylabel('|⟨n|ψ⟩|²')
+            axes[1].grid(True, alpha=0.3)
+            
+            # State statistics
+            purity = tf.reduce_sum(prob_amplitudes ** 2).numpy()
+            entropy = -tf.reduce_sum(prob_amplitudes * tf.math.log(prob_amplitudes + 1e-12)).numpy()
+            participation = 1.0 / tf.reduce_sum(prob_amplitudes ** 2).numpy()
+            
+            stats_text = f"""State Statistics:
+Norm: {tf.norm(ket).numpy():.4f}
+Purity: {purity:.4f}
+Entropy: {entropy:.4f}
+Participation Ratio: {participation:.2f}
+
+Basis States: {len(ket)}
+Non-zero Components: {np.sum(probs > 1e-6)}
+Max Probability: {np.max(probs):.4f}"""
+            
+            axes[2].text(0.1, 0.9, stats_text, transform=axes[2].transAxes,
+                        fontsize=10, verticalalignment='top', fontfamily='monospace',
+                        bbox=dict(boxstyle='round', facecolor='lightblue', alpha=0.8))
+            axes[2].set_title('State Properties')
+            axes[2].axis('off')
+            
+            plt.suptitle(f'{title} - State Vector Analysis', fontsize=14)
+            plt.tight_layout()
+            
+            if save:
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                filename = f"{self.save_dir}/state_vector_{title.lower().replace(' ', '_')}_{timestamp}.png"
+                plt.savefig(filename, dpi=300, bbox_inches='tight')
+            
+            plt.show()
             
         except Exception as e:
-            logger.warning(f"Could not analyze state entropy: {e}")
+            logger.warning(f"Could not analyze state vector: {e}")
     
     # =====================================================================
-    # TRAINING VISUALIZATION AND MONITORING
+    # ENHANCED TRAINING VISUALIZATION
     # =====================================================================
     
     def create_training_dashboard(self, training_history: Dict[str, List[float]], 
                                  title: str = "Quantum GAN Training",
                                  save: bool = True):
-        """
-        Create comprehensive training dashboard.
-        
-        Args:
-            training_history: Dictionary with training metrics
-            title: Dashboard title
-            save: Save the dashboard
-        """
+        """ENHANCED: Training dashboard with parameter evolution."""
         print(f"📊 Creating {title} Dashboard...")
         
-        fig = plt.figure(figsize=(20, 12))
-        
-        # Create grid layout
-        gs = fig.add_gridspec(3, 4, hspace=0.3, wspace=0.3)
-        
-        # 1. Loss curves
-        ax1 = fig.add_subplot(gs[0, 0:2])
-        if 'g_loss' in training_history and 'd_loss' in training_history:
-            epochs = range(len(training_history['g_loss']))
-            ax1.plot(epochs, training_history['g_loss'], 'b-', linewidth=2, label='Generator', alpha=0.8)
-            ax1.plot(epochs, training_history['d_loss'], 'r-', linewidth=2, label='Discriminator', alpha=0.8)
-            ax1.set_title('Training Losses', fontsize=14, fontweight='bold')
-            ax1.set_xlabel('Epoch')
-            ax1.set_ylabel('Loss')
-            ax1.legend()
-            ax1.grid(True, alpha=0.3)
-        
-        # 2. Wasserstein distance
-        ax2 = fig.add_subplot(gs[0, 2])
-        if 'w_distance' in training_history:
-            epochs = range(len(training_history['w_distance']))
-            ax2.plot(epochs, training_history['w_distance'], 'g-', linewidth=2)
-            ax2.set_title('Wasserstein Distance', fontsize=12, fontweight='bold')
-            ax2.set_xlabel('Epoch')
-            ax2.set_ylabel('Distance')
-            ax2.grid(True, alpha=0.3)
-        
-        # 3. Gradient flow
-        ax3 = fig.add_subplot(gs[0, 3])
-        if 'g_gradients' in training_history:
-            epochs = range(len(training_history['g_gradients']))
-            ax3.plot(epochs, training_history['g_gradients'], 'b-', linewidth=2, label='Generator')
-            if 'd_gradients' in training_history:
-                ax3.plot(epochs, training_history['d_gradients'], 'r-', linewidth=2, label='Discriminator')
-            ax3.set_title('Gradient Flow', fontsize=12, fontweight='bold')
-            ax3.set_xlabel('Epoch')
-            ax3.set_ylabel('Active Gradients')
-            ax3.legend()
-            ax3.grid(True, alpha=0.3)
-        
-        # 4. Gradient penalty
-        ax4 = fig.add_subplot(gs[1, 0])
-        if 'gradient_penalty' in training_history:
-            epochs = range(len(training_history['gradient_penalty']))
-            ax4.plot(epochs, training_history['gradient_penalty'], 'purple', linewidth=2)
-            ax4.set_title('Gradient Penalty', fontsize=12, fontweight='bold')
-            ax4.set_xlabel('Epoch')
-            ax4.set_ylabel('Penalty')
-            ax4.grid(True, alpha=0.3)
-        
-        # 5. Entropy evolution
-        ax5 = fig.add_subplot(gs[1, 1])
-        if 'entropy_bonus' in training_history:
-            epochs = range(len(training_history['entropy_bonus']))
-            ax5.plot(epochs, training_history['entropy_bonus'], 'orange', linewidth=2)
-            ax5.set_title('Entropy Regularization', fontsize=12, fontweight='bold')
-            ax5.set_xlabel('Epoch')
-            ax5.set_ylabel('Entropy Bonus')
-            ax5.grid(True, alpha=0.3)
-        
-        # 6. Physics penalty
-        ax6 = fig.add_subplot(gs[1, 2])
-        if 'physics_penalty' in training_history:
-            epochs = range(len(training_history['physics_penalty']))
-            ax6.plot(epochs, training_history['physics_penalty'], 'brown', linewidth=2)
-            ax6.set_title('Physics Penalty', fontsize=12, fontweight='bold')
-            ax6.set_xlabel('Epoch')
-            ax6.set_ylabel('Penalty')
-            ax6.grid(True, alpha=0.3)
-        
-        # 7. Training summary
-        ax7 = fig.add_subplot(gs[1, 3])
-        if training_history:
-            latest_metrics = {}
-            for key, values in training_history.items():
-                if values:
-                    latest_metrics[key] = values[-1]
-            
-            summary_text = "Latest Metrics:\n"
-            summary_text += "-" * 15 + "\n"
-            for key, value in latest_metrics.items():
-                summary_text += f"{key}: {value:.4f}\n"
-            
-            ax7.text(0.1, 0.9, summary_text, transform=ax7.transAxes,
-                    fontsize=10, verticalalignment='top', fontfamily='monospace',
-                    bbox=dict(boxstyle='round', facecolor='lightgreen', alpha=0.8))
-            ax7.set_title('Current Status', fontsize=12, fontweight='bold')
-            ax7.axis('off')
-        
-        # 8. Parameter evolution heatmap (if available)
-        ax8 = fig.add_subplot(gs[2, :])
-        if hasattr(self, 'parameter_history') and self.parameter_history:
-            param_matrix = np.array(self.parameter_history).T
-            im = ax8.imshow(param_matrix, cmap='RdBu_r', aspect='auto', interpolation='bilinear')
-            ax8.set_title('Parameter Evolution Heatmap', fontsize=14, fontweight='bold')
-            ax8.set_xlabel('Training Step')
-            ax8.set_ylabel('Parameter Index')
-            plt.colorbar(im, ax=ax8, label='Parameter Value')
-        else:
-            ax8.text(0.5, 0.5, 'Parameter Evolution\n(Enable parameter tracking)', 
-                    ha='center', va='center', transform=ax8.transAxes, fontsize=14)
-            ax8.set_title('Parameter Evolution', fontsize=14, fontweight='bold')
-            ax8.axis('off')
-        
-        plt.suptitle(f'{title} Dashboard', fontsize=18, fontweight='bold')
-        plt.tight_layout()
-        
-        if save:
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            filename = f"{self.save_dir}/dashboard_{title.lower().replace(' ', '_')}_{timestamp}.png"
-            plt.savefig(filename, dpi=300, bbox_inches='tight')
-            logger.info(f"Training dashboard saved to {filename}")
-        
-        plt.show()
-    
-    def track_parameters(self, generator, discriminator):
-        """
-        Track parameter evolution during training.
-        
-        Args:
-            generator: Generator model
-            discriminator: Discriminator model
-        """
-        if hasattr(generator, 'trainable_variables') and hasattr(discriminator, 'trainable_variables'):
-            g_params = [float(var.numpy()) for var in generator.trainable_variables]
-            d_params = [float(var.numpy()) for var in discriminator.trainable_variables]
-            all_params = g_params + d_params
-            self.parameter_history.append(all_params)
-    
-    def create_quantum_state_evolution_gif(self, states: List[Any], 
-                                          title: str = "Quantum State Evolution",
-                                          mode: int = 0,
-                                          save: bool = True):
-        """
-        Create animated GIF showing quantum state evolution.
-        
-        Args:
-            states: List of quantum states
-            title: Animation title
-            mode: Mode to visualize
-            save: Save the animation
-        """
-        print(f"🎬 Creating quantum state evolution animation...")
-        
         try:
-            from matplotlib.animation import FuncAnimation
+            # Check what metrics are available
+            available_metrics = [key for key, values in training_history.items() if values]
             
-            fig = plt.figure(figsize=(10, 8))
-            ax = fig.add_subplot(111, projection='3d')
+            if not available_metrics:
+                print("⚠️  No training metrics available for dashboard")
+                return
             
-            # Prepare coordinate grid
-            x = np.linspace(-4, 4, 80)
-            p = np.linspace(-4, 4, 80)
-            X, P = np.meshgrid(x, p)
+            # Create enhanced dashboard with parameter evolution
+            fig = plt.figure(figsize=(20, 12))
+            gs = fig.add_gridspec(3, 4, hspace=0.3, wspace=0.3)
             
-            def animate(frame):
-                ax.clear()
-                state = states[frame]
-                W = state.wigner(mode, x, p)
+            # Main metrics plots
+            metric_plots = [
+                ('g_loss', 'Generator Loss', 'blue'),
+                ('d_loss', 'Discriminator Loss', 'red'),
+                ('w_distance', 'Wasserstein Distance', 'green'),
+                ('gradient_penalty', 'Gradient Penalty', 'purple'),
+                ('entropy_bonus', 'Entropy Bonus', 'orange'),
+                ('physics_penalty', 'Physics Penalty', 'brown')
+            ]
+            
+            plot_idx = 0
+            for metric, label, color in metric_plots:
+                if metric in training_history and training_history[metric] and plot_idx < 6:
+                    row = plot_idx // 3
+                    col = plot_idx % 3
+                    ax = fig.add_subplot(gs[row, col])
+                    
+                    values = training_history[metric]
+                    epochs = range(len(values))
+                    ax.plot(epochs, values, color=color, linewidth=2, alpha=0.8)
+                    ax.set_title(label, fontsize=12, fontweight='bold')
+                    ax.set_xlabel('Epoch')
+                    ax.set_ylabel('Value')
+                    ax.grid(True, alpha=0.3)
+                    
+                    plot_idx += 1
+            
+            # Training summary
+            ax_summary = fig.add_subplot(gs[0, 3])
+            if training_history:
+                latest_metrics = {}
+                for key, values in training_history.items():
+                    if values:
+                        latest_metrics[key] = values[-1]
                 
-                surface = ax.plot_surface(X, P, W, cmap='RdYlBu_r', alpha=0.9)
-                ax.set_title(f'{title} - Frame {frame+1}/{len(states)}')
-                ax.set_xlabel('Position (x)')
-                ax.set_ylabel('Momentum (p)')
-                ax.set_zlabel('Wigner Function')
+                summary_text = "Latest Metrics:\n"
+                summary_text += "-" * 15 + "\n"
+                for key, value in latest_metrics.items():
+                    summary_text += f"{key}: {value:.4f}\n"
                 
-                return surface,
+                ax_summary.text(0.1, 0.9, summary_text, transform=ax_summary.transAxes,
+                               fontsize=10, verticalalignment='top', fontfamily='monospace',
+                               bbox=dict(boxstyle='round', facecolor='lightgreen', alpha=0.8))
+                ax_summary.set_title('Current Status', fontsize=12, fontweight='bold')
+                ax_summary.axis('off')
             
-            anim = FuncAnimation(fig, animate, frames=len(states), interval=500, blit=False)
+            # Parameter evolution heatmap (if available)
+            ax_params = fig.add_subplot(gs[2, :])
+            if hasattr(self, 'parameter_history') and self.parameter_history:
+                param_matrix = np.array(self.parameter_history).T
+                im = ax_params.imshow(param_matrix, cmap='RdBu_r', aspect='auto', interpolation='bilinear')
+                ax_params.set_title('Parameter Evolution Heatmap', fontsize=14, fontweight='bold')
+                ax_params.set_xlabel('Training Step')
+                ax_params.set_ylabel('Parameter Index')
+                plt.colorbar(im, ax=ax_params, label='Parameter Value')
+            else:
+                ax_params.text(0.5, 0.5, 'Parameter Evolution\n(Enable parameter tracking)', 
+                              ha='center', va='center', transform=ax_params.transAxes, fontsize=14)
+                ax_params.set_title('Parameter Evolution', fontsize=14, fontweight='bold')
+                ax_params.axis('off')
+            
+            plt.suptitle(f'{title} Dashboard', fontsize=18, fontweight='bold')
+            plt.tight_layout()
             
             if save:
                 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                filename = f"{self.save_dir}/evolution_{title.lower().replace(' ', '_')}_{timestamp}.gif"
-                anim.save(filename, writer='pillow', fps=2)
-                logger.info(f"State evolution animation saved to {filename}")
+                filename = f"{self.save_dir}/dashboard_{title.lower().replace(' ', '_')}_{timestamp}.png"
+                plt.savefig(filename, dpi=300, bbox_inches='tight')
+                logger.info(f"Training dashboard saved to {filename}")
             
             plt.show()
             
         except Exception as e:
-            logger.warning(f"Could not create state evolution animation: {e}")
+            logger.error(f"Could not create training dashboard: {e}")
     
     # =====================================================================
-    # INTEGRATION METHODS FOR PURE SF MODELS
+    # NEW: QGAN COMPARISON FUNCTIONALITY
     # =====================================================================
-    
-    def integrate_with_generator(self, generator, title: str = "Generator"):
-        """
-        Integrate visualization with Pure SF generator.
-        
-        Args:
-            generator: PureSFGenerator instance
-            title: Visualization title
-        """
-        print(f"🔗 Integrating visualization with {title}...")
-        
-        # Visualize generator circuit
-        if hasattr(generator, 'circuit'):
-            self.visualize_pure_sf_circuit(generator.circuit, f"{title} Circuit")
-        
-        # Generate and visualize sample states
-        if hasattr(generator, 'generate'):
-            try:
-                # Generate samples
-                z_sample = tf.random.normal([1, generator.latent_dim])
-                generated_samples = generator.generate(z_sample)
-                
-                print(f"Generated samples shape: {generated_samples.shape}")
-                print(f"Sample values: {generated_samples.numpy()}")
-                
-                # If generator has method to get quantum state, visualize it
-                if hasattr(generator, 'get_quantum_state'):
-                    state = generator.get_quantum_state(z_sample)
-                    self.visualize_quantum_state(state, f"{title} Generated State")
-                
-            except Exception as e:
-                logger.warning(f"Could not generate samples for visualization: {e}")
-    
-    def integrate_with_discriminator(self, discriminator, title: str = "Discriminator"):
-        """
-        Integrate visualization with Pure SF discriminator.
-        
-        Args:
-            discriminator: PureSFDiscriminator instance  
-            title: Visualization title
-        """
-        print(f"🔗 Integrating visualization with {title}...")
-        
-        # Visualize discriminator circuit
-        if hasattr(discriminator, 'circuit'):
-            self.visualize_pure_sf_circuit(discriminator.circuit, f"{title} Circuit")
-        
-        # Test discriminator with sample data
-        if hasattr(discriminator, 'discriminate'):
-            try:
-                # Create test samples
-                test_samples = tf.random.normal([4, discriminator.input_dim])
-                outputs = discriminator.discriminate(test_samples)
-                
-                print(f"Discriminator test:")
-                print(f"  Input shape: {test_samples.shape}")
-                print(f"  Output shape: {outputs.shape}")
-                print(f"  Output values: {outputs.numpy()}")
-                
-                # If discriminator has method to get quantum state, visualize it
-                if hasattr(discriminator, 'get_quantum_state'):
-                    state = discriminator.get_quantum_state(test_samples)
-                    self.visualize_quantum_state(state, f"{title} Processing State")
-                
-            except Exception as e:
-                logger.warning(f"Could not test discriminator for visualization: {e}")
     
     def create_qgan_comparison_dashboard(self, generator, discriminator, 
                                        real_data: tf.Tensor,
                                        n_samples: int = 100,
                                        title: str = "QGAN Analysis"):
-        """
-        Create comprehensive QGAN comparison dashboard.
-        
-        Args:
-            generator: Generator model
-            discriminator: Discriminator model
-            real_data: Real training data
-            n_samples: Number of samples to generate
-            title: Dashboard title
-        """
+        """NEW: Create comprehensive QGAN comparison dashboard."""
         print(f"🎯 Creating {title} comparison dashboard...")
         
         try:
@@ -918,7 +653,6 @@ MSE (Stds): {mse_stds:.4f}
 Sample Statistics:
 Real samples: {len(real_data)}
 Generated samples: {n_samples}
-Discriminator accuracy: {np.mean((real_scores > 0).numpy()) * 50 + np.mean((fake_scores < 0).numpy()) * 50:.1f}%
 
 Model Info:
 Generator params: {len(generator.trainable_variables)}
@@ -944,7 +678,69 @@ Discriminator params: {len(discriminator.trainable_variables)}"""
             logger.error(f"Could not create QGAN comparison dashboard: {e}")
     
     # =====================================================================
-    # CONVENIENCE METHODS
+    # FIXED INTEGRATION METHODS
+    # =====================================================================
+    
+    def integrate_with_pure_quantum_generator(self, generator, title: str = "Generator"):
+        """FIXED: Integration with pure quantum generator."""
+        print(f"🔗 Integrating visualization with {title}...")
+        
+        try:
+            # Visualize generator quantum circuit
+            if hasattr(generator, 'circuit'):
+                self.visualize_pure_sf_circuit(generator.circuit, f"{title} Circuit")
+            
+            # Test generation
+            if hasattr(generator, 'generate') and hasattr(generator, 'latent_dim'):
+                z_sample = tf.random.normal([1, generator.latent_dim])
+                generated_samples = generator.generate(z_sample)
+                
+                print(f"✅ Generation test successful:")
+                print(f"   Input shape: {z_sample.shape}")
+                print(f"   Output shape: {generated_samples.shape}")
+                print(f"   Output values: {generated_samples.numpy()}")
+            
+            # Check transformation matrices (should be static)
+            if hasattr(generator, 'T_matrix') and hasattr(generator, 'A_matrix'):
+                print(f"📋 Transformation matrices:")
+                print(f"   T matrix trainable: {generator.T_matrix.trainable}")
+                print(f"   A matrix trainable: {generator.A_matrix.trainable}")
+                print(f"   T matrix shape: {generator.T_matrix.shape}")
+                print(f"   A matrix shape: {generator.A_matrix.shape}")
+                
+        except Exception as e:
+            logger.error(f"Could not integrate with generator: {e}")
+    
+    def integrate_with_pure_quantum_discriminator(self, discriminator, title: str = "Discriminator"):
+        """FIXED: Integration with pure quantum discriminator."""
+        print(f"🔗 Integrating visualization with {title}...")
+        
+        try:
+            # Visualize discriminator quantum circuit
+            if hasattr(discriminator, 'circuit'):
+                self.visualize_pure_sf_circuit(discriminator.circuit, f"{title} Circuit")
+            
+            # Test discrimination
+            if hasattr(discriminator, 'discriminate') and hasattr(discriminator, 'input_dim'):
+                test_samples = tf.random.normal([2, discriminator.input_dim])
+                outputs = discriminator.discriminate(test_samples)
+                
+                print(f"✅ Discrimination test successful:")
+                print(f"   Input shape: {test_samples.shape}")
+                print(f"   Output shape: {outputs.shape}")
+                print(f"   Output values: {outputs.numpy()}")
+            
+            # Check transformation matrix (should be static)
+            if hasattr(discriminator, 'A_matrix'):
+                print(f"📋 Transformation matrix:")
+                print(f"   A matrix trainable: {discriminator.A_matrix.trainable}")
+                print(f"   A matrix shape: {discriminator.A_matrix.shape}")
+                
+        except Exception as e:
+            logger.error(f"Could not integrate with discriminator: {e}")
+    
+    # =====================================================================
+    # UTILITY METHODS
     # =====================================================================
     
     def quick_circuit_viz(self, circuit, title: str = "Circuit"):
@@ -953,8 +749,19 @@ Discriminator params: {len(discriminator.trainable_variables)}"""
     
     def quick_state_viz(self, state, title: str = "State"):
         """Quick quantum state visualization."""
-        self.visualize_quantum_state(state, title, modes=[0], save=False)
+        self.visualize_quantum_state(state, title, save=False)
     
+    def track_parameters(self, generator, discriminator):
+        """Track parameter evolution during training."""
+        try:
+            if hasattr(generator, 'trainable_variables') and hasattr(discriminator, 'trainable_variables'):
+                g_params = [float(var.numpy()) for var in generator.trainable_variables]
+                d_params = [float(var.numpy()) for var in discriminator.trainable_variables]
+                all_params = g_params + d_params
+                self.parameter_history.append(all_params)
+        except Exception as e:
+            logger.warning(f"Could not track parameters: {e}")
+
     def get_visualization_summary(self) -> Dict[str, Any]:
         """Get summary of visualization capabilities."""
         return {
@@ -962,12 +769,10 @@ Discriminator params: {len(discriminator.trainable_variables)}"""
                 'Pure SF circuit structure analysis',
                 '3D Wigner function mountains',  
                 'Fock probability distributions',
-                'Quadrature distribution analysis',
-                'Quantum state entropy analysis',
+                'State vector analysis',
                 'Training progress dashboards',
                 'Parameter evolution tracking',
-                'QGAN comparison analysis',
-                'State evolution animations'
+                'QGAN comparison analysis'
             ],
             'save_directory': self.save_dir,
             'tracked_parameters': len(self.parameter_history),
@@ -980,16 +785,50 @@ Discriminator params: {len(discriminator.trainable_variables)}"""
 # CONVENIENCE FUNCTIONS
 # =====================================================================
 
-def create_visualization_manager(save_dir: str = "visualizations") -> QuantumVisualizationManager:
-    """Create and return a visualization manager instance."""
-    return QuantumVisualizationManager(save_dir)
+def create_corrected_visualization_manager(save_dir: str = "visualizations") -> CorrectedQuantumVisualizationManager:
+    """Create corrected visualization manager."""
+    return CorrectedQuantumVisualizationManager(save_dir)
 
 def quick_circuit_visualization(circuit, title: str = "Circuit"):
-    """Quick circuit visualization function."""
-    viz = QuantumVisualizationManager()
+    """Quick circuit visualization."""
+    viz = CorrectedQuantumVisualizationManager()
     viz.quick_circuit_viz(circuit, title)
 
 def quick_state_visualization(state, title: str = "State"):
-    """Quick state visualization function.""" 
-    viz = QuantumVisualizationManager()
+    """Quick state visualization."""
+    viz = CorrectedQuantumVisualizationManager()
     viz.quick_state_viz(state, title)
+
+
+# =====================================================================
+# DEMO FUNCTION
+# =====================================================================
+
+def demo_corrected_visualization():
+    """Demonstrate the corrected visualization manager."""
+    print("🚀 ENHANCED CORRECTED QUANTUM VISUALIZATION DEMO")
+    print("="*50)
+    
+    try:
+        # Create visualization manager
+        viz = CorrectedQuantumVisualizationManager("demo_visualizations")
+        
+        # Create synthetic training history for demo
+        training_history = {
+            'g_loss': [2.5, 2.1, 1.8, 1.5, 1.2, 1.0],
+            'd_loss': [1.8, 1.5, 1.2, 1.0, 0.8, 0.7],
+            'w_distance': [1.0, 0.8, 0.6, 0.4, 0.3, 0.2],
+            'gradient_penalty': [0.1, 0.08, 0.06, 0.05, 0.04, 0.03]
+        }
+        
+        # Test training dashboard
+        viz.create_training_dashboard(training_history, "Demo Training")
+        
+        print("✅ Enhanced corrected visualization demo completed!")
+        
+    except Exception as e:
+        print(f"❌ Demo failed: {e}")
+
+
+if __name__ == "__main__":
+    demo_corrected_visualization()

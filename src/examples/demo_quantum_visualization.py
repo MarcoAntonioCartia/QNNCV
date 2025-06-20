@@ -27,7 +27,7 @@ from src.models.generators.pure_sf_generator import PureSFGenerator
 from src.models.discriminators.pure_sf_discriminator import PureSFDiscriminator
 from src.training.quantum_gan_trainer import QuantumGANTrainer
 from src.training.data_generators import BimodalDataGenerator
-from src.utils.quantum_visualization_manager import QuantumVisualizationManager
+from src.utils.quantum_visualization_manager import CorrectedQuantumVisualizationManager
 from src.utils.warning_suppression import suppress_all_quantum_warnings
 
 
@@ -40,7 +40,7 @@ def demo_circuit_visualization():
     suppress_all_quantum_warnings()
     
     # Create visualization manager
-    viz = QuantumVisualizationManager(save_directory="demo_visualizations")
+    viz = CorrectedQuantumVisualizationManager(save_directory="demo_visualizations")
     
     # Create generator and discriminator
     generator = PureSFGenerator(
@@ -60,11 +60,11 @@ def demo_circuit_visualization():
     
     # Visualize generator circuit
     print("\n1. Generator Circuit Analysis:")
-    viz.integrate_with_generator(generator, "Pure SF Generator")
+    viz.integrate_with_pure_quantum_generator(generator, "Pure SF Generator")
     
     # Visualize discriminator circuit
     print("\n2. Discriminator Circuit Analysis:")
-    viz.integrate_with_discriminator(discriminator, "Pure SF Discriminator")
+    viz.integrate_with_pure_quantum_discriminator(discriminator, "Pure SF Discriminator")
     
     return generator, discriminator, viz
 
@@ -77,7 +77,7 @@ def demo_qgan_comparison():
     # Create models
     generator = PureSFGenerator(latent_dim=4, output_dim=2, n_modes=4, layers=2)
     discriminator = PureSFDiscriminator(input_dim=2, n_modes=3, layers=2)
-    viz = QuantumVisualizationManager()
+    viz = CorrectedQuantumVisualizationManager()
     
     # Create sample data
     data_generator = BimodalDataGenerator(
@@ -107,7 +107,7 @@ def demo_training_visualization():
     print("=" * 60)
     
     # Create visualization manager
-    viz = QuantumVisualizationManager()
+    viz = CorrectedQuantumVisualizationManager()
     
     # Generate synthetic training history (simulating real training)
     epochs = 3
@@ -181,7 +181,7 @@ def demo_mini_training_with_visualization():
     )
     
     # Create visualization manager with parameter tracking
-    viz = QuantumVisualizationManager(save_directory="mini_training_viz")
+    viz = CorrectedQuantumVisualizationManager(save_directory="mini_training_viz")
     
     print("\nStarting mini-training (3 epochs for demo)...")
     
@@ -231,7 +231,7 @@ def demo_visualization_summary():
     print("\n📋 VISUALIZATION SYSTEM SUMMARY")
     print("=" * 60)
     
-    viz = QuantumVisualizationManager()
+    viz = CorrectedQuantumVisualizationManager()
     summary = viz.get_visualization_summary()
     
     print("Available visualization features:")
