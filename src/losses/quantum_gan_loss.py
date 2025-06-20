@@ -23,13 +23,13 @@ class QuantumWassersteinLoss:
     and maintain physical validity.
     """
     
-    def __init__(self, lambda_gp=10.0, lambda_entropy=0.5, lambda_physics=1.0):
+    def __init__(self, lambda_gp=10.0, lambda_entropy=1.0, lambda_physics=1.0):
         """
         Initialize quantum Wasserstein loss.
         
         Args:
             lambda_gp (float): Gradient penalty weight
-            lambda_entropy (float): Quantum entropy regularization weight
+            lambda_entropy (float): Quantum entropy regularization weight  
             lambda_physics (float): Physics constraint weight
         """
         self.lambda_gp = lambda_gp
@@ -38,7 +38,7 @@ class QuantumWassersteinLoss:
         
         logger.info(f"Quantum Wasserstein Loss initialized:")
         logger.info(f"  - Gradient penalty: {lambda_gp}")
-        logger.info(f"  - Entropy regularization: {lambda_entropy}")
+        logger.info(f"  - Entropy regularization: {lambda_entropy} (MODE COLLAPSE FIX)")
         logger.info(f"  - Physics constraints: {lambda_physics}")
     
     def __call__(self, real_samples, fake_samples, generator, discriminator):
