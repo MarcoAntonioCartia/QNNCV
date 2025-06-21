@@ -725,6 +725,46 @@ class OptimalConstellationGenerator:
         variables.extend(self.quantum_circuit.trainable_variables)
         return variables
     
+    def compute_quantum_cost(self) -> Dict[str, tf.Tensor]:
+        """
+        Compute quantum cost metrics for Wasserstein loss regularization.
+        
+        Returns:
+            Dictionary of quantum metrics for loss computation
+        """
+        try:
+            # Get current quantum state
+            quantum_state = self.quantum_circuit.execute()
+            
+            # Extract measurements for entropy calculation
+            measurements = self.quantum_circuit.extract_measurements(quantum_state)
+            measurements_flat = tf.reshape(measurements, [-1])
+            
+            # Calculate entropy (diversity measure)
+            # Higher entropy = more diverse quantum states = better for mode diversity
+            measurement_probs = tf.nn.softmax(measurements_flat)
+            entropy = -tf.reduce_sum(measurement_probs * tf.math.log(measurement_probs + 1e-8))
+            
+            # Calculate trace (should be close to 1 for valid quantum states)
+            trace = tf.reduce_sum(tf.abs(measurements_flat))
+            
+            # Calculate norm (should be close to 1 for normalized states)
+            norm = tf.norm(measurements_flat)
+            
+            return {
+                'entropy': entropy,
+                'trace': trace,
+                'norm': norm
+            }
+            
+        except Exception as e:
+            # Fallback values if quantum metrics computation fails
+            return {
+                'entropy': tf.constant(0.0),
+                'trace': tf.constant(1.0),
+                'norm': tf.constant(1.0)
+            }
+    
     def get_optimization_summary(self) -> str:
         """Get summary of all applied optimizations."""
         return f"""
