@@ -228,6 +228,10 @@ class CoordinateGANTrainer:
                 
                 if step % 10 == 0:
                     print(f"  Step {step}: G_loss={gen_loss:.4f}, D_loss={np.mean(disc_losses):.4f}")
+                
+                # Add debugging for the first few steps
+                if step < 3:
+                    print(f"    DEBUG: Step {step} completed successfully")
             
             # Calculate epoch averages
             avg_gen_loss = np.mean(epoch_gen_losses)
