@@ -278,7 +278,12 @@ class CoordinateQuantumGenerator:
                 
                 # Apply coordinate decoder
                 coord_output = decoder_info['decoder'](coord_measurements)
-                coordinate_outputs[coord_name] = tf.squeeze(coord_output, axis=-1)  # Remove extra dimension
+                # Ensure it's 1D [batch_size] - squeeze all dimensions except batch
+                coord_output = tf.squeeze(coord_output)
+                # If still multi-dimensional, take first element
+                if len(coord_output.shape) > 1:
+                    coord_output = coord_output[:, 0]
+                coordinate_outputs[coord_name] = coord_output
             else:
                 # No active modes for this coordinate
                 coordinate_outputs[coord_name] = tf.zeros([batch_size])
@@ -287,7 +292,11 @@ class CoordinateQuantumGenerator:
         output_list = []
         for coord_name in self.coordinate_names:
             if coord_name in coordinate_outputs:
-                output_list.append(coordinate_outputs[coord_name])
+                coord_output = coordinate_outputs[coord_name]
+                # Ensure it's 1D [batch_size]
+                while len(coord_output.shape) > 1:
+                    coord_output = tf.squeeze(coord_output, axis=-1)
+                output_list.append(coord_output)
             else:
                 output_list.append(tf.zeros([batch_size]))
         
@@ -470,6 +479,32 @@ class CoordinateQuantumGenerator:
                 variables.extend(decoder_info['decoder'].trainable_variables)
         
         return variables
+    
+    def compute_quantum_cost(self) -> tf.Tensor:
+        """
+        Compute quantum cost for physics-informed loss.
+        
+        Returns:
+            Quantum cost tensor for regularization
+        """
+        # Basic quantum cost based on parameter magnitudes
+        total_cost = 0.0
+        
+        # Cost from quantum circuit parameters
+        for param in self.quantum_circuit.trainable_variables:
+            total_cost += tf.reduce_sum(tf.square(param))
+        
+        # Cost from encoder parameters (encourage small quantum parameter modulation)
+        for param in self.input_encoder.trainable_variables:
+            total_cost += 0.1 * tf.reduce_sum(tf.square(param))
+        
+        # Cost from coordinate decoders
+        for decoder_info in self.coordinate_decoders.values():
+            if decoder_info['decoder'] is not None:
+                for param in decoder_info['decoder'].trainable_variables:
+                    total_cost += 0.01 * tf.reduce_sum(tf.square(param))
+        
+        return total_cost
     
     def get_coordinate_mapping_summary(self) -> str:
         """Get summary of coordinate mappings."""
