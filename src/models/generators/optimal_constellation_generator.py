@@ -221,7 +221,7 @@ class OptimalConstellationGenerator:
         )
         
         # Apply amplification for sufficient variance
-        amplification_factor = 100.0  # Strong amplification (what worked before)
+        amplification_factor = 35.0  # Strong amplification (what worked before)
         decoder_matrix = projection_matrix * amplification_factor
         
         print(f"📊 Simple Random Projection:")
