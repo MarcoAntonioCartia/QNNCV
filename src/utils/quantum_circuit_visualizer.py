@@ -27,7 +27,7 @@ class QuantumCircuitVisualizer:
         """
         self.circuit = quantum_circuit
         self.n_modes = quantum_circuit.n_modes
-        self.layers = quantum_circuit.layers
+        self.layers = getattr(quantum_circuit, 'layers', getattr(quantum_circuit, 'n_layers', 2))
         self.gate_params = quantum_circuit.trainable_variables
         
         # Get parameter names from the gate parameter manager
@@ -70,7 +70,7 @@ class QuantumCircuitVisualizer:
             show_gradients (bool): Show gradient information if available
         """
         print("\n" + "="*80)
-        print("🔬 QUANTUM CIRCUIT DIAGRAM")
+        print("QUANTUM CIRCUIT DIAGRAM")
         print("="*80)
         
         # Circuit header
@@ -226,7 +226,7 @@ class QuantumCircuitVisualizer:
     def _print_parameter_summary(self, show_values, show_gradients):
         """Print detailed parameter summary."""
         print(f"\n{'='*80}")
-        print("📊 PARAMETER SUMMARY")
+        print("PARAMETER SUMMARY")
         print(f"{'='*80}")
         
         # Group parameters by type
@@ -261,11 +261,11 @@ class QuantumCircuitVisualizer:
             
             total_params += len(params)
         
-        print(f"\n📈 TOTAL PARAMETERS: {total_params}")
-        print(f"🔬 TOTAL TF VARIABLES: {len(self.gate_params)}")
+        print(f"\nTOTAL PARAMETERS: {total_params}")
+        print(f"TOTAL TF VARIABLES: {len(self.gate_params)}")
         
         # Parameter distribution
-        print(f"\n📊 Parameter Distribution:")
+        print(f"\nParameter Distribution:")
         for gate_type, params in param_groups.items():
             percentage = len(params) / total_params * 100
             print(f"  {gate_type.upper()}: {len(params)} ({percentage:.1f}%)")
@@ -273,7 +273,7 @@ class QuantumCircuitVisualizer:
     def print_compact_circuit(self):
         """Print compact circuit representation."""
         print("\n" + "="*60)
-        print("🔬 COMPACT CIRCUIT DIAGRAM")
+        print("COMPACT CIRCUIT DIAGRAM")
         print("="*60)
         
         for mode in range(self.n_modes):
@@ -296,7 +296,7 @@ class QuantumCircuitVisualizer:
     def print_parameter_list(self, show_values=True):
         """Print complete list of all parameters."""
         print("\n" + "="*80)
-        print("📋 COMPLETE PARAMETER LIST")
+        print("COMPLETE PARAMETER LIST")
         print("="*80)
         
         print(f"Total Parameters: {len(self.gate_params)}")
@@ -372,19 +372,19 @@ def demo_circuit_visualization():
         print(f"Total parameters: {len(circuit.trainable_variables)}")
         
         # Show different visualization styles
-        print("\n" + "🔍 FULL CIRCUIT DIAGRAM:")
+        print("\n" + "FULL CIRCUIT DIAGRAM:")
         visualize_circuit(circuit, style='full', show_values=True)
         
-        print("\n" + "📏 COMPACT DIAGRAM:")
+        print("\n" + "COMPACT DIAGRAM:")
         visualize_circuit(circuit, style='compact')
         
-        print("\n" + "📋 PARAMETER LIST:")
+        print("\n" + "PARAMETER LIST:")
         visualize_circuit(circuit, style='list', show_values=True)
         
         # Export parameter information
         visualizer = QuantumCircuitVisualizer(circuit)
         param_info = visualizer.export_parameter_info()
-        print(f"\n📤 Parameter info exported: {len(param_info['parameters'])} parameters")
+        print(f"\nParameter info exported: {len(param_info['parameters'])} parameters")
         
         return circuit, visualizer
         
@@ -399,7 +399,7 @@ if __name__ == "__main__":
     circuit, visualizer = demo_circuit_visualization()
     
     if circuit is not None:
-        print("\n🎉 Circuit visualization demo completed!")
+        print("\nCircuit visualization demo completed!")
         print("\nUsage examples:")
         print("  visualize_circuit(circuit, 'full', show_values=True)")
         print("  visualize_circuit(circuit, 'compact')")

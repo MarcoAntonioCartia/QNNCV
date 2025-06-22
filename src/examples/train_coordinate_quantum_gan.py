@@ -28,6 +28,8 @@ from src.models.discriminators.pure_sf_discriminator import PureSFDiscriminator
 from src.training.data_generators import BimodalDataGenerator
 from src.losses.quantum_gan_loss import QuantumWassersteinLoss
 from src.utils.visualization import plot_results
+from src.utils.quantum_circuit_visualizer import QuantumCircuitVisualizer
+from src.utils.enhanced_quantum_circuit_visualizer import create_enhanced_circuit_visualization
 
 # Suppress warnings
 suppress_all_quantum_warnings()
@@ -105,6 +107,32 @@ class CoordinateGANTrainer:
         logger.info("CoordinateGANTrainer initialized")
         logger.info(f"  Generator params: {len(self.generator.trainable_variables)}")
         logger.info(f"  Discriminator params: {len(self.discriminator.trainable_variables)}")
+    
+    def visualize_quantum_circuit(self, save_dir: str):
+        """Visualize the quantum circuit structure with enhanced visual diagram."""
+        print("\n🔬 QUANTUM CIRCUIT ANALYSIS")
+        print("=" * 60)
+        
+        # Create basic circuit visualizer for console output
+        visualizer = QuantumCircuitVisualizer(self.generator.quantum_circuit)
+        visualizer.print_compact_circuit()
+        
+        # Create enhanced visual circuit diagram
+        print("\n🎨 Creating enhanced visual circuit diagram...")
+        try:
+            create_enhanced_circuit_visualization(
+                quantum_circuit=self.generator.quantum_circuit,
+                coordinate_generator=self.generator,
+                save_dir=os.path.join(save_dir, "circuit_visualization"),
+                training_history=None  # No training history yet
+            )
+            print("✅ Enhanced circuit visualization created!")
+        except Exception as e:
+            print(f"⚠️ Enhanced visualization failed: {e}")
+            print("Continuing with basic visualization...")
+        
+        print("✅ Quantum circuit visualization complete")
+        return visualizer
     
     def analyze_target_data(self, n_samples: int = 1000):
         """Analyze target data and set up generator."""
@@ -185,16 +213,89 @@ class CoordinateGANTrainer:
             'balanced_coverage': float(min(mode1_coverage, mode2_coverage) / max(mode1_coverage, mode2_coverage)) if max(mode1_coverage, mode2_coverage) > 0 else 0.0
         }
     
-    def train(self, epochs: int = 10, batch_size: int = 32, save_dir: str = "coordinate_gan_results"):
+    def create_initial_comparison_visualization(self, save_dir: str):
+        """Create initial comparison visualization like the user's example."""
+        print("\n📊 CREATING INITIAL DATA COMPARISON")
+        print("=" * 60)
+        
+        # Generate real and initial fake data
+        self.data_generator.batch_size = 500
+        real_samples = self.data_generator.generate_batch().numpy()
+        
+        # Generate initial samples from untrained generator
+        test_z = tf.random.normal([500, self.latent_dim])
+        generated_samples = self.generator.generate(test_z).numpy()
+        
+        # Create the three-panel comparison plot like the user's example
+        fig, axes = plt.subplots(1, 3, figsize=(18, 6))
+        fig.suptitle('Initial Data Comparison', fontsize=16, fontweight='bold')
+        
+        # Plot 1: Real Data
+        axes[0].scatter(real_samples[:, 0], real_samples[:, 1], alpha=0.6, c='blue', s=30)
+        axes[0].set_title('Real Data', fontsize=14, fontweight='bold')
+        axes[0].set_xlabel('Feature 1')
+        axes[0].set_ylabel('Feature 2')
+        axes[0].grid(True, alpha=0.3)
+        axes[0].set_xlim(-3, 3)
+        axes[0].set_ylim(-3, 3)
+        
+        # Plot 2: Generated Data
+        axes[1].scatter(generated_samples[:, 0], generated_samples[:, 1], alpha=0.6, c='red', s=30)
+        axes[1].set_title('Generated Data', fontsize=14, fontweight='bold')
+        axes[1].set_xlabel('Feature 1')
+        axes[1].set_ylabel('Feature 2')
+        axes[1].grid(True, alpha=0.3)
+        axes[1].set_xlim(-3, 3)
+        axes[1].set_ylim(-3, 3)
+        
+        # Plot 3: Overlay Comparison
+        axes[2].scatter(real_samples[:, 0], real_samples[:, 1], alpha=0.5, c='blue', s=30, label='Real')
+        axes[2].scatter(generated_samples[:, 0], generated_samples[:, 1], alpha=0.5, c='red', s=30, label='Generated')
+        axes[2].set_title('Overlay Comparison', fontsize=14, fontweight='bold')
+        axes[2].set_xlabel('Feature 1')
+        axes[2].set_ylabel('Feature 2')
+        axes[2].legend()
+        axes[2].grid(True, alpha=0.3)
+        axes[2].set_xlim(-3, 3)
+        axes[2].set_ylim(-3, 3)
+        
+        plt.tight_layout()
+        
+        # Save the visualization
+        viz_path = os.path.join(save_dir, "epoch_visualizations", "initial_comparison.png")
+        plt.savefig(viz_path, dpi=300, bbox_inches='tight', facecolor='white')
+        plt.close()
+        
+        print(f"✅ Initial comparison visualization saved to: {viz_path}")
+        
+        # Calculate and print initial metrics
+        coverage_metrics = self.calculate_mode_coverage(tf.constant(generated_samples))
+        print(f"📈 Initial metrics:")
+        print(f"   Mode 1 coverage: {coverage_metrics['mode1_coverage']:.3f}")
+        print(f"   Mode 2 coverage: {coverage_metrics['mode2_coverage']:.3f}")
+        print(f"   Balanced coverage: {coverage_metrics['balanced_coverage']:.3f}")
+        
+        return viz_path
+    
+    def train(self, epochs: int = 10, batch_size: int = 32, save_dir: str = "results/training"):
         """Basic training loop."""
         print(f"Starting coordinate GAN training...")
         print(f"Epochs: {epochs}, Batch size: {batch_size}")
         
-        # Analyze target data first
+        # Create results directory structure
+        os.makedirs(save_dir, exist_ok=True)
+        os.makedirs(os.path.join(save_dir, "circuit_visualization"), exist_ok=True)
+        os.makedirs(os.path.join(save_dir, "epoch_visualizations"), exist_ok=True)
+        os.makedirs(os.path.join(save_dir, "training_logs"), exist_ok=True)
+        
+        # Step 1: Visualize quantum circuit
+        self.visualize_quantum_circuit(save_dir)
+        
+        # Step 2: Analyze target data
         self.analyze_target_data()
         
-        # Create results directory
-        os.makedirs(save_dir, exist_ok=True)
+        # Step 3: Create initial comparison visualization
+        self.create_initial_comparison_visualization(save_dir)
         
         # Update data generator batch size
         self.data_generator.batch_size = batch_size
@@ -259,6 +360,21 @@ class CoordinateGANTrainer:
         
         # Final results
         print(f"\nTraining complete!")
+        
+        # Create enhanced circuit visualization
+        print("\n🎨 CREATING ENHANCED CIRCUIT VISUALIZATION")
+        print("=" * 60)
+        try:
+            create_enhanced_circuit_visualization(
+                quantum_circuit=self.generator.quantum_circuit,
+                coordinate_generator=self.generator,
+                save_dir=os.path.join(save_dir, "circuit_visualization"),
+                training_history=self.training_history
+            )
+        except Exception as e:
+            print(f"⚠️ Enhanced visualization failed: {e}")
+            print("Continuing with basic results...")
+        
         self.save_results(save_dir)
         
         return self.training_history

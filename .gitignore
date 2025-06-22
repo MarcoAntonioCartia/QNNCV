@@ -33,6 +33,7 @@ enhanced_quantum_encodings_design.py
 
 # Legacy files
 legacy/*
+results/*
 
 
 # Log files
