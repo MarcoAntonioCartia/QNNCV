@@ -149,7 +149,7 @@ class CoordinateGANTrainer:
         return analysis_results
     
     def discriminator_train_step(self, real_data: tf.Tensor, z: tf.Tensor):
-        """Train discriminator."""
+        """Train discriminator with NaN protection and gradient clipping."""
         with tf.GradientTape() as disc_tape:
             # Generate fake data
             fake_data = self.generator.generate(z)
@@ -158,17 +158,36 @@ class CoordinateGANTrainer:
             d_loss, g_loss, metrics = self.loss_function(
                 real_data, fake_data, self.generator, self.discriminator
             )
+            
+            # NaN protection
+            if tf.math.is_nan(d_loss):
+                logger.warning("NaN detected in discriminator loss, using fallback")
+                d_loss = tf.constant(1.0)  # Fallback loss
         
-        # Apply gradients
+        # Apply gradients with clipping
         disc_gradients = disc_tape.gradient(d_loss, self.discriminator.trainable_variables)
-        self.discriminator_optimizer.apply_gradients(
-            zip(disc_gradients, self.discriminator.trainable_variables)
-        )
+        
+        # Check for None gradients and clip
+        if disc_gradients is not None:
+            # Filter out None gradients and clip
+            valid_gradients = []
+            valid_variables = []
+            for grad, var in zip(disc_gradients, self.discriminator.trainable_variables):
+                if grad is not None and not tf.reduce_any(tf.math.is_nan(grad)):
+                    # Clip gradients to prevent explosion
+                    clipped_grad = tf.clip_by_value(grad, -1.0, 1.0)
+                    valid_gradients.append(clipped_grad)
+                    valid_variables.append(var)
+            
+            if valid_gradients:
+                self.discriminator_optimizer.apply_gradients(
+                    zip(valid_gradients, valid_variables)
+                )
         
         return d_loss, metrics
     
     def generator_train_step(self, z: tf.Tensor):
-        """Train generator."""
+        """Train generator with NaN protection and gradient clipping."""
         with tf.GradientTape() as gen_tape:
             # Generate fake data
             fake_data = self.generator.generate(z)
@@ -180,12 +199,31 @@ class CoordinateGANTrainer:
             d_loss, g_loss, metrics = self.loss_function(
                 dummy_real, fake_data, self.generator, self.discriminator
             )
+            
+            # NaN protection
+            if tf.math.is_nan(g_loss):
+                logger.warning("NaN detected in generator loss, using fallback")
+                g_loss = tf.constant(1.0)  # Fallback loss
         
-        # Apply gradients
+        # Apply gradients with clipping
         gen_gradients = gen_tape.gradient(g_loss, self.generator.trainable_variables)
-        self.generator_optimizer.apply_gradients(
-            zip(gen_gradients, self.generator.trainable_variables)
-        )
+        
+        # Check for None gradients and clip
+        if gen_gradients is not None:
+            # Filter out None gradients and clip
+            valid_gradients = []
+            valid_variables = []
+            for grad, var in zip(gen_gradients, self.generator.trainable_variables):
+                if grad is not None and not tf.reduce_any(tf.math.is_nan(grad)):
+                    # Clip gradients to prevent explosion
+                    clipped_grad = tf.clip_by_value(grad, -1.0, 1.0)
+                    valid_gradients.append(clipped_grad)
+                    valid_variables.append(var)
+            
+            if valid_gradients:
+                self.generator_optimizer.apply_gradients(
+                    zip(valid_gradients, valid_variables)
+                )
         
         return g_loss, metrics
     
