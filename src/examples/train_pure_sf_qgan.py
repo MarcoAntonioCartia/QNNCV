@@ -257,7 +257,9 @@ def main():
         
         # Save final results
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        results_file = f'pure_sf_qgan_results_{timestamp}.npz'
+        results_dir = "results/training"
+        os.makedirs(results_dir, exist_ok=True)
+        results_file = os.path.join(results_dir, f'pure_sf_qgan_results_{timestamp}.npz')
         
         np.savez(
             results_file,
