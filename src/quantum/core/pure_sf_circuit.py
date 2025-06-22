@@ -204,8 +204,9 @@ class PureSFQuantumCircuit:
         
         # Execute SF program
         try:
-            # Reset engine if needed
-            if self.engine.run_progs:
+            # CRITICAL FIX: Reset engine only if it has been used before
+            # This prevents state accumulation while avoiding NoneType errors
+            if hasattr(self.engine, '_modemap') and self.engine._modemap is not None:
                 self.engine.reset()
             
             # Run program with parameter mapping

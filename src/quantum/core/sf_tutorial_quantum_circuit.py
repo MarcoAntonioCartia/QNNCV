@@ -208,8 +208,9 @@ class SFTutorialQuantumCircuit:
             )
         }
         
-        # Execute circuit (reset if needed)
-        if self.eng.run_progs:
+        # Execute circuit (reset engine only if it has been used before)
+        # This prevents state accumulation while avoiding NoneType errors
+        if hasattr(self.eng, '_modemap') and self.eng._modemap is not None:
             self.eng.reset()
             
         state = self.eng.run(self.prog, args=mapping).state
@@ -333,8 +334,9 @@ class SFTutorialCircuitWithEncoding(SFTutorialQuantumCircuit):
             )
         }
         
-        # Execute circuit
-        if self.eng.run_progs:
+        # Execute circuit (reset engine only if it has been used before)
+        # This prevents state accumulation while avoiding NoneType errors
+        if hasattr(self.eng, '_modemap') and self.eng._modemap is not None:
             self.eng.reset()
             
         state = self.eng.run(self.prog, args=mapping).state

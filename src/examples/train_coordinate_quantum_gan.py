@@ -307,7 +307,7 @@ class CoordinateGANTrainer:
             epoch_disc_losses = []
             
             # Training steps per epoch
-            steps_per_epoch = 50
+            steps_per_epoch = 20
             
             for step in range(steps_per_epoch):
                 # Get real data
