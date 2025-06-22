@@ -1,0 +1,116 @@
+{
+  "training_duration_seconds": 6947.07919,
+  "epochs_completed": 10,
+  "final_metrics": {
+    "mode1_coverage": 0.421,
+    "mode2_coverage": 0.579,
+    "avg_distance_mode1": 1.7860708972784083,
+    "avg_distance_mode2": 1.7385049013317078,
+    "total_variance": 0.32390713691711426,
+    "avg_center_distance": 0.4667244255542755,
+    "balanced_coverage": 0.7271157167530224
+  },
+  "training_history": {
+    "generator_loss": [
+      5.329721193313599,
+      5.264284782409668,
+      5.159544849395752,
+      5.139065475463867,
+      5.098433847427368,
+      5.040207223892212,
+      5.000140514373779,
+      5.005302009582519,
+      4.93821533203125,
+      4.960055303573609
+    ],
+    "mode_coverage_metrics": [
+      {
+        "mode1_coverage": 0.03,
+        "mode2_coverage": 0.97,
+        "avg_distance_mode1": 2.052036907746213,
+        "avg_distance_mode2": 1.3822625888649538,
+        "total_variance": 0.1954375058412552,
+        "avg_center_distance": 0.7645278573036194,
+        "balanced_coverage": 0.030927835051546393
+      },
+      {
+        "mode1_coverage": 0.084,
+        "mode2_coverage": 0.916,
+        "avg_distance_mode1": 1.9587929027520787,
+        "avg_distance_mode2": 1.5743616293214862,
+        "total_variance": 0.17824384570121765,
+        "avg_center_distance": 0.5659074783325195,
+        "balanced_coverage": 0.09170305676855896
+      },
+      {
+        "mode1_coverage": 0.238,
+        "mode2_coverage": 0.762,
+        "avg_distance_mode1": 1.915453176252888,
+        "avg_distance_mode2": 1.6561155513806507,
+        "total_variance": 0.23822376132011414,
+        "avg_center_distance": 0.4726639688014984,
+        "balanced_coverage": 0.3123359580052493
+      },
+      {
+        "mode1_coverage": 0.31,
+        "mode2_coverage": 0.69,
+        "avg_distance_mode1": 1.8602481533530657,
+        "avg_distance_mode2": 1.7001396596979539,
+        "total_variance": 0.24045605957508087,
+        "avg_center_distance": 0.44223541021347046,
+        "balanced_coverage": 0.44927536231884063
+      },
+      {
+        "mode1_coverage": 0.346,
+        "mode2_coverage": 0.654,
+        "avg_distance_mode1": 1.8431042092190164,
+        "avg_distance_mode2": 1.7187516672007428,
+        "total_variance": 0.2779044210910797,
+        "avg_center_distance": 0.45304566621780396,
+        "balanced_coverage": 0.529051987767584
+      },
+      {
+        "mode1_coverage": 0.428,
+        "mode2_coverage": 0.572,
+        "avg_distance_mode1": 1.8181987451087807,
+        "avg_distance_mode2": 1.7349236533250378,
+        "total_variance": 0.29197803139686584,
+        "avg_center_distance": 0.45467132329940796,
+        "balanced_coverage": 0.7482517482517483
+      }
+    ],
+    "epoch_visualizations": [
+      "simple_bimodal_results\\epoch_000_comparison.png",
+      "simple_bimodal_results\\epoch_002_comparison.png",
+      "simple_bimodal_results\\epoch_004_comparison.png",
+      "simple_bimodal_results\\epoch_006_comparison.png",
+      "simple_bimodal_results\\epoch_008_comparison.png",
+      "simple_bimodal_results\\epoch_010_comparison.png"
+    ]
+  },
+  "configuration": {
+    "batch_size": 32,
+    "steps_per_epoch": 50,
+    "validation_frequency": 2,
+    "mode1_center": [
+      -1.5,
+      -1.5
+    ],
+    "mode2_center": [
+      1.5,
+      1.5
+    ],
+    "mode_std": 0.3
+  },
+  "visualizations": {
+    "final_comparison": "simple_bimodal_results\\final_large_sample_comparison.png",
+    "epoch_progressions": [
+      "simple_bimodal_results\\epoch_000_comparison.png",
+      "simple_bimodal_results\\epoch_002_comparison.png",
+      "simple_bimodal_results\\epoch_004_comparison.png",
+      "simple_bimodal_results\\epoch_006_comparison.png",
+      "simple_bimodal_results\\epoch_008_comparison.png",
+      "simple_bimodal_results\\epoch_010_comparison.png"
+    ]
+  }
+}

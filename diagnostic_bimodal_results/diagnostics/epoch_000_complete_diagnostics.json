@@ -1,0 +1,193 @@
+{
+  "parameter_evolution": {
+    "epochs_tracked": 1,
+    "mode_diversity": {
+      "displacement_r": {
+        "mean": 2.6911720037460327,
+        "std": 0.08357324373918994,
+        "range": 0.22567963600158691,
+        "coefficient_of_variation": 0.031054590201911446
+      },
+      "squeeze_r": {
+        "mean": 1.5,
+        "std": 0.0,
+        "range": 0.0,
+        "coefficient_of_variation": 0.0
+      }
+    },
+    "parameter_convergence": {},
+    "spatial_separation": {
+      "min_distance": 3.6117546774020672,
+      "max_distance": 5.431182739532238,
+      "mean_distance": 4.329353823837176,
+      "std_distance": 0.7535348493928844
+    }
+  },
+  "measurement_separation": {
+    "epoch": 0,
+    "total_samples": 100,
+    "measurement_dimension": 8,
+    "mode_separation": {
+      "min_distance": 0.006630074232816696,
+      "max_distance": 0.02700856328010559,
+      "mean_distance": 0.017529034987092018,
+      "std_distance": 0.007388454861938953,
+      "mode_pairs": [
+        [
+          0,
+          1
+        ],
+        [
+          0,
+          2
+        ],
+        [
+          0,
+          3
+        ],
+        [
+          1,
+          2
+        ],
+        [
+          1,
+          3
+        ],
+        [
+          2,
+          3
+        ]
+      ],
+      "distances": [
+        0.02639649249613285,
+        0.018773291260004044,
+        0.02700856328010559,
+        0.012501352466642857,
+        0.006630074232816696,
+        0.013864444568753242
+      ]
+    },
+    "measurement_diversity": {
+      "mode_0": {
+        "sample_count": 19,
+        "variance": 0.00015133494162000716,
+        "range": 0.04432421550154686
+      },
+      "mode_1": {
+        "sample_count": 32,
+        "variance": 0.00029356684535741806,
+        "range": 0.06623875349760056
+      },
+      "mode_2": {
+        "sample_count": 23,
+        "variance": 0.0003771736519411206,
+        "range": 0.07812885195016861
+      },
+      "mode_3": {
+        "sample_count": 26,
+        "variance": 0.00034772793878801167,
+        "range": 0.07624788582324982
+      }
+    }
+  },
+  "mode_contributions": {
+    "baseline_output_shape": [
+      100,
+      2
+    ],
+    "mode_contributions": {
+      "0": {
+        "contribution_magnitude": 7.487028597097378e-07,
+        "contribution_variance": 3.0346395969022e-13,
+        "x_contribution": -5.7220457705398076e-08,
+        "y_contribution": 2.8610228852699038e-08,
+        "samples_analyzed": 100
+      },
+      "1": {
+        "contribution_magnitude": 7.487028597097378e-07,
+        "contribution_variance": 3.0346395969022e-13,
+        "x_contribution": -5.7220457705398076e-08,
+        "y_contribution": 2.8610228852699038e-08,
+        "samples_analyzed": 100
+      },
+      "2": {
+        "contribution_magnitude": 7.487028597097378e-07,
+        "contribution_variance": 3.0346395969022e-13,
+        "x_contribution": -5.7220457705398076e-08,
+        "y_contribution": 2.8610228852699038e-08,
+        "samples_analyzed": 100
+      },
+      "3": {
+        "contribution_magnitude": 7.487028597097378e-07,
+        "contribution_variance": 3.0346395969022e-13,
+        "x_contribution": -5.7220457705398076e-08,
+        "y_contribution": 2.8610228852699038e-08,
+        "samples_analyzed": 100
+      }
+    },
+    "total_contribution": 2.9948114388389513e-06,
+    "analysis_summary": {
+      "most_important_mode": 0,
+      "least_important_mode": 0,
+      "contribution_balance": 0.0,
+      "total_modes_analyzed": 4
+    }
+  },
+  "constellation_validation": {
+    "expected_separation": 2.0,
+    "quadrant_structure": {
+      "expected_quadrants": [
+        [
+          2.0,
+          2.0
+        ],
+        [
+          -2.0,
+          2.0
+        ],
+        [
+          -2.0,
+          -2.0
+        ],
+        [
+          2.0,
+          -2.0
+        ]
+      ],
+      "actual_base_locations": [
+        [
+          2.0,
+          2.0
+        ],
+        [
+          -2.0,
+          2.0
+        ],
+        [
+          -2.0,
+          -2.0
+        ],
+        [
+          2.0,
+          -2.0
+        ]
+      ],
+      "quadrant_matches": [
+        true,
+        true,
+        true,
+        true
+      ],
+      "structure_valid": true
+    },
+    "spatial_separation": {
+      "min_separation": 3.0749140030259228,
+      "max_separation": 6.2374110850427416,
+      "mean_separation": 4.4779794639195005,
+      "std_separation": 0.8608791900091463,
+      "adequate_separation": true
+    },
+    "parameter_consistency": {},
+    "validation_passed": true
+  }
+}

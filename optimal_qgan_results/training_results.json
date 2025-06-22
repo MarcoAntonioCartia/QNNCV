@@ -1,0 +1,129 @@
+{
+  "training_duration_seconds": 108.116647,
+  "epochs_completed": 2,
+  "final_validation": {
+    "timestamp": "2025-06-21T18:25:05.563507",
+    "n_samples_tested": 100,
+    "generator_validation": {
+      "input_shape": [
+        10,
+        6
+      ],
+      "output_shape": [
+        10,
+        2
+      ],
+      "optimal_parameters_applied": true,
+      "spatial_separation_verified": true,
+      "squeezing_optimization_verified": true,
+      "validation_passed": true,
+      "min_mode_separation": 3.9227728833438915,
+      "average_squeeze_strength": 1.5,
+      "measurement_variance": 0.002094411989673972,
+      "measurement_range": 0.1441696286201477,
+      "measurement_dimension": 8,
+      "mode_analysis": [
+        {
+          "mode": 0,
+          "base_location": [
+            2.0,
+            2.0
+          ],
+          "modulated_location": [
+            2.0430099964141846,
+            2.1471381187438965
+          ],
+          "displacement_r": 2.963796854019165,
+          "squeeze_r": 1.5,
+          "squeeze_angle": 1.5952436923980713
+        },
+        {
+          "mode": 1,
+          "base_location": [
+            -2.0,
+            2.0
+          ],
+          "modulated_location": [
+            -1.9447252750396729,
+            2.1538925170898438
+          ],
+          "displacement_r": 2.9019320011138916,
+          "squeeze_r": 1.5,
+          "squeeze_angle": 3.090205192565918
+        },
+        {
+          "mode": 2,
+          "base_location": [
+            -2.0,
+            -2.0
+          ],
+          "modulated_location": [
+            -1.8637415170669556,
+            -1.8506108522415161
+          ],
+          "displacement_r": 2.626460075378418,
+          "squeeze_r": 1.5,
+          "squeeze_angle": -1.5747294425964355
+        },
+        {
+          "mode": 3,
+          "base_location": [
+            2.0,
+            -2.0
+          ],
+          "modulated_location": [
+            2.058417797088623,
+            -1.9199895858764648
+          ],
+          "displacement_r": 2.814861297607422,
+          "squeeze_r": 1.5,
+          "squeeze_angle": 0.03438270092010498
+        }
+      ],
+      "error": null
+    },
+    "batch_generation_successful": true,
+    "mode_collapse_detected": false,
+    "total_sample_variance": 0.42129501700401306,
+    "phase_space_metrics": {
+      "distinct_regions": 2,
+      "avg_separation": 1.009313702583313,
+      "coverage_ratio": 0.5046568512916565,
+      "sample_means": [
+        1.1327773332595825,
+        -2.2461507320404053
+      ],
+      "sample_stds": [
+        0.4422696828842163,
+        0.5670440196990967
+      ]
+    },
+    "gradient_metrics": {
+      "generator_grad_ratio": 1.0,
+      "discriminator_grad_ratio": 1.0,
+      "end_to_end_valid": true,
+      "valid_generator_grads": 22,
+      "valid_discriminator_grads": 45,
+      "valid_e2e_grads": 22
+    },
+    "overall_validation_passed": false
+  },
+  "training_history": {
+    "generator_loss": [
+      0.7109066843986511,
+      0.711525171995163
+    ],
+    "discriminator_loss": [
+      1.3658833503723145,
+      1.36467444896698
+    ],
+    "quantum_state_metrics": [],
+    "validation_reports": []
+  },
+  "optimal_parameters_used": {
+    "squeeze_r": 1.5,
+    "squeeze_angle": 0.785,
+    "modulation_strength": 0.3,
+    "separation_scale": 2.0
+  }
+}

@@ -81,14 +81,14 @@ class QuantumWassersteinLoss:
         
         # 3. Quantum regularization
         try:
-            quantum_metrics = generator.compute_quantum_cost()
+            quantum_cost = generator.compute_quantum_cost()
             
-            # Entropy regularization (encourages diverse quantum states)
-            entropy_bonus = self.lambda_entropy * quantum_metrics['entropy']
+            # Use quantum cost as entropy regularization (encourages diverse quantum states)
+            entropy_bonus = self.lambda_entropy * quantum_cost
             
-            # Physics constraints (ensure valid quantum states)
-            trace_penalty = self.lambda_physics * tf.square(quantum_metrics['trace'] - 1.0)
-            norm_penalty = self.lambda_physics * tf.square(quantum_metrics['norm'] - 1.0)
+            # Physics constraints (basic regularization)
+            trace_penalty = tf.constant(0.0)  # Not applicable for this generator type
+            norm_penalty = tf.constant(0.0)   # Not applicable for this generator type
             
         except Exception as e:
             logger.warning(f"Quantum metrics computation failed: {e}")
