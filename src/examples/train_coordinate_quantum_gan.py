@@ -14,6 +14,8 @@ import sys
 import os
 from datetime import datetime
 import json
+from PIL import Image
+import imageio
 
 # Add project root to path
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -43,9 +45,9 @@ class CoordinateGANTrainer:
     """Basic trainer for coordinate quantum GAN."""
     
     def __init__(self, 
-                 latent_dim: int = 6,
+                 latent_dim: int = 2,
                  data_dim: int = 2,
-                 n_modes: int = 4,
+                 n_modes: int = 2,
                  mode1_center: tuple = (-1.5, -1.5),
                  mode2_center: tuple = (1.5, 1.5),
                  mode_std: float = 0.3):
@@ -62,7 +64,7 @@ class CoordinateGANTrainer:
             latent_dim=latent_dim,
             output_dim=data_dim,
             n_modes=n_modes,
-            layers=2,
+            layers=1,
             cutoff_dim=6,
             clustering_method='kmeans',
             coordinate_names=['X', 'Y']
@@ -72,7 +74,7 @@ class CoordinateGANTrainer:
         self.discriminator = PureSFDiscriminator(
             input_dim=data_dim,
             n_modes=n_modes,
-            layers=3,
+            layers=1,
             cutoff_dim=6
         )
         
@@ -110,7 +112,7 @@ class CoordinateGANTrainer:
     
     def visualize_quantum_circuit(self, save_dir: str):
         """Visualize the quantum circuit structure with enhanced visual diagram."""
-        print("\n🔬 QUANTUM CIRCUIT ANALYSIS")
+        print("\n QUANTUM CIRCUIT ANALYSIS")
         print("=" * 60)
         
         # Create basic circuit visualizer for console output
@@ -134,7 +136,7 @@ class CoordinateGANTrainer:
         print("✅ Quantum circuit visualization complete")
         return visualizer
     
-    def analyze_target_data(self, n_samples: int = 1000):
+    def analyze_target_data(self, n_samples: int = 50):
         """Analyze target data and set up generator."""
         print("Analyzing target data...")
         
@@ -345,7 +347,7 @@ class CoordinateGANTrainer:
             epoch_disc_losses = []
             
             # Training steps per epoch
-            steps_per_epoch = 20
+            steps_per_epoch = 5
             
             for step in range(steps_per_epoch):
                 # Get real data
