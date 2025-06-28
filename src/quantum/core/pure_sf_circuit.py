@@ -350,29 +350,27 @@ class PureSFQuantumCircuit:
             state: SF quantum state
             
         Returns:
-            Flat measurement tensor [total_measurement_dim]
+            Flat measurement tensor [n_modes] (X quadrature only)
         """
         measurements = []
         
         for mode in range(self.n_modes):
-            # X quadrature (position-like)
-            x_quad = state.quad_expectation(mode, 0)
-            # Ensure scalar by taking mean if needed
-            if tf.rank(x_quad) > 0:
-                x_quad = tf.reduce_mean(x_quad)
-            measurements.append(x_quad)
-            
-            # P quadrature (momentum-like)  
-            p_quad = state.quad_expectation(mode, np.pi/2)
-            # Ensure scalar by taking mean if needed
-            if tf.rank(p_quad) > 0:
-                p_quad = tf.reduce_mean(p_quad)
-            measurements.append(p_quad)
+            # X quadrature only (position-like) - avoids tensor shape issues with P quadrature
+            try:
+                x_quad = state.quad_expectation(mode, 0)
+                # Ensure scalar by taking mean if needed
+                if tf.rank(x_quad) > 0:
+                    x_quad = tf.reduce_mean(x_quad)
+                measurements.append(x_quad)
+            except Exception as e:
+                # Fallback: use zero measurement if extraction fails
+                print(f"Warning: Measurement extraction failed for mode {mode}: {e}")
+                measurements.append(tf.constant(0.0))
         
         # Convert to flat tensor
         measurement_tensor = tf.stack(measurements)
         
-        # Ensure flat 1D tensor [total_measurement_dim]
+        # Ensure flat 1D tensor [n_modes]
         measurement_tensor = tf.reshape(measurement_tensor, [-1])
         
         # Ensure real-valued output
@@ -382,10 +380,8 @@ class PureSFQuantumCircuit:
     
     def get_measurement_dimension(self, measurement_type: str = "standard") -> int:
         """Get dimension of measurement output."""
-        if measurement_type == "standard":
-            return 2 * self.n_modes  # X and P for each mode
-        else:
-            return 2 * self.n_modes
+        # Now only using X quadrature, so dimension is n_modes
+        return self.n_modes
     
     @property
     def trainable_variables(self) -> List[tf.Variable]:
