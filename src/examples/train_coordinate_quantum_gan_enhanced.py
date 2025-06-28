@@ -38,6 +38,7 @@ from src.losses.quantum_gan_loss import QuantumWassersteinLoss
 from src.utils.visualization import plot_results
 from src.utils.quantum_circuit_visualizer import QuantumCircuitVisualizer
 from src.utils.enhanced_quantum_circuit_visualizer import create_enhanced_circuit_visualization
+from src.utils.quantum_training_health_checker import QuantumTrainingHealthChecker
 
 # Suppress warnings
 suppress_all_quantum_warnings()
@@ -215,8 +216,8 @@ class EnhancedCoordinateGANTrainer:
         )
         
         # Optimizers
-        self.generator_optimizer = tf.keras.optimizers.Adam(learning_rate=0.0002, beta_1=0.5)
-        self.discriminator_optimizer = tf.keras.optimizers.Adam(learning_rate=0.0002, beta_1=0.5)
+        self.generator_optimizer = tf.keras.optimizers.Adam(learning_rate=0.1, beta_1=0.5)
+        self.discriminator_optimizer = tf.keras.optimizers.Adam(learning_rate=0.1, beta_1=0.5)
         
         # Data generator
         self.data_generator = BimodalDataGenerator(
@@ -421,7 +422,7 @@ class EnhancedCoordinateGANTrainer:
         generated_samples = self.generator.generate(test_z)
         
         # Generate real samples
-        self.data_generator.batch_size = 500
+        self.data_generator.batch_size = 50
         real_samples = self.data_generator.generate_batch()
         
         # Create enhanced visualization
@@ -583,7 +584,7 @@ class EnhancedCoordinateGANTrainer:
                 print(f"   Sample mean: ({samples[:, 0].mean():.3f}, {samples[:, 1].mean():.3f})")
                 print(f"   Sample std: ({samples[:, 0].std():.3f}, {samples[:, 1].std():.3f})")
     
-    def train(self, epochs: int = 5, batch_size: int = 16, save_dir: str = "results/training"):
+    def train(self, epochs: int = 5, batch_size: int = 16, save_dir: str = "results/training", health_check: bool = False):
         """Enhanced training loop with comprehensive monitoring."""
         print(f"🚀 STARTING ENHANCED COORDINATE GAN TRAINING")
         print("=" * 60)
@@ -592,7 +593,67 @@ class EnhancedCoordinateGANTrainer:
         print(f"  Batch size: {batch_size}")
         print(f"  Steps per epoch: 5")
         print(f"  Save directory: {save_dir}")
+        print(f"  Health check: {health_check}")
         print("=" * 60)
+        
+        # Health Check
+        if health_check:
+            print("\n🏥 RUNNING PRE-TRAINING HEALTH CHECK")
+            print("=" * 60)
+            
+            health_checker = QuantumTrainingHealthChecker()
+            
+            # Create configuration for health check
+            config = {
+                'n_modes': self.n_modes,
+                'cutoff_dim': 6,  # From generator initialization
+                'batch_size': batch_size,
+                'layers': 1,
+                'epochs': epochs,
+                'steps_per_epoch': 5,
+                'latent_dim': self.latent_dim,
+                'output_dim': self.data_dim
+            }
+            
+            # Run health check
+            health_result = health_checker.pre_training_health_check(config)
+            
+            print(f"\n📋 HEALTH CHECK RESULTS:")
+            print(f"  Safe to proceed: {'✅' if health_result.safe_to_proceed else '❌'} {health_result.safe_to_proceed}")
+            print(f"  Risk level: {health_result.risk_level}")
+            print(f"  Estimated memory: {health_result.estimated_memory_gb:.2f}GB")
+            print(f"  Estimated time: {health_result.estimated_time_hours:.2f} hours")
+            print(f"  Confidence score: {health_result.confidence_score:.2f}")
+            
+            if health_result.warnings:
+                print(f"\n⚠️ WARNINGS:")
+                for warning in health_result.warnings:
+                    print(f"    • {warning}")
+            
+            if health_result.recommendations:
+                print(f"\n💡 RECOMMENDATIONS:")
+                for rec in health_result.recommendations:
+                    print(f"    • {rec}")
+            
+            # Apply optimizations if needed
+            if not health_result.safe_to_proceed:
+                print(f"\n🛑 TRAINING ABORTED: System not safe for training")
+                print(f"Please follow the recommendations above and try again.")
+                return None
+            
+            # Apply optimized configuration
+            if health_result.optimized_config != config:
+                print(f"\n🔧 APPLYING OPTIMIZED CONFIGURATION:")
+                old_batch_size = batch_size
+                batch_size = health_result.optimized_config.get('batch_size', batch_size)
+                if batch_size != old_batch_size:
+                    print(f"    • Batch size: {old_batch_size} → {batch_size}")
+                    self.data_generator.batch_size = batch_size
+            
+            # Start health monitoring
+            health_checker.start_training_monitoring(epochs)
+            
+            print("=" * 60)
         
         # Create results directory structure
         os.makedirs(save_dir, exist_ok=True)
@@ -781,6 +842,7 @@ def main():
     parser.add_argument("--epochs", type=int, default=5, help="Number of epochs")
     parser.add_argument("--batch-size", type=int, default=16, help="Batch size")
     parser.add_argument("--save-dir", type=str, default="results/enhanced_training", help="Save directory")
+    parser.add_argument("--health-check", action="store_true", help="Run pre-training health check")
     
     args = parser.parse_args()
     
@@ -793,6 +855,11 @@ def main():
     print("  ✅ Generated data evolution")
     print("  ✅ Training progression GIF")
     print("  ✅ Comprehensive validation metrics")
+    if args.health_check:
+        print("  ✅ Pre-training health check")
+        print("  ✅ Memory safety analysis")
+        print("  ✅ Training time estimation")
+        print("  ✅ Hardware performance benchmarking")
     print("=" * 60)
     
     # Create enhanced trainer
@@ -802,7 +869,8 @@ def main():
     results = trainer.train(
         epochs=args.epochs,
         batch_size=args.batch_size,
-        save_dir=args.save_dir
+        save_dir=args.save_dir,
+        health_check=args.health_check
     )
     
     # Print final comprehensive results
