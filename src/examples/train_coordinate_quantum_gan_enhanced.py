@@ -216,8 +216,8 @@ class EnhancedCoordinateGANTrainer:
         )
         
         # Optimizers
-        self.generator_optimizer = tf.keras.optimizers.Adam(learning_rate=0.1, beta_1=0.5)
-        self.discriminator_optimizer = tf.keras.optimizers.Adam(learning_rate=0.1, beta_1=0.5)
+        self.generator_optimizer = tf.keras.optimizers.Adam(learning_rate=0.001, beta_1=0.5)
+        self.discriminator_optimizer = tf.keras.optimizers.Adam(learning_rate=0.001, beta_1=0.5)
         
         # Data generator
         self.data_generator = BimodalDataGenerator(
@@ -514,7 +514,9 @@ class EnhancedCoordinateGANTrainer:
         plt.tight_layout()
         
         # Save visualization
-        viz_path = os.path.join(save_dir, "epoch_visualizations", f"epoch_{epoch:03d}_analysis.png")
+        viz_dir = os.path.join(save_dir, "epoch_visualizations")
+        os.makedirs(viz_dir, exist_ok=True)
+        viz_path = os.path.normpath(os.path.join(viz_dir, f"epoch_{epoch:03d}_analysis.png"))
         plt.savefig(viz_path, dpi=300, bbox_inches='tight', facecolor='white')
         plt.close()
         
