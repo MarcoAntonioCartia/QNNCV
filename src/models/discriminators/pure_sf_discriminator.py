@@ -25,6 +25,7 @@ if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
 from src.quantum.core.pure_sf_circuit import PureSFQuantumCircuit
+from src.utils.spectral_normalization import SpectralNormDense
 
 logger = logging.getLogger(__name__)
 
