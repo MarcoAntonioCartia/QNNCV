@@ -1,0 +1,36 @@
+{
+  "training_history": {
+    "generator_loss": [
+      -107.04497741699218
+    ],
+    "discriminator_loss": [
+      9.52742398071289
+    ],
+    "mode_coverage": [
+      {
+        "mode1_coverage": 0.502,
+        "mode2_coverage": 0.498,
+        "balanced_coverage": 0.9920318725099602
+      }
+    ]
+  },
+  "final_coverage": {
+    "mode1_coverage": 0.502,
+    "mode2_coverage": 0.498,
+    "balanced_coverage": 0.9920318725099602
+  },
+  "configuration": {
+    "latent_dim": 6,
+    "data_dim": 2,
+    "n_modes": 4,
+    "mode1_center": [
+      -1.5,
+      -1.5
+    ],
+    "mode2_center": [
+      1.5,
+      1.5
+    ],
+    "mode_std": 0.3
+  }
+}

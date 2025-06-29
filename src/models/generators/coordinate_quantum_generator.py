@@ -116,6 +116,9 @@ class CoordinateQuantumGenerator:
     
     def _build_input_encoder(self) -> tf.keras.Model:
         """Build input encoder: latent → quantum parameters."""
+        # Account for cluster selection using first dimension
+        quantum_input_dim = self.latent_dim - 1 if self.latent_dim > 1 else self.latent_dim
+        
         # Simple linear encoder for quantum parameter modulation
         encoder = tf.keras.Sequential([
             tf.keras.layers.Dense(
@@ -125,8 +128,8 @@ class CoordinateQuantumGenerator:
             )
         ], name='input_encoder')
         
-        # Build with dummy input
-        dummy_input = tf.zeros([1, self.latent_dim])
+        # Build with dummy input (reduced dimension for quantum parameters)
+        dummy_input = tf.zeros([1, quantum_input_dim])
         encoder(dummy_input)
         
         return encoder
@@ -169,11 +172,29 @@ class CoordinateQuantumGenerator:
         return analysis_results
     
     def _build_coordinate_decoders(self):
-        """Build coordinate-specific decoders based on cluster analysis."""
+        """Build coordinate-specific decoders with target-aware scaling."""
         if self.mode_coordinate_mapping is None:
             raise ValueError("Must analyze target data first")
         
-        print(f"🔧 Building coordinate-specific decoders...")
+        print(f"🔧 Building target-aware coordinate decoders...")
+        
+        # Get cluster centers for scaling
+        cluster_centers = self.cluster_analyzer.cluster_centers
+        
+        # Calculate coordinate ranges for proper scaling
+        coord_ranges = {}
+        for i, coord_name in enumerate(self.coordinate_names):
+            coord_values = cluster_centers[:, i]
+            coord_min, coord_max = coord_values.min(), coord_values.max()
+            coord_center = (coord_min + coord_max) / 2
+            coord_scale = max(abs(coord_max - coord_center), abs(coord_min - coord_center))
+            coord_ranges[coord_name] = {
+                'min': float(coord_min),
+                'max': float(coord_max), 
+                'center': float(coord_center),
+                'scale': float(coord_scale)
+            }
+            print(f"   {coord_name} range: [{coord_min:.3f}, {coord_max:.3f}], scale: {coord_scale:.3f}")
         
         # Group modes by coordinate
         coordinate_modes = {}
@@ -188,46 +209,84 @@ class CoordinateQuantumGenerator:
                 'active': mapping['active']
             })
         
-        # Create decoder for each coordinate
+        # Create decoder for each coordinate with target-aware scaling
         for coord_name, modes in coordinate_modes.items():
             active_modes = [m for m in modes if m['active']]
             n_active_modes = len(active_modes)
             
             if n_active_modes > 0:
-                # Create simple linear decoder for this coordinate
+                coord_range = coord_ranges[coord_name]
+                
+                # Create target-aware decoder with proper initialization
                 decoder = tf.keras.Sequential([
                     tf.keras.layers.Dense(
+                        16,  # Larger hidden layer for better mapping
+                        activation='tanh',
+                        kernel_initializer='glorot_uniform',
+                        name=f'{coord_name}_hidden'
+                    ),
+                    tf.keras.layers.Dense(
+                        8,  # Second hidden layer
+                        activation='tanh', 
+                        kernel_initializer='glorot_uniform',
+                        name=f'{coord_name}_hidden2'
+                    ),
+                    tf.keras.layers.Dense(
                         1,  # Single coordinate output
-                        activation='linear',
+                        activation='linear',  # Linear output for full range
+                        kernel_initializer='glorot_uniform',
                         name=f'{coord_name}_coordinate_decoder'
                     )
                 ], name=f'{coord_name}_decoder')
                 
-                # Build with dummy input (measurements from active modes)
+                # Build with dummy input
                 dummy_input = tf.zeros([1, n_active_modes])
                 decoder(dummy_input)
+                
+                # CRITICAL FIX: Initialize final layer to map to target range
+                # Quantum measurements are typically in [-1, 1], we want to map to [coord_min, coord_max]
+                final_layer = decoder.layers[-1]
+                
+                # Set weights to scale from quantum measurement range to target coordinate range
+                # We need aggressive scaling since quantum measurements are often small
+                scale_factor = coord_range['scale'] * 10.0  # Aggressive scaling for quantum measurements
+                center_bias = coord_range['center']
+                
+                # Initialize weights for proper scaling
+                current_weights = final_layer.get_weights()
+                if len(current_weights) >= 2:
+                    # Scale the weights aggressively
+                    current_weights[0] = current_weights[0] * scale_factor
+                    # Set bias to center the distribution
+                    current_weights[1] = np.full_like(current_weights[1], center_bias)
+                    final_layer.set_weights(current_weights)
+                
+                print(f"     Initialized with scale_factor={scale_factor:.3f}, center_bias={center_bias:.3f}")
                 
                 self.coordinate_decoders[coord_name] = {
                     'decoder': decoder,
                     'modes': active_modes,
-                    'n_modes': n_active_modes
+                    'n_modes': n_active_modes,
+                    'target_range': coord_range
                 }
                 
-                print(f"   {coord_name}: {n_active_modes} active modes")
+                print(f"   {coord_name}: {n_active_modes} active modes, target range [{coord_range['min']:.3f}, {coord_range['max']:.3f}]")
             else:
                 print(f"   ⚠️  {coord_name}: No active modes, using zero output")
                 self.coordinate_decoders[coord_name] = {
                     'decoder': None,
                     'modes': [],
-                    'n_modes': 0
+                    'n_modes': 0,
+                    'target_range': None
                 }
     
-    def generate(self, z: tf.Tensor) -> tf.Tensor:
+    def generate(self, z: tf.Tensor, mode_indices: tf.Tensor = None) -> tf.Tensor:
         """
-        Generate samples using coordinate-wise quantum approach.
+        Generate samples using coordinate-wise quantum approach with explicit cluster selection.
         
         Args:
             z: Latent input [batch_size, latent_dim]
+            mode_indices: Optional cluster indices [batch_size] for explicit mode control
             
         Returns:
             Generated samples [batch_size, output_dim]
@@ -237,67 +296,105 @@ class CoordinateQuantumGenerator:
         
         batch_size = tf.shape(z)[0]
         
-        # Step 1: Encode latent input to quantum parameters
-        quantum_params = self.input_encoder(z)  # [batch_size, n_modes * 2]
+        # Step 1: Cluster Selection - Use first dimension of z for mode selection if not provided
+        if mode_indices is None:
+            # Use first latent dimension for cluster selection
+            cluster_logits = z[:, 0:1] * 5.0  # Scale for better separation
+            cluster_probs = tf.nn.softmax(tf.concat([cluster_logits, -cluster_logits], axis=1))
+            mode_indices = tf.random.categorical(tf.math.log(cluster_probs), 1)[:, 0]
         
-        # Step 2: OPTIMIZED - Use simplified quantum measurements
-        # Instead of executing expensive quantum circuits, use the quantum parameters directly
-        # This maintains the quantum-inspired structure while being computationally feasible
+        # Step 2: Encode remaining latent input to quantum parameters
+        quantum_input = z[:, 1:] if z.shape[1] > 1 else z  # Use remaining dimensions
+        quantum_params = self.input_encoder(quantum_input)  # [batch_size, n_modes * 2]
         
-        # Extract displacement parameters for each mode
-        displacements = tf.reshape(quantum_params, [batch_size, self.n_modes, 2])  # [batch_size, n_modes, 2]
+        # Step 3: Execute quantum circuits for each sample
+        batch_measurements = []
         
-        # Use X quadrature (first component) as measurements with some quantum noise
-        x_quadratures = displacements[:, :, 0]  # [batch_size, n_modes]
+        for i in range(batch_size):
+            # Get parameters for this sample
+            sample_params = quantum_params[i]  # [n_modes * 2]
+            
+            # Reshape to proper encoding format for quantum circuit
+            sample_encoding = tf.reshape(sample_params, [-1])  # Flatten for encoding
+            
+            # Execute quantum circuit with this sample's encoding
+            quantum_state = self.quantum_circuit.execute(input_encoding=sample_encoding)
+            
+            # Extract real quantum measurements using circuit's method
+            measurements = self.quantum_circuit.extract_measurements(quantum_state)
+            batch_measurements.append(measurements)
         
-        # Add quantum-inspired noise
-        quantum_noise = tf.random.normal(tf.shape(x_quadratures), stddev=0.1)
-        batch_measurements = x_quadratures + quantum_noise  # [batch_size, n_modes]
+        # Stack all measurements
+        batch_measurements = tf.stack(batch_measurements, axis=0)  # [batch_size, measurement_dim]
         
-        # Generate cluster assignments for tracking
-        cluster_probs = tf.nn.softmax(tf.constant(self.cluster_gains))
-        batch_cluster_assignments = tf.random.categorical(
-            tf.math.log(tf.tile(cluster_probs[None, :], [batch_size, 1])), 1
-        )[:, 0]  # [batch_size]
+        # Step 4: Cluster-conditional coordinate decoding
+        generated_samples = []
         
-        # Step 3: Decode measurements to coordinates
-        coordinate_outputs = {}
+        for i in range(batch_size):
+            sample_measurements = batch_measurements[i]  # [measurement_dim]
+            cluster_id = int(mode_indices[i])
+            
+            # Generate coordinates for this specific cluster
+            sample_coords = []
+            
+            for coord_name in self.coordinate_names:
+                if coord_name in self.coordinate_decoders:
+                    decoder_info = self.coordinate_decoders[coord_name]
+                    
+                    if decoder_info['n_modes'] > 0:
+                        # Filter modes for this cluster
+                        cluster_modes = [m for m in decoder_info['modes'] if m['cluster_id'] == cluster_id]
+                        
+                        if cluster_modes:
+                            # Extract measurements for this cluster's modes
+                            mode_indices_for_cluster = [m['mode_idx'] for m in cluster_modes]
+                            coord_measurements = tf.gather(sample_measurements, mode_indices_for_cluster)
+                            
+                            # Ensure we have the right number of measurements for the decoder
+                            expected_inputs = decoder_info['n_modes']
+                            if len(coord_measurements.shape) == 0:  # Single measurement
+                                coord_measurements = tf.expand_dims(coord_measurements, 0)
+                            
+                            # Pad or truncate to match expected decoder input size
+                            current_size = tf.shape(coord_measurements)[0]
+                            if current_size < expected_inputs:
+                                # Pad with zeros if we have fewer measurements than expected
+                                padding = tf.zeros([expected_inputs - current_size])
+                                coord_measurements = tf.concat([coord_measurements, padding], axis=0)
+                            elif current_size > expected_inputs:
+                                # Truncate if we have more measurements than expected
+                                coord_measurements = coord_measurements[:expected_inputs]
+                            
+                            # Apply coordinate decoder
+                            coord_output = decoder_info['decoder'](tf.expand_dims(coord_measurements, 0))
+                            coord_value = tf.squeeze(coord_output)
+                            
+                            # Add cluster center offset for proper positioning
+                            cluster_center = self.cluster_analyzer.cluster_centers[cluster_id]
+                            coord_idx = self.coordinate_names.index(coord_name)
+                            cluster_offset = cluster_center[coord_idx]
+                            
+                            # Apply cluster-specific positioning
+                            coord_value = coord_value + cluster_offset * 0.5  # Partial offset for diversity
+                            sample_coords.append(coord_value)
+                        else:
+                            # No modes for this cluster, use cluster center
+                            cluster_center = self.cluster_analyzer.cluster_centers[cluster_id]
+                            coord_idx = self.coordinate_names.index(coord_name)
+                            sample_coords.append(tf.constant(cluster_center[coord_idx]))
+                    else:
+                        # No active modes, use zero
+                        sample_coords.append(tf.constant(0.0))
+                else:
+                    sample_coords.append(tf.constant(0.0))
+            
+            generated_samples.append(tf.stack(sample_coords))
         
-        for coord_name, decoder_info in self.coordinate_decoders.items():
-            if decoder_info['n_modes'] > 0:
-                # Extract measurements for this coordinate's modes
-                mode_indices = [m['mode_idx'] for m in decoder_info['modes']]
-                coord_measurements = tf.gather(batch_measurements, mode_indices, axis=1)
-                
-                # Apply coordinate decoder
-                coord_output = decoder_info['decoder'](coord_measurements)
-                # Ensure it's 1D [batch_size] - squeeze all dimensions except batch
-                coord_output = tf.squeeze(coord_output)
-                # If still multi-dimensional, take first element
-                if len(coord_output.shape) > 1:
-                    coord_output = coord_output[:, 0]
-                coordinate_outputs[coord_name] = coord_output
-            else:
-                # No active modes for this coordinate
-                coordinate_outputs[coord_name] = tf.zeros([batch_size])
-        
-        # Step 4: Combine coordinates into final output
-        output_list = []
-        for coord_name in self.coordinate_names:
-            if coord_name in coordinate_outputs:
-                coord_output = coordinate_outputs[coord_name]
-                # Ensure it's 1D [batch_size]
-                while len(coord_output.shape) > 1:
-                    coord_output = tf.squeeze(coord_output, axis=-1)
-                output_list.append(coord_output)
-            else:
-                output_list.append(tf.zeros([batch_size]))
-        
-        generated_samples = tf.stack(output_list, axis=1)  # [batch_size, output_dim]
+        generated_samples = tf.stack(generated_samples, axis=0)  # [batch_size, output_dim]
         
         # Store for analysis
         self.last_measurements = batch_measurements
-        self.last_cluster_assignments = batch_cluster_assignments
+        self.last_cluster_assignments = mode_indices
         
         return generated_samples
     

@@ -1,0 +1,251 @@
+{
+  "circuit_info": {
+    "n_modes": 4,
+    "n_layers": 2,
+    "total_parameters": 22
+  },
+  "operations": [
+    {
+      "type": "squeeze",
+      "layer": 0,
+      "mode": 0,
+      "param_name": "squeeze_r_0_0",
+      "value": 0.11021982878446579,
+      "label": "S\nr=0.110"
+    },
+    {
+      "type": "squeeze",
+      "layer": 0,
+      "mode": 1,
+      "param_name": "squeeze_r_0_1",
+      "value": 0.11021982878446579,
+      "label": "S\nr=0.110"
+    },
+    {
+      "type": "squeeze",
+      "layer": 0,
+      "mode": 2,
+      "param_name": "squeeze_r_0_2",
+      "value": 0.11021982878446579,
+      "label": "S\nr=0.110"
+    },
+    {
+      "type": "squeeze",
+      "layer": 0,
+      "mode": 3,
+      "param_name": "squeeze_r_0_3",
+      "value": 0.11021982878446579,
+      "label": "S\nr=0.110"
+    },
+    {
+      "type": "beamsplitter",
+      "layer": 0,
+      "modes": [
+        0,
+        1
+      ],
+      "param_name": "bs_theta_0_0",
+      "value": 0.8036339282989502,
+      "label": "BS\n\u03b8=0.804"
+    },
+    {
+      "type": "beamsplitter",
+      "layer": 0,
+      "modes": [
+        1,
+        2
+      ],
+      "param_name": "bs_theta_0_1",
+      "value": 0.7073988318443298,
+      "label": "BS\n\u03b8=0.707"
+    },
+    {
+      "type": "beamsplitter",
+      "layer": 0,
+      "modes": [
+        2,
+        3
+      ],
+      "param_name": "bs_theta_0_2",
+      "value": 0.7266197800636292,
+      "label": "BS\n\u03b8=0.727"
+    },
+    {
+      "type": "rotation",
+      "layer": 0,
+      "mode": 0,
+      "param_name": "rotation_0_0",
+      "value": 5.540036678314209,
+      "label": "R\n\u03c6=5.540"
+    },
+    {
+      "type": "rotation",
+      "layer": 0,
+      "mode": 1,
+      "param_name": "rotation_0_1",
+      "value": 5.724979400634766,
+      "label": "R\n\u03c6=5.725"
+    },
+    {
+      "type": "rotation",
+      "layer": 0,
+      "mode": 2,
+      "param_name": "rotation_0_2",
+      "value": 3.9002957344055176,
+      "label": "R\n\u03c6=3.900"
+    },
+    {
+      "type": "rotation",
+      "layer": 0,
+      "mode": 3,
+      "param_name": "rotation_0_3",
+      "value": 0.4604669511318207,
+      "label": "R\n\u03c6=0.460"
+    },
+    {
+      "type": "squeeze",
+      "layer": 1,
+      "mode": 0,
+      "param_name": "squeeze_r_1_0",
+      "value": 0.11021982878446579,
+      "label": "S\nr=0.110"
+    },
+    {
+      "type": "squeeze",
+      "layer": 1,
+      "mode": 1,
+      "param_name": "squeeze_r_1_1",
+      "value": 0.11021982878446579,
+      "label": "S\nr=0.110"
+    },
+    {
+      "type": "squeeze",
+      "layer": 1,
+      "mode": 2,
+      "param_name": "squeeze_r_1_2",
+      "value": 0.11021982878446579,
+      "label": "S\nr=0.110"
+    },
+    {
+      "type": "squeeze",
+      "layer": 1,
+      "mode": 3,
+      "param_name": "squeeze_r_1_3",
+      "value": 0.11021982878446579,
+      "label": "S\nr=0.110"
+    },
+    {
+      "type": "beamsplitter",
+      "layer": 1,
+      "modes": [
+        0,
+        1
+      ],
+      "param_name": "bs_theta_1_0",
+      "value": 0.7828397154808044,
+      "label": "BS\n\u03b8=0.783"
+    },
+    {
+      "type": "beamsplitter",
+      "layer": 1,
+      "modes": [
+        1,
+        2
+      ],
+      "param_name": "bs_theta_1_1",
+      "value": 0.8497130274772644,
+      "label": "BS\n\u03b8=0.850"
+    },
+    {
+      "type": "beamsplitter",
+      "layer": 1,
+      "modes": [
+        2,
+        3
+      ],
+      "param_name": "bs_theta_1_2",
+      "value": 0.8540158867835999,
+      "label": "BS\n\u03b8=0.854"
+    },
+    {
+      "type": "rotation",
+      "layer": 1,
+      "mode": 0,
+      "param_name": "rotation_1_0",
+      "value": 1.4229140281677246,
+      "label": "R\n\u03c6=1.423"
+    },
+    {
+      "type": "rotation",
+      "layer": 1,
+      "mode": 1,
+      "param_name": "rotation_1_1",
+      "value": 1.0884735584259033,
+      "label": "R\n\u03c6=1.088"
+    },
+    {
+      "type": "rotation",
+      "layer": 1,
+      "mode": 2,
+      "param_name": "rotation_1_2",
+      "value": 2.396909713745117,
+      "label": "R\n\u03c6=2.397"
+    },
+    {
+      "type": "rotation",
+      "layer": 1,
+      "mode": 3,
+      "param_name": "rotation_1_3",
+      "value": 3.8643147945404053,
+      "label": "R\n\u03c6=3.864"
+    }
+  ],
+  "parameter_magnitudes": {
+    "squeeze": 0.11021982878446579,
+    "beamsplitter": 0.78934680663456,
+    "rotation": 3.5843286712745113
+  },
+  "complexity_metrics": {
+    "Total Gates": 22,
+    "Layers": 2,
+    "Modes": 4,
+    "Parameters": 22,
+    "Connectivity": 6.0
+  },
+  "coordinate_info": {
+    "coordinate_names": [
+      "X",
+      "Y"
+    ],
+    "mode_mappings": {
+      "0": {
+        "cluster_id": 0,
+        "coordinate": "X",
+        "coordinate_index": 0,
+        "gain": 0.5,
+        "active": true
+      },
+      "1": {
+        "cluster_id": 0,
+        "coordinate": "Y",
+        "coordinate_index": 1,
+        "gain": 0.5,
+        "active": true
+      },
+      "2": {
+        "cluster_id": 1,
+        "coordinate": "X",
+        "coordinate_index": 0,
+        "gain": 0.5,
+        "active": true
+      },
+      "3": {
+        "cluster_id": 1,
+        "coordinate": "Y",
+        "coordinate_index": 1,
+        "gain": 0.5,
+        "active": true
+      }
+    }
+  }
+}

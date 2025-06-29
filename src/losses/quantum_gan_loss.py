@@ -62,8 +62,17 @@ class QuantumWassersteinLoss:
         w_distance = tf.reduce_mean(real_output) - tf.reduce_mean(fake_output)
         
         # 2. Gradient penalty for Lipschitz constraint
-        alpha = tf.random.uniform([batch_size, 1], 0.0, 1.0)
-        interpolated = alpha * real_samples + (1 - alpha) * fake_samples
+        # Fix: Ensure both samples have the same batch size
+        real_batch_size = tf.shape(real_samples)[0]
+        fake_batch_size = tf.shape(fake_samples)[0]
+        min_batch_size = tf.minimum(real_batch_size, fake_batch_size)
+        
+        # Truncate to minimum batch size to ensure compatibility
+        real_truncated = real_samples[:min_batch_size]
+        fake_truncated = fake_samples[:min_batch_size]
+        
+        alpha = tf.random.uniform([min_batch_size, 1], 0.0, 1.0)
+        interpolated = alpha * real_truncated + (1 - alpha) * fake_truncated
         
         with tf.GradientTape() as gp_tape:
             gp_tape.watch(interpolated)
