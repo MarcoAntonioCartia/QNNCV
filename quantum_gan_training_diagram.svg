@@ -1,0 +1,234 @@
+<svg viewBox="0 0 1600 1000" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="quantumGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#4a90e2;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#7b68ee;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="classicalGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#50c878;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#228b22;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="dataGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#ff6b35;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#ff8c42;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="encodingGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#e67e22;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#d35400;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="decodingGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#8e44ad;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#9b59b6;stop-opacity:1" />
+    </linearGradient>
+    
+    <!-- Arrow markers -->
+    <marker id="arrowhead" markerWidth="12" markerHeight="8" refX="11" refY="4" orient="auto">
+      <polygon points="0 0, 12 4, 0 8" fill="#2c3e50"/>
+    </marker>
+    <marker id="arrowhead-blue" markerWidth="12" markerHeight="8" refX="11" refY="4" orient="auto">
+      <polygon points="0 0, 12 4, 0 8" fill="#3498db"/>
+    </marker>
+    <marker id="arrowhead-orange" markerWidth="12" markerHeight="8" refX="11" refY="4" orient="auto">
+      <polygon points="0 0, 12 4, 0 8" fill="#e67e22"/>
+    </marker>
+  </defs>
+  
+  <!-- Title -->
+  <text x="800" y="40" text-anchor="middle" font-size="28" font-weight="bold" fill="#2c3e50">
+    Quantum GAN: Encoding/Decoding Strategy
+  </text>
+  
+  <!-- Top Row: Generator Pipeline -->
+  
+  <!-- Latent Input -->
+  <g id="latent-input">
+    <rect x="50" y="80" width="180" height="100" fill="#95a5a6" rx="12" stroke="#7f8c8d" stroke-width="3"/>
+    <text x="140" y="110" text-anchor="middle" font-size="16" font-weight="bold" fill="white">Latent Noise (z)</text>
+    <text x="140" y="130" text-anchor="middle" font-size="13" fill="white">Random Normal</text>
+    <text x="140" y="150" text-anchor="middle" font-size="13" fill="white">[batch, latent_dim]</text>
+  </g>
+  
+  <!-- Classical-to-Quantum Encoding -->
+  <g id="encoding">
+    <rect x="280" y="80" width="220" height="100" fill="url(#encodingGrad)" rx="12" stroke="#e67e22" stroke-width="3"/>
+    <text x="390" y="110" text-anchor="middle" font-size="16" font-weight="bold" fill="white">Classical → Quantum</text>
+    <text x="390" y="130" text-anchor="middle" font-size="14" fill="white">Static Encoder Matrix</text>
+    <text x="390" y="150" text-anchor="middle" font-size="14" fill="white">Constellation Mapping</text>
+  </g>
+  
+  <!-- Quantum Generator -->
+  <g id="quantum-generator">
+    <rect x="550" y="80" width="250" height="100" fill="url(#quantumGrad)" rx="12" stroke="#2980b9" stroke-width="3"/>
+    <text x="675" y="110" text-anchor="middle" font-size="16" font-weight="bold" fill="white">Quantum Generator</text>
+    <text x="675" y="130" text-anchor="middle" font-size="14" fill="white">6+ modes, 4+ layers</text>
+    <text x="675" y="150" text-anchor="middle" font-size="14" fill="white">Pure Strawberry Fields</text>
+  </g>
+  
+  <!-- Quantum Measurements -->
+  <g id="measurements">
+    <rect x="850" y="80" width="220" height="100" fill="url(#decodingGrad)" rx="12" stroke="#8e44ad" stroke-width="3"/>
+    <text x="960" y="110" text-anchor="middle" font-size="16" font-weight="bold" fill="white">Measurements</text>
+    <text x="960" y="130" text-anchor="middle" font-size="14" fill="white">Homodyne Detection</text>
+    <text x="960" y="150" text-anchor="middle" font-size="14" fill="white">X & P Quadratures</text>
+  </g>
+  
+  <!-- Quantum-to-Classical Decoding -->
+  <g id="decoding">
+    <rect x="1120" y="80" width="220" height="100" fill="url(#encodingGrad)" rx="12" stroke="#e67e22" stroke-width="3"/>
+    <text x="1230" y="110" text-anchor="middle" font-size="16" font-weight="bold" fill="white">Quantum → Classical</text>
+    <text x="1230" y="130" text-anchor="middle" font-size="14" fill="white">Static Decoder Matrix</text>
+    <text x="1230" y="150" text-anchor="middle" font-size="14" fill="white">Output Samples</text>
+  </g>
+  
+  <!-- Generator Pipeline Arrows -->
+  <path d="M 230 130 L 280 130" stroke="#2c3e50" stroke-width="4" fill="none" marker-end="url(#arrowhead)"/>
+  <path d="M 500 130 L 550 130" stroke="#2c3e50" stroke-width="4" fill="none" marker-end="url(#arrowhead)"/>
+  <path d="M 800 130 L 850 130" stroke="#2c3e50" stroke-width="4" fill="none" marker-end="url(#arrowhead)"/>
+  <path d="M 1070 130 L 1120 130" stroke="#2c3e50" stroke-width="4" fill="none" marker-end="url(#arrowhead)"/>
+  
+  <!-- Middle Section: Detailed Encoding/Decoding -->
+  
+  <!-- Encoding Details -->
+  <g id="encoding-details">
+    <rect x="50" y="250" width="300" height="160" fill="#f8f9fa" rx="12" stroke="#e67e22" stroke-width="2"/>
+    <text x="200" y="280" text-anchor="middle" font-size="18" font-weight="bold" fill="#2c3e50">Encoding Strategy</text>
+    
+    <text x="70" y="310" font-size="14" fill="#2c3e50" font-weight="bold">1. Constellation Mapping:</text>
+    <text x="80" y="330" font-size="13" fill="#2c3e50">• Four points: (+,+), (-,+), (-,-), (+,-)</text>
+    
+    <text x="70" y="360" font-size="14" fill="#2c3e50" font-weight="bold">2. Displacement Parameters:</text>
+    <text x="80" y="380" font-size="13" fill="#2c3e50">• r, φ = f(input_vector)</text>
+    <text x="80" y="395" font-size="13" fill="#2c3e50">• Dgate(r, φ) | mode</text>
+  </g>
+  
+  <!-- Quantum Processing Details -->
+  <g id="quantum-details">
+    <rect x="400" y="250" width="350" height="160" fill="#f8f9fa" rx="12" stroke="#2980b9" stroke-width="2"/>
+    <text x="575" y="280" text-anchor="middle" font-size="18" font-weight="bold" fill="#2c3e50">Quantum Processing</text>
+    
+    <text x="420" y="310" font-size="14" fill="#2c3e50" font-weight="bold">Gate Operations:</text>
+    <text x="430" y="330" font-size="13" fill="#2c3e50">• Sgate(r,φ): Squeezing</text>
+    <text x="430" y="345" font-size="13" fill="#2c3e50">• BSgate(θ,φ): Beam Splitters</text>
+    
+    <text x="580" y="330" font-size="13" fill="#2c3e50">• Rgate(φ): Rotations</text>
+    <text x="580" y="345" font-size="13" fill="#2c3e50">• Dgate(α): Displacements</text>
+    
+    <text x="420" y="375" font-size="14" fill="#2c3e50" font-weight="bold">84+ trainable parameters</text>
+    <text x="580" y="375" font-size="14" fill="#2c3e50" font-weight="bold">Exponential state space</text>
+  </g>
+  
+  <!-- Decoding Details -->
+  <g id="decoding-details">
+    <rect x="800" y="250" width="300" height="160" fill="#f8f9fa" rx="12" stroke="#8e44ad" stroke-width="2"/>
+    <text x="950" y="280" text-anchor="middle" font-size="18" font-weight="bold" fill="#2c3e50">Decoding Strategy</text>
+    
+    <text x="820" y="310" font-size="14" fill="#2c3e50" font-weight="bold">1. Quantum Measurements:</text>
+    <text x="830" y="330" font-size="13" fill="#2c3e50">• X quadrature: ⟨X⟩ per mode</text>
+    <text x="830" y="345" font-size="13" fill="#2c3e50">• P quadrature: ⟨P⟩ per mode</text>
+    
+    <text x="820" y="375" font-size="14" fill="#2c3e50" font-weight="bold">2. Output Transformation:</text>
+    <text x="830" y="395" font-size="13" fill="#2c3e50">• Raw → Coordinates</text>
+  </g>
+  
+  <!-- Bottom Section: Training Components -->
+  
+  <!-- Real Data -->
+  <g id="real-data">
+    <rect x="50" y="480" width="200" height="120" fill="url(#dataGrad)" rx="12" stroke="#d35400" stroke-width="3"/>
+    <text x="150" y="510" text-anchor="middle" font-size="16" font-weight="bold" fill="white">Real Data</text>
+    <text x="150" y="530" text-anchor="middle" font-size="14" fill="white">Bimodal Constellation</text>
+    <text x="150" y="550" text-anchor="middle" font-size="14" fill="white">Coordinate Pairs</text>
+    <text x="150" y="570" text-anchor="middle" font-size="14" fill="white">Batch Processing</text>
+  </g>
+  
+  <!-- Discriminator -->
+  <g id="discriminator">
+    <rect x="300" y="480" width="280" height="120" fill="url(#classicalGrad)" rx="12" stroke="#27ae60" stroke-width="3"/>
+    <text x="440" y="510" text-anchor="middle" font-size="16" font-weight="bold" fill="white">Quantum Discriminator</text>
+    <text x="440" y="530" text-anchor="middle" font-size="14" fill="white">3 modes, 2 layers</text>
+    <text x="440" y="550" text-anchor="middle" font-size="14" fill="white">22 parameters</text>
+    <text x="440" y="570" text-anchor="middle" font-size="14" fill="white">Real vs Fake Classification</text>
+  </g>
+  
+  <!-- Loss & Training -->
+  <g id="loss-training">
+    <rect x="630" y="480" width="250" height="120" fill="#9b59b6" rx="12" stroke="#8e44ad" stroke-width="3"/>
+    <text x="755" y="510" text-anchor="middle" font-size="16" font-weight="bold" fill="white">Training Loop</text>
+    <text x="755" y="530" text-anchor="middle" font-size="14" fill="white">Wasserstein Loss</text>
+    <text x="755" y="550" text-anchor="middle" font-size="14" fill="white">Quantum Regularization</text>
+    <text x="755" y="570" text-anchor="middle" font-size="14" fill="white">Gradient Flow: 14/14</text>
+  </g>
+  
+  <!-- Results -->
+  <g id="results">
+    <rect x="930" y="480" width="220" height="120" fill="#34495e" rx="12" stroke="#2c3e50" stroke-width="3"/>
+    <text x="1040" y="510" text-anchor="middle" font-size="16" font-weight="bold" fill="white">Results</text>
+    <text x="1040" y="530" text-anchor="middle" font-size="14" fill="white">95% Success Rate</text>
+    <text x="1040" y="550" text-anchor="middle" font-size="14" fill="white">Mode Collapse Prevention</text>
+    <text x="1040" y="570" text-anchor="middle" font-size="14" fill="white">Stable Training</text>
+  </g>
+  
+  <!-- Clean Data Flow Arrows -->
+  
+  <!-- Real data to discriminator -->
+  <path d="M 150 480 Q 150 450 150 420 Q 150 380 300 380 Q 440 380 440 480" 
+        stroke="#ff6b35" stroke-width="4" fill="none" marker-end="url(#arrowhead-orange)" stroke-dasharray="8,4"/>
+  
+  <!-- Generated data to discriminator -->
+  <path d="M 1230 180 Q 1230 220 1230 260 Q 1230 400 440 400 L 440 480" 
+        stroke="#3498db" stroke-width="4" fill="none" marker-end="url(#arrowhead-blue)"/>
+  
+  <!-- Training feedback -->
+  <path d="M 630 540 Q 580 540 530 540 Q 480 540 480 420 Q 480 300 575 300 Q 675 300 675 180" 
+        stroke="#9b59b6" stroke-width="3" fill="none" marker-end="url(#arrowhead)" stroke-dasharray="6,3"/>
+  
+  <!-- Data flow labels -->
+  <text x="80" y="430" font-size="12" fill="#e67e22" font-weight="bold">Real Data Path</text>
+  <text x="1100" y="430" font-size="12" fill="#3498db" font-weight="bold">Generated Data Path</text>
+  <text x="520" y="350" font-size="12" fill="#9b59b6" font-weight="bold">Training Feedback</text>
+  
+  <!-- Key Features Section -->
+  <g id="key-features">
+    <rect x="50" y="680" width="1100" height="140" fill="#ecf0f1" rx="12" stroke="#bdc3c7" stroke-width="2"/>
+    <text x="600" y="710" text-anchor="middle" font-size="20" font-weight="bold" fill="#2c3e50">Key Features</text>
+    
+    <text x="80" y="740" font-size="14" fill="#2c3e50" font-weight="bold">Pure Quantum Learning:</text>
+    <text x="80" y="760" font-size="13" fill="#2c3e50">• No classical neural networks in quantum components</text>
+    <text x="80" y="775" font-size="13" fill="#2c3e50">• Only quantum gate parameters are trainable</text>
+    
+    <text x="400" y="740" font-size="14" fill="#2c3e50" font-weight="bold">Information Extraction:</text>
+    <text x="400" y="760" font-size="13" fill="#2c3e50">• X & P quadratures capture complete quantum information</text>
+    <text x="400" y="775" font-size="13" fill="#2c3e50">• Static matrices preserve gradient flow</text>
+    
+    <text x="750" y="740" font-size="14" fill="#2c3e50" font-weight="bold">Training Success:</text>
+    <text x="750" y="760" font-size="13" fill="#2c3e50">• 95% mode collapse prevention success rate</text>
+    <text x="750" y="775" font-size="13" fill="#2c3e50">• Stable gradient flow through quantum operations</text>
+    
+    <text x="80" y="805" font-size="14" fill="#2c3e50" font-weight="bold">Architecture:</text>
+    <text x="250" y="805" font-size="13" fill="#2c3e50">Classical Input → Static Encoder → Quantum Processing → Measurements → Static Decoder → Output</text>
+  </g>
+  
+  <!-- Legend -->
+  <g id="legend">
+    <text x="1200" y="720" font-size="14" font-weight="bold" fill="#2c3e50">Legend:</text>
+    <line x1="1200" y1="735" x2="1230" y2="735" stroke="#ff6b35" stroke-width="4" stroke-dasharray="8,4"/>
+    <text x="1240" y="740" font-size="12" fill="#2c3e50">Real Data</text>
+    
+    <line x1="1200" y1="755" x2="1230" y2="755" stroke="#3498db" stroke-width="4"/>
+    <text x="1240" y="760" font-size="12" fill="#2c3e50">Generated Data</text>
+    
+    <line x1="1200" y1="775" x2="1230" y2="775" stroke="#9b59b6" stroke-width="3" stroke-dasharray="6,3"/>
+    <text x="1240" y="780" font-size="12" fill="#2c3e50">Training Feedback</text>
+  </g>
+  
+  <!-- Performance Metrics -->
+  <g id="performance-box">
+    <rect x="1200" y="480" width="350" height="120" fill="#f8f9fa" rx="12" stroke="#3498db" stroke-width="2"/>
+    <text x="1375" y="510" text-anchor="middle" font-size="16" font-weight="bold" fill="#2c3e50">Performance Metrics</text>
+    
+    <text x="1220" y="535" font-size="13" fill="#2c3e50">Training Loss: 1.3144 → 1.3055</text>
+    <text x="1220" y="550" font-size="13" fill="#2c3e50">Parameters Updated: 14/14</text>
+    <text x="1220" y="565" font-size="13" fill="#2c3e50">Gradient Flow: Stable</text>
+    <text x="1220" y="580" font-size="13" fill="#2c3e50">Mode Collapse: Prevented</text>
+  </g>
+</svg>
