@@ -1,0 +1,26 @@
+[
+  {
+    "generator_name": "ClusterizedQuantumGenerator",
+    "success": false,
+    "error": "'tensorflow.python.framework.ops.EagerTensor' object has no attribute 'min'",
+    "training_time": 0.15529489517211914
+  },
+  {
+    "generator_name": "ConstellationSFGenerator",
+    "success": false,
+    "error": "Weights for model 'quantum_input_encoder' have not yet been created. Weights are created when the model is first called on inputs or `build()` is called with an `input_shape`.",
+    "training_time": 0.12599778175354004
+  },
+  {
+    "generator_name": "PureSFGenerator",
+    "success": false,
+    "error": "Only integers, slices (`:`), ellipsis (`...`), tf.newaxis (`None`) and scalar tf.int32/tf.int64 tensors are valid indices, got array([ 57,  43,  12, 126,  65,  21, 100, 132, 175, 186,   6,  83,  31,\n       135,  94, 105])",
+    "training_time": 8.715057611465454
+  },
+  {
+    "generator_name": "SFTutorialGenerator",
+    "success": false,
+    "error": "Only integers, slices (`:`), ellipsis (`...`), tf.newaxis (`None`) and scalar tf.int32/tf.int64 tensors are valid indices, got array([139, 169,  73,  14,  51,   0,  15,  39, 182,  66,  15, 191, 128,\n       127,  76, 190])",
+    "training_time": 0.6450345516204834
+  }
+]
