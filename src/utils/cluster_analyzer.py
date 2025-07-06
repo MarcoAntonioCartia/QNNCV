@@ -77,8 +77,13 @@ class ClusterAnalyzer:
         """
         print(f"🔍 Analyzing data distribution...")
         print(f"   Data shape: {data.shape}")
-        print(f"   Data range: X=[{data[:, 0].min():.3f}, {data[:, 0].max():.3f}], "
-              f"Y=[{data[:, 1].min():.3f}, {data[:, 1].max():.3f}]")
+        
+        # Handle variable dimensions
+        if data.shape[1] == 1:
+            print(f"   Data range: X=[{data[:, 0].min():.3f}, {data[:, 0].max():.3f}]")
+        else:
+            print(f"   Data range: X=[{data[:, 0].min():.3f}, {data[:, 0].max():.3f}], "
+                  f"Y=[{data[:, 1].min():.3f}, {data[:, 1].max():.3f}]")
         
         # Store coordinate ranges for later use
         self.coordinate_ranges = {
@@ -167,36 +172,51 @@ class ClusterAnalyzer:
     
     def _grid_clustering(self, data: np.ndarray) -> np.ndarray:
         """Perform grid-based clustering."""
-        # Create grid based on data range
-        x_min, x_max = data[:, 0].min(), data[:, 0].max()
-        y_min, y_max = data[:, 1].min(), data[:, 1].max()
-        
-        # For bimodal case, create 2x1 or 1x2 grid
-        if self.n_clusters == 2:
-            # Determine if data is more spread horizontally or vertically
-            x_range = x_max - x_min
-            y_range = y_max - y_min
+        # Handle 1D and 2D data differently
+        if data.shape[1] == 1:
+            # 1D grid clustering - split along X axis only
+            x_min, x_max = data[:, 0].min(), data[:, 0].max()
             
-            if x_range > y_range:
-                # Split horizontally
+            if self.n_clusters == 2:
+                # Simple split at median
                 x_mid = (x_min + x_max) / 2
                 labels = (data[:, 0] > x_mid).astype(int)
             else:
-                # Split vertically
-                y_mid = (y_min + y_max) / 2
-                labels = (data[:, 1] > y_mid).astype(int)
+                # Multiple bins along X axis
+                x_bins = np.linspace(x_min, x_max, self.n_clusters + 1)
+                labels = np.digitize(data[:, 0], x_bins) - 1
+                labels = np.clip(labels, 0, self.n_clusters - 1)
         else:
-            # For more clusters, create square grid
-            grid_size = int(np.ceil(np.sqrt(self.n_clusters)))
-            x_bins = np.linspace(x_min, x_max, grid_size + 1)
-            y_bins = np.linspace(y_min, y_max, grid_size + 1)
+            # 2D grid clustering
+            x_min, x_max = data[:, 0].min(), data[:, 0].max()
+            y_min, y_max = data[:, 1].min(), data[:, 1].max()
             
-            x_indices = np.digitize(data[:, 0], x_bins) - 1
-            y_indices = np.digitize(data[:, 1], y_bins) - 1
-            
-            # Combine indices to create cluster labels
-            labels = x_indices * grid_size + y_indices
-            labels = np.clip(labels, 0, self.n_clusters - 1)
+            # For bimodal case, create 2x1 or 1x2 grid
+            if self.n_clusters == 2:
+                # Determine if data is more spread horizontally or vertically
+                x_range = x_max - x_min
+                y_range = y_max - y_min
+                
+                if x_range > y_range:
+                    # Split horizontally
+                    x_mid = (x_min + x_max) / 2
+                    labels = (data[:, 0] > x_mid).astype(int)
+                else:
+                    # Split vertically
+                    y_mid = (y_min + y_max) / 2
+                    labels = (data[:, 1] > y_mid).astype(int)
+            else:
+                # For more clusters, create square grid
+                grid_size = int(np.ceil(np.sqrt(self.n_clusters)))
+                x_bins = np.linspace(x_min, x_max, grid_size + 1)
+                y_bins = np.linspace(y_min, y_max, grid_size + 1)
+                
+                x_indices = np.digitize(data[:, 0], x_bins) - 1
+                y_indices = np.digitize(data[:, 1], y_bins) - 1
+                
+                # Combine indices to create cluster labels
+                labels = x_indices * grid_size + y_indices
+                labels = np.clip(labels, 0, self.n_clusters - 1)
         
         return labels
     
@@ -361,7 +381,13 @@ class ClusterAnalyzer:
             
             print(f"   Cluster {i}: {status}")
             print(f"     Probability: {prob:.3f}")
-            print(f"     Center: ({center[0]:.3f}, {center[1]:.3f})")
+            
+            # Handle 1D vs 2D center display
+            if len(center) == 1:
+                print(f"     Center: ({center[0]:.3f})")
+            else:
+                print(f"     Center: ({center[0]:.3f}, {center[1]:.3f})")
+            
             print(f"     Samples: {np.sum(self.cluster_assignments == i)}")
         
         print(f"\n🔧 MODE ASSIGNMENTS:")
