@@ -16,6 +16,16 @@ Key Principles:
 Author: Fresh implementation for thesis comparison (CV vs DV vs Classical)
 """
 
+# =============================================================================
+# SCIPY COMPATIBILITY PATCH - MUST BE APPLIED BEFORE IMPORTING STRAWBERRYFIELDS
+# scipy.integrate.simps was renamed to scipy.integrate.simpson in SciPy 1.14+
+# This patch ensures backward compatibility with Strawberry Fields
+# =============================================================================
+import scipy.integrate
+if not hasattr(scipy.integrate, 'simps'):
+    scipy.integrate.simps = scipy.integrate.simpson
+# =============================================================================
+
 import numpy as np
 import tensorflow as tf
 import strawberryfields as sf
@@ -169,9 +179,9 @@ class QuantumSFDiscriminator:
         self.weights = init_weights(n_modes, n_layers)
         self.num_params = np.prod(self.weights.shape)
         
-        # Create SF symbolic parameters
-        sf_params = np.arange(self.num_params).reshape(self.weights.shape).astype(str)
-        self.sf_params = np.array([self.prog.params(*i) for i in sf_params])
+        # Create SF symbolic parameters (FIXED - flat list pattern)
+        sf_params_flat = [self.prog.params(f"disc_p_{i}") for i in range(self.num_params)]
+        self.sf_params = np.array(sf_params_flat).reshape(self.weights.shape)
         
         # Build symbolic program
         with self.prog.context as q:
@@ -242,10 +252,14 @@ class QuantumSFDiscriminator:
         state = self.eng.run(self.prog, args=mapping).state
         
         # Extract measurements
+        # NOTE: quad_expectation returns (mean, variance) tuple
+        # We only want the mean for discrimination
         measurements = []
         for mode in range(self.n_modes):
-            x_quad = state.quad_expectation(mode, 0)
-            measurements.append(x_quad)
+            quad_result = state.quad_expectation(mode, 0)
+            # quad_result is (mean, variance) - extract just the mean
+            x_quad_mean = quad_result[0]
+            measurements.append(x_quad_mean)
         
         return tf.stack(measurements)
     

@@ -13,12 +13,28 @@ except ImportError:
     pass  # Will be handled during setup
 
 # Import main components for easy access
-from .models.generators.quantum_sf_generator import QuantumSFGenerator
-from .models.discriminators.quantum_sf_discriminator import QuantumSFDiscriminator
-from .training.qgan_sf_trainer import QGANSFTrainer
+from .models import QuantumSFGenerator, QuantumSFDiscriminator, ClassicalDiscriminator
+from .training import QGANTrainer, QGANSFTrainer, TrainerConfig
+from .utils import (
+    plot_wigner_3d, plot_wigner_2d, plot_distribution_comparison,
+    TrainingMonitor, QuantumStateMonitor
+)
 
 __all__ = [
+    # Models
     'QuantumSFGenerator',
     'QuantumSFDiscriminator', 
-    'QGANSFTrainer'
+    'ClassicalDiscriminator',
+    
+    # Training
+    'QGANTrainer',
+    'QGANSFTrainer',
+    'TrainerConfig',
+    
+    # Utils
+    'plot_wigner_3d',
+    'plot_wigner_2d', 
+    'plot_distribution_comparison',
+    'TrainingMonitor',
+    'QuantumStateMonitor'
 ]

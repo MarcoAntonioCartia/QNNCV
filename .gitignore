@@ -38,3 +38,4 @@ results/*
 
 # Log files
 *.log
+logs/ 
