@@ -1,0 +1,43 @@
+# QNNCV - Quantum Neural Networks for Continuous Variables
+# Core dependencies for local development and Google Colab compatibility
+
+# Core scientific computing
+numpy==2.0.2
+scipy==1.15.3
+tensorflow==2.18.0
+
+# Quantum computing
+strawberryfields>=0.20.0
+
+# Data visualization and analysis
+matplotlib==3.10.0
+pandas==2.2.2
+seaborn==0.13.0
+
+# Machine learning utilities
+scikit-learn==1.6.1
+
+# Progress bars and utilities
+tqdm==4.66.0
+
+# System utilities
+psutil==6.0.0
+
+# Configuration and data handling
+pyyaml>=6.0
+
+# Optional: Jupyter notebook support (for tutorials)
+jupyter>=1.0.0
+ipykernel>=6.0.0
+
+# Optional: GPU memory management
+# Note: Uncomment if using GPU
+# tensorflow-gpu==2.18.0
+
+# Development and testing (optional)
+pytest>=7.0.0
+pytest-cov>=4.0.0
+
+# Documentation (optional)
+sphinx>=7.0.0
+sphinx-rtd-theme>=1.0.0

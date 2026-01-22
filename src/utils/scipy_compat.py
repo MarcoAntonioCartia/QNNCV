@@ -27,4 +27,4 @@ def _patch_scipy_simps():
             print("Warning: Neither simps nor simpson found in scipy.integrate")
 
 # Apply the patch when this module is imported
-_patch_scipy_simps() 
+_patch_scipy_simps()
