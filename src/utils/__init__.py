@@ -39,6 +39,19 @@ from .compatibility import (
     enable_clean_training
 )
 
+# Import warning suppression utilities
+from .warning_suppression import (
+    suppress_tensorflow_warnings,
+    suppress_strawberry_fields_warnings,
+    suppress_numpy_warnings,
+    suppress_all_quantum_warnings,
+    clean_training_output,
+    QuantumTrainingLogger,
+    setup_clean_environment,
+    enable_clean_training,
+    test_warning_suppression
+)
+
 # Define public API
 __all__ = [
     # Visualization functions

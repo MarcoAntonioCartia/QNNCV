@@ -34,6 +34,12 @@ if not hasattr(scipy.integrate, 'simps'):
     scipy.integrate.simps = scipy.integrate.simpson
 # =============================================================================
 
+# Import warning suppression utilities
+from src.utils.warning_suppression import enable_clean_training
+
+# Enable clean training environment
+enable_clean_training()
+
 import numpy as np
 import tensorflow as tf
 

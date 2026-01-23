@@ -33,7 +33,7 @@ import strawberryfields as sf
 from strawberryfields import ops
 
 
-def init_weights(n_modes: int, n_layers: int, active_sd: float = 0.0001, 
+def init_weights(n_modes: int, n_layers: int, active_sd: float = 0.1, 
                  passive_sd: float = 0.1) -> tf.Variable:
     """
     Initialize QNN weight matrix.
