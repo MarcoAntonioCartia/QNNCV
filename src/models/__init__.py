@@ -5,8 +5,8 @@ Main models package for CV Quantum GAN including generators and discriminators.
 """
 
 # Import from subpackages
-from .generators import QuantumSFGenerator, create_simple_generator, create_1mode_generator
-from .discriminators import QuantumSFDiscriminator, ClassicalDiscriminator
+from .generators import QuantumSFGenerator, create_simple_generator, create_1mode_generator, QuantumDistributionGenerator
+from .discriminators import QuantumSFDiscriminator, ClassicalDiscriminator, DistributionDiscriminator
 
 # Define public API
 __all__ = [
@@ -14,5 +14,7 @@ __all__ = [
     'create_simple_generator',
     'create_1mode_generator',
     'QuantumSFDiscriminator',
-    'ClassicalDiscriminator'
+    'ClassicalDiscriminator',
+    'DistributionDiscriminator',
+    'QuantumDistributionGenerator'
 ]

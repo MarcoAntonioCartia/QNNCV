@@ -18,6 +18,9 @@ from .trainer import (
 # Import the existing SF trainer (for backward compatibility)
 from .qgan_sf_trainer import QGANSFTrainer
 
+# Import the distribution-based trainer
+from .distribution_trainer import DistributionQGANTrainer
+
 # Define public API
 __all__ = [
     'QGANTrainer',
@@ -25,5 +28,6 @@ __all__ = [
     'train_simple_qgan',
     'gaussian_data_generator',
     'bimodal_data_generator',
-    'QGANSFTrainer'
+    'QGANSFTrainer',
+    'DistributionQGANTrainer'
 ]

@@ -13,9 +13,13 @@ from .quantum_sf_generator import (
     create_1mode_generator
 )
 
+# Import the distribution-based quantum generator
+from .quantum_distribution_generator import QuantumDistributionGenerator
+
 # Define public API
 __all__ = [
     'QuantumSFGenerator',
     'create_simple_generator',
-    'create_1mode_generator'
+    'create_1mode_generator',
+    'QuantumDistributionGenerator'
 ]
