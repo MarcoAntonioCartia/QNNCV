@@ -78,7 +78,9 @@ def parse_args():
     
     # Logging
     parser.add_argument('--log-dir', type=str, default='./logs',
-                        help='Directory for logs and checkpoints (default: ./logs)')
+                        help='Base directory for logs and checkpoints (default: ./logs)')
+    parser.add_argument('--exp-name', type=str, default=None,
+                        help='Experiment name. If not provided, auto-generates from params')
     parser.add_argument('--print-every', type=int, default=10,
                         help='Print status every N epochs (default: 10)')
     parser.add_argument('--plot-every', type=int, default=50,
@@ -107,6 +109,20 @@ def main():
         np.random.seed(args.seed)
         tf.random.set_seed(args.seed)
         print(f"Random seed set to {args.seed}")
+    
+    # Generate experiment directory
+    from datetime import datetime
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    
+    if args.exp_name:
+        exp_dir = f"{args.log_dir}/{args.exp_name}"
+    else:
+        # Auto-generate from key parameters
+        exp_dir = (f"{args.log_dir}/mean{args.target_mean}_std{args.target_std}_"
+                   f"L{args.n_layers}_cut{args.cutoff_dim}_nc{args.n_critic}_{timestamp}")
+    
+    # Use exp_dir instead of args.log_dir from here on
+    args.log_dir = exp_dir
     
     # Print configuration
     print("=" * 60)
