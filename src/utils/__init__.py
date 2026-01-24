@@ -52,6 +52,20 @@ from .warning_suppression import (
     test_warning_suppression
 )
 
+# Import import checker utilities
+try:
+    from .import_checker import (
+        ImportChecker,
+        check_imports,
+        init_killoran_environment
+    )
+    IMPORT_CHECKER_AVAILABLE = True
+except ImportError:
+    ImportChecker = None
+    check_imports = None
+    init_killoran_environment = None
+    IMPORT_CHECKER_AVAILABLE = False
+
 # Define public API
 __all__ = [
     # Visualization functions
@@ -80,3 +94,7 @@ __all__ = [
     'check_environment_compatibility',
     'enable_clean_training'
 ]
+
+# Add import checker to public API if available
+if IMPORT_CHECKER_AVAILABLE:
+    __all__.extend(['ImportChecker', 'check_imports', 'init_killoran_environment'])
