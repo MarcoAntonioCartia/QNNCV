@@ -21,6 +21,10 @@ Where:
 - Φ: Non-Gaussian gate (Kerr: K(κ) = exp(iκn̂²))
 
 For single mode, interferometers reduce to rotation gates.
+
+EXPRESSIVITY STUDY:
+This version supports N-modal target distributions to test the
+expressivity limits of a single qumode CV-QNN.
 """
 
 import scipy.integrate
@@ -32,7 +36,7 @@ import numpy as np
 import tensorflow as tf
 import strawberryfields as sf
 from strawberryfields import ops
-from typing import Tuple, Optional, List
+from typing import Tuple, Optional, List, Dict, Any
 
 # Warning suppression
 try:
@@ -110,7 +114,7 @@ class KilloranCVQNN:
         self,
         n_modes: int = 1,
         n_layers: int = 4,
-        cutoff_dim: int = 15,  # Higher cutoff needed for Kerr
+        cutoff_dim: int = 8,  # Higher cutoff needed for Kerr
         num_bins: int = 100,
         x_min: float = -5.0,
         x_max: float = 5.0,
@@ -287,6 +291,75 @@ class KilloranCVQNN:
     def num_params(self) -> int:
         return int(np.prod(self.weights.shape))
     
+    def get_weights_by_layer(self) -> Dict[str, np.ndarray]:
+        """
+        Get weights organized by layer and gate type.
+        
+        Returns:
+            Dictionary with keys like 'layer_0_R1', 'layer_0_S', etc.
+        """
+        weights_np = self.weights.numpy()
+        params_per_layer = 7 if self.use_kerr else 6
+        
+        organized = {}
+        for layer in range(self.n_layers):
+            base_idx = 0
+            # R1: rotation
+            organized[f'layer_{layer}_R1'] = weights_np[layer, base_idx]
+            base_idx += 1
+            # S: squeeze (r, φ)
+            organized[f'layer_{layer}_S_r'] = weights_np[layer, base_idx]
+            organized[f'layer_{layer}_S_phi'] = weights_np[layer, base_idx + 1]
+            base_idx += 2
+            # R2: rotation
+            organized[f'layer_{layer}_R2'] = weights_np[layer, base_idx]
+            base_idx += 1
+            # D: displacement (r, φ)
+            organized[f'layer_{layer}_D_r'] = weights_np[layer, base_idx]
+            organized[f'layer_{layer}_D_phi'] = weights_np[layer, base_idx + 1]
+            base_idx += 2
+            # K: Kerr
+            if self.use_kerr:
+                organized[f'layer_{layer}_K'] = weights_np[layer, base_idx]
+        
+        return organized
+    
+    def get_weight_statistics(self) -> Dict[str, float]:
+        """Get summary statistics of all weights."""
+        w = self.weights.numpy().flatten()
+        return {
+            'mean': float(np.mean(w)),
+            'std': float(np.std(w)),
+            'min': float(np.min(w)),
+            'max': float(np.max(w)),
+            'norm': float(np.linalg.norm(w))
+        }
+    
+    def get_quantum_state(self, z: tf.Tensor):
+        """
+        Get the full quantum state (not just distribution) for visualization.
+        
+        Args:
+            z: Single latent vector [latent_dim]
+        
+        Returns:
+            SF State object (for Wigner function plotting)
+        """
+        if self.eng.run_progs:
+            self.eng.reset()
+        
+        mapping = {
+            self.input_params[0].name: z[0],
+            self.input_params[1].name: z[1] if len(z) > 1 else tf.constant(0.0)
+        }
+        
+        flat_weights = tf.reshape(self.weights, [-1])
+        for i, param in enumerate(self.qnn_params):
+            mapping[param.name] = flat_weights[i]
+        
+        result = self.eng.run(self.prog, args=mapping)
+        return result.state
+    
     def get_config(self) -> dict:
         return {
             'n_modes': self.n_modes,
@@ -328,6 +401,82 @@ def bimodal_gaussian(xvec: tf.Tensor,
     P = weight1 * G1 + weight2 * G2
     dx = xvec[1] - xvec[0]
     return P / (tf.reduce_sum(P) * dx)
+
+
+def n_modal_gaussian(
+    xvec: tf.Tensor,
+    n_peaks: int,
+    x_min: float = -2.0,
+    x_max: float = 2.0,
+    std: float = 0.3,
+    weights: Optional[List[float]] = None
+) -> Tuple[tf.Tensor, List[float]]:
+    """
+    Create N-modal Gaussian mixture with equally spaced peaks.
+    
+    Peaks are placed at: x_min, x_min + step, x_min + 2*step, ..., x_max
+    where step = (x_max - x_min) / (n_peaks - 1) for n_peaks > 1
+    
+    Args:
+        xvec: x-axis grid
+        n_peaks: Number of Gaussian peaks (modes)
+        x_min: Left boundary for peak placement
+        x_max: Right boundary for peak placement
+        std: Standard deviation for each peak
+        weights: Optional list of weights (must sum to 1). Default: equal weights.
+    
+    Returns:
+        Tuple of (probability distribution, list of peak positions)
+    
+    Examples:
+        n_peaks=1: peak at center (x_min + x_max) / 2
+        n_peaks=2: peaks at x_min, x_max
+        n_peaks=3: peaks at x_min, (x_min+x_max)/2, x_max
+        n_peaks=4: peaks at -2, -0.67, 0.67, 2 (for x_min=-2, x_max=2)
+    """
+    if n_peaks < 1:
+        raise ValueError("n_peaks must be at least 1")
+    
+    # Calculate peak positions
+    if n_peaks == 1:
+        means = [(x_min + x_max) / 2.0]
+    else:
+        step = (x_max - x_min) / (n_peaks - 1)
+        means = [x_min + i * step for i in range(n_peaks)]
+    
+    # Set weights
+    if weights is None:
+        weights = [1.0 / n_peaks] * n_peaks
+    else:
+        assert len(weights) == n_peaks, f"weights must have {n_peaks} elements"
+        total = sum(weights)
+        weights = [w / total for w in weights]  # Normalize
+    
+    # Build mixture
+    P = tf.zeros_like(xvec)
+    for mean, weight in zip(means, weights):
+        G = tf.exp(-0.5 * ((xvec - mean) / std) ** 2) / (std * np.sqrt(2 * np.pi))
+        P = P + weight * G
+    
+    # Normalize
+    dx = xvec[1] - xvec[0]
+    P = P / (tf.reduce_sum(P) * dx)
+    
+    return P, means
+
+
+def get_target_description(n_peaks: int, x_min: float, x_max: float, std: float) -> str:
+    """Get human-readable description of target distribution."""
+    if n_peaks == 1:
+        center = (x_min + x_max) / 2.0
+        return f"Unimodal: N({center:.2f}, {std}²)"
+    elif n_peaks == 2:
+        return f"Bimodal: peaks at {x_min:.2f}, {x_max:.2f} (σ={std})"
+    else:
+        step = (x_max - x_min) / (n_peaks - 1)
+        means = [x_min + i * step for i in range(n_peaks)]
+        means_str = ", ".join([f"{m:.2f}" for m in means])
+        return f"{n_peaks}-modal: peaks at [{means_str}] (σ={std})"
 
 
 # =============================================================================
@@ -380,7 +529,7 @@ if __name__ == "__main__":
     print("\n1. Creating CV-QNN WITH Kerr gate...")
     gen_kerr = KilloranCVQNN(
         n_layers=4,
-        cutoff_dim=15,
+        cutoff_dim=8,
         use_kerr=True
     )
     print(f"   Config: {gen_kerr.get_config()}")
@@ -412,7 +561,7 @@ if __name__ == "__main__":
     
     # Compare with/without Kerr
     print(f"\n4. Comparing architectures...")
-    gen_no_kerr = KilloranCVQNN(n_layers=4, cutoff_dim=15, use_kerr=False)
+    gen_no_kerr = KilloranCVQNN(n_layers=4, cutoff_dim=8, use_kerr=False)
     print(f"   With Kerr: {gen_kerr.num_params} params")
     print(f"   Without Kerr: {gen_no_kerr.num_params} params")
     

@@ -6,16 +6,36 @@ train_killoran_qgan.py - Killoran CV-QNN Training
 Train the proper CV-QNN architecture from Killoran et al. (2018)
 with Kerr gates for non-Gaussian operations.
 
-Usage:
-    # Test with bimodal target (WITH Kerr gate)
-    python train_killoran_qgan.py --epochs 300 --use-kerr --target-type bimodal
+EXPRESSIVITY STUDY:
+Test how many peaks (modes) a single qumode can learn.
 
-    # Test WITHOUT Kerr gate (should fail to learn bimodal)
-    python train_killoran_qgan.py --epochs 300 --no-kerr --target-type bimodal
+Usage Examples:
+--------------
+# 2-modal (bimodal) - proven to work
+python train_killoran_qgan.py --n-peaks 2 --epochs 300 --n-layers 6 --cutoff-dim 7
 
-    # Compare both
-    python train_killoran_qgan.py --epochs 300 --use-kerr --exp-name bimodal_with_kerr
-    python train_killoran_qgan.py --epochs 300 --no-kerr --exp-name bimodal_no_kerr
+# 3-modal - test expressivity
+python train_killoran_qgan.py --n-peaks 3 --epochs 400 --n-layers 6 --cutoff-dim 10
+
+# 4-modal - harder
+python train_killoran_qgan.py --n-peaks 4 --epochs 500 --n-layers 8 --cutoff-dim 12
+
+# Compare with/without Kerr gate
+python train_killoran_qgan.py --n-peaks 3 --use-kerr --exp-name test_kerr
+python train_killoran_qgan.py --n-peaks 3 --no-kerr --exp-name test_nokerr
+
+# Custom peak placement
+python train_killoran_qgan.py --n-peaks 3 --x-min -3 --x-max 3 --peak-std 0.4
+
+Outputs:
+--------
+./logs/experiment_name/
+├── final_comparison.png      # Distribution comparison
+├── training_dashboard.png    # Full training metrics
+├── weight_evolution.png      # How weights change
+├── wigner_epoch_*.png        # Wigner function snapshots
+├── history.json              # All metrics
+└── best_weights.npy          # Best model checkpoint
 """
 
 import os

@@ -67,8 +67,8 @@ def plot_wigner_3d(
     surf = ax.plot_surface(X, P, W, cmap=cmap, alpha=0.8, 
                            linewidth=0, antialiased=True)
     
-    ax.set_xlabel('x (position)', fontsize=12)
-    ax.set_ylabel('p (momentum)', fontsize=12)
+    ax.set_xlabel('x-quadrature', fontsize=12)
+    ax.set_ylabel('p-quadrature', fontsize=12)
     ax.set_zlabel('W(x,p)', fontsize=12)
     ax.set_title(title, fontsize=14)
     
