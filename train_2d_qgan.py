@@ -12,9 +12,13 @@ TRUE QGAN Implementation with these key improvements:
 6. Validation on held-out set for generalization metrics
 
 Architecture (per Killoran et al.):
-    ENCODING: Dgate(z0, z1)|q[0], Dgate(z2, z3)|q[1]  # Latent -> quantum state
+    ENCODING: Dgate(z0, z1)|q[0], Dgate(z2, z3)|q[1], ...  # Latent -> quantum state
     Then for each layer:
         U1(interferometer) -> S(squeeze) -> U2(interferometer) -> D(displacement) -> K(Kerr)
+
+Supports N >= 2 total qumodes. Only the first 2 modes produce the output P(x,y).
+Extra modes (ancilla) provide additional entanglement and expressivity via
+beamsplitters, then are traced out (partial trace) at measurement time.
 
 Author: QNNCV Project
 Date: January 2026
@@ -84,6 +88,27 @@ def compute_hermite_basis(xvec, cutoff_dim):
     return tf.constant(basis, dtype=tf.float32)
 
 
+def recommend_cutoff(n_modes, base_cutoff=8, max_fock_states=5000):
+    """
+    Suggest cutoff dimension that keeps Fock space manageable.
+
+    The Fock space has cutoff^n_modes states. For large n_modes, the default
+    cutoff may use too much memory.
+
+    Args:
+        n_modes: Total number of qumodes
+        base_cutoff: Desired cutoff (will be reduced if needed)
+        max_fock_states: Maximum acceptable Fock space size
+
+    Returns:
+        Recommended cutoff dimension
+    """
+    cutoff = base_cutoff
+    while cutoff ** n_modes > max_fock_states and cutoff > 4:
+        cutoff -= 1
+    return cutoff
+
+
 # =============================================================================
 # CV-QGAN Generator with Latent Input
 # =============================================================================
@@ -101,6 +126,7 @@ class CVQGANGenerator:
         1. ENCODING LAYER: Displace vacuum by latent vector z
            Dgate(z[0], z[1]) | q[0]  # Mode 0
            Dgate(z[2], z[3]) | q[1]  # Mode 1
+           ... (for all n_modes modes)
 
         2. QNN LAYERS (Killoran architecture): For each layer l:
            - U1: Interferometer (beamsplitters + rotations)
@@ -109,14 +135,19 @@ class CVQGANGenerator:
            - D: Displacement gates on all modes
            - K: Kerr gates on all modes (non-Gaussian activation)
 
-        3. MEASUREMENT: Homodyne detection -> P(x, y)
+        3. MEASUREMENT: Partial trace over ancilla modes, then P(x, y)
+           For N > 2 modes, ancilla modes are traced out:
+           P(x,y) = SUM_k |SUM_{n,m} c_{n,m,k} * phi_n(x) * phi_m(y)|^2
 
     The latent dimension is 2*n_modes (magnitude + phase for each mode).
+    n_output_modes controls how many modes are measured (always 2 for 2D).
+    Extra modes (n_modes - n_output_modes) serve as ancilla for entanglement.
     """
 
     def __init__(
         self,
         n_modes: int = 2,
+        n_output_modes: int = 2,    # Modes to measure (always 2 for 2D output)
         n_layers: int = 6,
         cutoff_dim: int = 10,
         use_kerr: bool = True,
@@ -125,6 +156,8 @@ class CVQGANGenerator:
         passive_sd: float = 0.1,    # Init std for passive params (interferometer)
     ):
         self.n_modes = n_modes
+        self.n_output_modes = n_output_modes
+        self.n_ancilla = n_modes - n_output_modes
         self.n_layers = n_layers
         self.cutoff_dim = cutoff_dim
         self.use_kerr = use_kerr
@@ -161,9 +194,10 @@ class CVQGANGenerator:
         self._build_symbolic_circuit()
 
         print(f"CVQGANGenerator initialized:")
-        print(f"  Modes: {n_modes}")
+        print(f"  Total modes: {n_modes} ({n_output_modes} output + {self.n_ancilla} ancilla)")
         print(f"  Layers: {n_layers}")
         print(f"  Cutoff: {cutoff_dim}")
+        print(f"  Fock space: {cutoff_dim ** n_modes} states")
         print(f"  Use Kerr: {use_kerr}")
         print(f"  Latent dim: {self.latent_dim}")
         print(f"  Total trainable params: {self.total_params}")
@@ -305,6 +339,13 @@ class CVQGANGenerator:
         """
         Generate 2D distribution for a single latent vector.
 
+        For n_modes == 2 (no ancilla):
+            P(x,y) = |Σ_nm c_nm φ_n(x) φ_m(y)|²
+
+        For n_modes > 2 (with ancilla, partial trace):
+            P(x,y) = Σ_k |Σ_nm c_{nm,k} φ_n(x) φ_m(y)|²
+            where k indexes all ancilla Fock states (traced out).
+
         Args:
             z: Latent vector [latent_dim]
             xvec: x-axis grid points
@@ -315,20 +356,35 @@ class CVQGANGenerator:
         """
         # Get quantum state
         state = self._run_circuit(z)
-        ket = state.ket()  # (cutoff, cutoff) for 2 modes
+        ket = state.ket()  # shape: (cutoff,) * n_modes
 
-        # Compute Hermite basis
+        # Compute Hermite basis for the 2 output modes
         hermite_x = compute_hermite_basis(xvec, self.cutoff_dim)
         hermite_y = compute_hermite_basis(yvec, self.cutoff_dim)
 
-        # Wavefunction: ψ(x,y) = Σ_nm c_nm φ_n(x) φ_m(y)
-        psi = tf.einsum('nm,xn,ym->xy',
-                       tf.cast(ket, tf.complex64),
-                       tf.cast(hermite_x, tf.complex64),
-                       tf.cast(hermite_y, tf.complex64))
+        ket_c = tf.cast(ket, tf.complex64)
+        hx_c = tf.cast(hermite_x, tf.complex64)
+        hy_c = tf.cast(hermite_y, tf.complex64)
 
-        # Probability
-        prob = tf.abs(psi) ** 2
+        if self.n_ancilla == 0:
+            # Original 2-mode path (no ancilla) -- no partial trace needed
+            # ψ(x,y) = Σ_nm c_nm φ_n(x) φ_m(y)
+            psi = tf.einsum('nm,xn,ym->xy', ket_c, hx_c, hy_c)
+            prob = tf.abs(psi) ** 2
+        else:
+            # Partial trace over ancilla modes
+            # ket has shape (c, c, c, ...) with n_modes dimensions
+            # Reshape to (c, c, K) where K = c^n_ancilla
+            c = self.cutoff_dim
+            K = c ** self.n_ancilla
+            ket_reshaped = tf.reshape(ket_c, [c, c, K])
+
+            # For each ancilla config k, compute ψ_k(x,y):
+            #   psi_all[x, y, k] = Σ_nm c_{nm,k} * φ_n(x) * φ_m(y)
+            psi_all = tf.einsum('nmk,xn,ym->xyk', ket_reshaped, hx_c, hy_c)
+
+            # Partial trace: P(x,y) = Σ_k |ψ_k(x,y)|²
+            prob = tf.reduce_sum(tf.abs(psi_all) ** 2, axis=-1)
 
         # Normalize
         prob = prob / (tf.reduce_sum(prob) + 1e-10)
@@ -342,6 +398,8 @@ class CVQGANGenerator:
     def get_config(self):
         return {
             'n_modes': self.n_modes,
+            'n_output_modes': self.n_output_modes,
+            'n_ancilla': self.n_ancilla,
             'n_layers': self.n_layers,
             'cutoff_dim': self.cutoff_dim,
             'use_kerr': self.use_kerr,
@@ -508,12 +566,55 @@ class CorrelatedGaussianFamily(DistributionFamily):
         return dist / (dist.sum() + 1e-10)
 
 
+class FourGaussiansFamily(DistributionFamily):
+    """Four Gaussians at corners of a square. Tests multi-modal 2D learning."""
+
+    def __init__(self, grid_size=40, x_range=3.0,
+                 center_range=0.3, spread_range=(1.0, 1.8), sigma_range=(0.2, 0.4)):
+        super().__init__(grid_size, x_range)
+        self.center_range = center_range
+        self.spread_range = spread_range
+        self.sigma_range = sigma_range
+
+    def sample(self):
+        cx = np.random.uniform(-self.center_range, self.center_range)
+        cy = np.random.uniform(-self.center_range, self.center_range)
+        spread = np.random.uniform(*self.spread_range)
+        sigma = np.random.uniform(*self.sigma_range)
+
+        dist = self._make_four_gaussians(cx, cy, spread, sigma)
+        params = {'cx': cx, 'cy': cy, 'spread': spread, 'sigma': sigma}
+        return dist, params
+
+    def get_canonical(self):
+        spread = (self.spread_range[0] + self.spread_range[1]) / 2
+        sigma = (self.sigma_range[0] + self.sigma_range[1]) / 2
+        dist = self._make_four_gaussians(0, 0, spread, sigma)
+        return dist, {'cx': 0, 'cy': 0, 'spread': spread, 'sigma': sigma}
+
+    def _make_four_gaussians(self, cx, cy, spread, sigma):
+        """Four Gaussians at corners of a square centered at (cx, cy)."""
+        corners = [
+            (cx - spread, cy - spread),
+            (cx - spread, cy + spread),
+            (cx + spread, cy - spread),
+            (cx + spread, cy + spread),
+        ]
+
+        dist = np.zeros_like(self.X)
+        for gx, gy in corners:
+            dist += np.exp(-((self.X - gx)**2 + (self.Y - gy)**2) / (2 * sigma**2))
+
+        return dist / (dist.sum() + 1e-10)
+
+
 def get_family(name, grid_size=40, x_range=3.0):
     """Get distribution family by name."""
     families = {
         'gaussian': GaussianFamily,
         'ring': RingFamily,
         'correlated': CorrelatedGaussianFamily,
+        'four_gaussians': FourGaussiansFamily,
     }
     if name not in families:
         raise ValueError(f"Unknown family: {name}. Available: {list(families.keys())}")
@@ -655,6 +756,7 @@ def train_2d_qgan(
     family_name='ring',
     n_train=400,
     n_val=100,
+    n_total_modes=2,        # Total qumodes (2 output + ancilla)
     n_layers=6,
     cutoff_dim=8,
     use_kerr=True,
@@ -689,12 +791,23 @@ def train_2d_qgan(
         log_dir = f"./logs/qgan_2d_{family_name}_{timestamp}"
     os.makedirs(log_dir, exist_ok=True)
 
+    n_ancilla = n_total_modes - 2
+
+    # Memory warning for large Fock spaces
+    fock_states = cutoff_dim ** n_total_modes
+    if fock_states > 5000:
+        rec = recommend_cutoff(n_total_modes, cutoff_dim)
+        print(f"WARNING: cutoff={cutoff_dim} with {n_total_modes} modes = "
+              f"{fock_states} Fock states. Recommended cutoff: {rec}")
+
     print("=" * 70)
     print("2D CV-QGAN with Pre-Generated Dataset")
     print("=" * 70)
     print(f"Family: {family_name}")
     print(f"Dataset: {n_train} train, {n_val} validation")
+    print(f"Modes: {n_total_modes} total (2 output + {n_ancilla} ancilla)")
     print(f"Layers: {n_layers}, Cutoff: {cutoff_dim}, Kerr: {use_kerr}")
+    print(f"Fock space: {fock_states} states")
     print(f"Grid: {grid_size}x{grid_size}, Range: [-{x_range}, {x_range}]")
     print(f"Learning rates - G: {g_lr}, D: {d_lr}")
     print(f"D steps per G step: {n_critic}")
@@ -724,7 +837,8 @@ def train_2d_qgan(
     # Initialize generator
     print("\nInitializing generator...")
     generator = CVQGANGenerator(
-        n_modes=2,
+        n_modes=n_total_modes,
+        n_output_modes=2,
         n_layers=n_layers,
         cutoff_dim=cutoff_dim,
         use_kerr=use_kerr,
@@ -1101,12 +1215,16 @@ def plot_training_history(history, save_path):
 def main():
     parser = argparse.ArgumentParser(description='Train 2D CV-QGAN with Pre-Generated Dataset')
     parser.add_argument('--family', type=str, required=True,
-                       choices=['gaussian', 'ring', 'correlated'],
+                       choices=['gaussian', 'ring', 'correlated', 'four_gaussians'],
                        help='Distribution family to learn (REQUIRED)')
     parser.add_argument('--n-train', type=int, default=400,
                        help='Number of training samples')
     parser.add_argument('--n-val', type=int, default=100,
                        help='Number of validation samples')
+    parser.add_argument('--n-modes', type=int, default=2,
+                       help='Total qumodes (2=no ancilla, 3=1 ancilla, etc.)')
+    parser.add_argument('--n-ancilla', type=int, default=None,
+                       help='Number of ancilla modes (alternative to --n-modes)')
     parser.add_argument('--n-layers', type=int, default=6,
                        help='Number of CV-QNN layers')
     parser.add_argument('--cutoff-dim', type=int, default=8,
@@ -1115,9 +1233,9 @@ def main():
                        help='Disable Kerr gates (not recommended)')
     parser.add_argument('--epochs', type=int, default=500,
                        help='Number of training epochs')
-    parser.add_argument('--g-lr', type=float, default=0.005,
+    parser.add_argument('--g-lr', type=float, default=0.001,
                        help='Generator learning rate')
-    parser.add_argument('--d-lr', type=float, default=0.001,
+    parser.add_argument('--d-lr', type=float, default=0.0005,
                        help='Discriminator learning rate')
     parser.add_argument('--n-critic', type=int, default=1,
                        help='Discriminator steps per generator step')
@@ -1138,10 +1256,20 @@ def main():
 
     args = parser.parse_args()
 
+    # Resolve total modes from --n-modes or --n-ancilla
+    if args.n_ancilla is not None:
+        n_total_modes = 2 + args.n_ancilla
+    else:
+        n_total_modes = args.n_modes
+
+    if n_total_modes < 2:
+        parser.error("--n-modes must be at least 2 (need 2 output modes)")
+
     train_2d_qgan(
         family_name=args.family,
         n_train=args.n_train,
         n_val=args.n_val,
+        n_total_modes=n_total_modes,
         n_layers=args.n_layers,
         cutoff_dim=args.cutoff_dim,
         use_kerr=not args.no_kerr,
