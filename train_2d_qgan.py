@@ -171,12 +171,12 @@ class CVQGANGenerator:
 
         # Per layer:
         # - 2 interferometers
-        # - n_modes squeeze gates (1 param each - only magnitude, phase = 0)
+        # - n_modes squeeze gates (2 params each: r, phi)
         # - n_modes displacement gates (2 params each: r, phi)
         # - n_modes Kerr gates (1 param each) if use_kerr
         self.params_per_layer = (
             2 * self.interferometer_params +  # U1 and U2
-            n_modes +                          # Squeeze magnitudes
+            2 * n_modes +                      # Squeeze (r, phi)
             2 * n_modes +                      # Displacement (r, phi)
             (n_modes if use_kerr else 0)       # Kerr
         )
@@ -223,6 +223,8 @@ class CVQGANGenerator:
             all_weights.append(tf.random.normal([M], stddev=passive_sd))
             # Squeeze magnitudes (active - start small)
             all_weights.append(tf.random.normal([N], stddev=active_sd))
+            # Squeeze phases (passive)
+            all_weights.append(tf.random.normal([N], stddev=passive_sd))
             # Interferometer 2 (passive)
             all_weights.append(tf.random.normal([M], stddev=passive_sd))
             # Displacement r (active)
@@ -262,10 +264,10 @@ class CVQGANGenerator:
                 # Interferometer 1
                 w_idx = self._apply_interferometer(q, w_idx)
 
-                # Squeeze gates
+                # Squeeze gates (magnitude + phase)
                 for mode in range(self.n_modes):
-                    ops.Sgate(self.weight_params[w_idx]) | q[mode]
-                    w_idx += 1
+                    ops.Sgate(self.weight_params[w_idx], self.weight_params[w_idx + 1]) | q[mode]
+                    w_idx += 2
 
                 # Interferometer 2
                 w_idx = self._apply_interferometer(q, w_idx)
@@ -391,6 +393,12 @@ class CVQGANGenerator:
 
         return prob
 
+    def get_ket_norm(self, z):
+        """Compute the norm of the ket state (should be ~1.0 if cutoff is sufficient)."""
+        state = self._run_circuit(z)
+        ket = state.ket()
+        return float(tf.reduce_sum(tf.abs(tf.cast(ket, tf.complex64)) ** 2))
+
     @property
     def trainable_variables(self):
         return [self.weights]
@@ -417,9 +425,13 @@ class Discriminator2D(tf.keras.Model):
     Discriminator for 2D probability distributions.
 
     Takes a 2D distribution and outputs a score (real vs fake).
+
+    IMPORTANT: Must be kept deliberately weak to avoid overwhelming
+    the quantum generator (~96 params). Even [16, 8] has ~25k params
+    due to the 1600-dim input (40x40 grid).
     """
 
-    def __init__(self, hidden_dims=[64, 32], init_scale=0.05):
+    def __init__(self, hidden_dims=[16, 8], init_scale=0.05, dropout_rate=0.3):
         super().__init__()
 
         initializer = tf.keras.initializers.RandomNormal(stddev=init_scale)
@@ -431,6 +443,8 @@ class Discriminator2D(tf.keras.Model):
             layers.append(tf.keras.layers.Dense(dim, kernel_initializer=initializer))
             layers.append(tf.keras.layers.LayerNormalization())
             layers.append(tf.keras.layers.LeakyReLU(0.2))
+            if dropout_rate > 0:
+                layers.append(tf.keras.layers.Dropout(dropout_rate))
 
         layers.append(tf.keras.layers.Dense(1, kernel_initializer=initializer))
 
@@ -693,22 +707,31 @@ def generate_dataset(family, n_samples):
 # Validation Function (NEW)
 # =============================================================================
 
-def validate(generator, val_set, xvec, yvec):
+def validate(generator, canonical_target, xvec, yvec, n_samples=10):
     """
-    Validate generator on held-out set.
+    Validate generator by comparing generated distributions to canonical target.
 
-    For each validation sample:
-    - Generate with random z
-    - Compute Wasserstein distance
+    Generates n_samples distributions with different random z vectors and
+    computes the average Wasserstein distance to the canonical target.
+    This measures how well the generator has learned the distribution shape,
+    independent of the random latent input.
 
-    Returns average Wasserstein distance.
+    Args:
+        generator: CVQGANGenerator instance
+        canonical_target: The canonical (reference) distribution from the family
+        xvec: x-axis grid points
+        yvec: y-axis grid points
+        n_samples: Number of z vectors to average over
+
+    Returns:
+        Average Wasserstein distance to canonical target.
     """
     w_distances = []
 
-    for real_dist, _ in val_set:
+    for _ in range(n_samples):
         z = tf.random.normal([generator.latent_dim])
         fake_dist = generator.generate_distribution_2d(z, xvec, yvec).numpy()
-        w = compute_wasserstein_2d(real_dist, fake_dist)
+        w = compute_wasserstein_2d(canonical_target, fake_dist)
 
         if np.isfinite(w):
             w_distances.append(w)
@@ -762,11 +785,15 @@ def train_2d_qgan(
     use_kerr=True,
     epochs=500,
     g_lr=0.005,
-    d_lr=0.001,
-    n_critic=1,             # D steps per G step
-    supervised_weight=0.0,  # Weight of supervised loss
-    gp_weight=10.0,         # Gradient penalty weight (lambda)
+    d_lr=0.0002,            # D learns 25x slower than G (capacity mismatch)
+    n_critic=1,             # Equal updates — D is already much stronger than Q-G
+    supervised_weight=0.0,  # Start with 30% supervised to give G a head start
+    supervised_warmup=200,  # Slow decay from supervised to adversarial
+    gp_weight=5.0,          # Gradient penalty weight (lambda)
     gp_warmup=50,           # Epochs to warm up GP
+    instance_noise=0.1,     # Initial noise std added to D inputs (capacity handicap)
+    noise_anneal=200,       # Epochs to anneal instance noise to 0
+    d_dropout=0.3,          # Dropout rate in discriminator
     latent_scale=1.0,
     grid_size=40,
     x_range=3.0,
@@ -811,8 +838,9 @@ def train_2d_qgan(
     print(f"Grid: {grid_size}x{grid_size}, Range: [-{x_range}, {x_range}]")
     print(f"Learning rates - G: {g_lr}, D: {d_lr}")
     print(f"D steps per G step: {n_critic}")
-    print(f"Discriminator hidden dims: [16, 8]")
-    print(f"Supervised weight: {supervised_weight}")
+    print(f"Discriminator hidden dims: [16, 8], dropout={d_dropout}")
+    print(f"Instance noise: std={instance_noise}, anneal over {noise_anneal} epochs")
+    print(f"Supervised weight: {supervised_weight} (warmup decay over {supervised_warmup} epochs)")
     print(f"Gradient penalty: weight={gp_weight}, warmup={gp_warmup} epochs")
     print(f"Output: {log_dir}")
     print("=" * 70)
@@ -847,7 +875,7 @@ def train_2d_qgan(
 
     # Initialize discriminator
     print("\nInitializing discriminator...")
-    discriminator = Discriminator2D(hidden_dims=[16, 8])
+    discriminator = Discriminator2D(hidden_dims=[16, 8], dropout_rate=d_dropout)
 
     # Optimizers
     g_optimizer = tf.keras.optimizers.Adam(learning_rate=g_lr, beta_1=0.5, beta_2=0.9)
@@ -859,6 +887,10 @@ def train_2d_qgan(
         'g_grad_norm': [], 'd_grad_norm': [],
         'supervised_loss': [], 'adversarial_loss': [],
         'gp_value': [], 'gp_weight_current': [],  # Gradient penalty tracking
+        'd_real_score': [], 'd_fake_score': [],    # Discriminator score tracking
+        'ket_norm': [],                             # Ket normalization (should be ~1.0)
+        'supervised_weight_current': [],            # Current supervised weight after decay
+        'instance_noise_current': [],               # Current instance noise std
     }
 
     best_val_wasserstein = float('inf')
@@ -867,7 +899,7 @@ def train_2d_qgan(
 
     # Initial validation
     print("\nComputing initial validation...")
-    init_val = validate(generator, val_set, xvec, yvec)
+    init_val = validate(generator, canonical_target, xvec, yvec)
     print(f"Initial validation W1: {init_val:.4f}")
 
     # Plot initial state
@@ -892,9 +924,15 @@ def train_2d_qgan(
         d_losses = []
         d_grad_norms = []
         gp_values = []
+        d_real_scores = []
+        d_fake_scores = []
 
         # Compute current GP weight (warmup)
         current_gp_weight = gp_weight * min(1.0, epoch / max(1, gp_warmup))
+
+        # Instance noise: decays to 0 over noise_anneal epochs
+        # This blurs real/fake boundary, preventing D from trivially winning
+        current_noise = instance_noise * max(0.0, 1.0 - epoch / max(1, noise_anneal))
 
         for _ in range(n_critic):
             # Pick RANDOM real sample from train_set
@@ -912,9 +950,22 @@ def train_2d_qgan(
                 if not tf.reduce_all(tf.math.is_finite(gen_prob)):
                     continue
 
+                # Add instance noise to D inputs (handicap D)
+                if current_noise > 0:
+                    real_noisy = real_tf + current_noise * tf.random.normal(real_tf.shape)
+                    real_noisy = tf.nn.relu(real_noisy)
+                    real_noisy = real_noisy / (tf.reduce_sum(real_noisy) + 1e-10)
+
+                    fake_noisy = gen_prob + current_noise * tf.random.normal(gen_prob.shape)
+                    fake_noisy = tf.nn.relu(fake_noisy)
+                    fake_noisy = fake_noisy / (tf.reduce_sum(fake_noisy) + 1e-10)
+                else:
+                    real_noisy = real_tf
+                    fake_noisy = gen_prob
+
                 # Discriminator scores
-                real_batch = tf.expand_dims(real_tf, 0)
-                fake_batch = tf.expand_dims(gen_prob, 0)
+                real_batch = tf.expand_dims(real_noisy, 0)
+                fake_batch = tf.expand_dims(fake_noisy, 0)
 
                 real_score = discriminator(real_batch, training=True)
                 fake_score = discriminator(fake_batch, training=True)
@@ -935,6 +986,8 @@ def train_2d_qgan(
 
             d_losses.append(float(d_loss_wgan))  # Track WGAN loss (not total)
             gp_values.append(float(gp))
+            d_real_scores.append(float(tf.reduce_mean(real_score)))
+            d_fake_scores.append(float(tf.reduce_mean(fake_score)))
 
         d_loss_avg = np.mean(d_losses) if d_losses else 0.0
         d_grad_avg = np.mean(d_grad_norms) if d_grad_norms else 0.0
@@ -971,11 +1024,14 @@ def train_2d_qgan(
             # Supervised loss: direct distribution matching
             supervised_loss = tf.reduce_mean(tf.square(gen_prob - real_tf))
 
-            # Combined loss
-            g_loss = (1 - supervised_weight) * adversarial_loss + supervised_weight * supervised_loss
+            # Combined loss with supervised warmup decay
+            current_sw = supervised_weight * max(0.0, 1.0 - epoch / max(1, supervised_warmup))
+            g_loss = (1 - current_sw) * adversarial_loss + current_sw * supervised_loss
 
         g_grads = tape.gradient(g_loss, generator.trainable_variables)
         if g_grads[0] is not None:
+            # Clip gradients to prevent large parameter updates
+            g_grads = [tf.clip_by_norm(g, 1.0) for g in g_grads if g is not None]
             g_optimizer.apply_gradients(zip(g_grads, generator.trainable_variables))
             g_grad_norm = float(tf.linalg.global_norm(g_grads))
         else:
@@ -994,10 +1050,21 @@ def train_2d_qgan(
         history['adversarial_loss'].append(float(adversarial_loss))
         history['gp_value'].append(gp_avg)
         history['gp_weight_current'].append(current_gp_weight)
+        history['d_real_score'].append(np.mean(d_real_scores) if d_real_scores else 0.0)
+        history['d_fake_score'].append(np.mean(d_fake_scores) if d_fake_scores else 0.0)
+        history['supervised_weight_current'].append(current_sw)
+        history['instance_noise_current'].append(current_noise)
+
+        # Ket norm diagnostic (periodic - expensive to compute)
+        if epoch % val_every == 0:
+            ket_norm = generator.get_ket_norm(z)
+            history['ket_norm'].append(ket_norm)
+            if ket_norm < 0.9:
+                print(f"  WARNING: Ket norm = {ket_norm:.3f} (cutoff may be too low)")
 
         # === VALIDATION ===
         if epoch % val_every == 0:
-            val_w1 = validate(generator, val_set, xvec, yvec)
+            val_w1 = validate(generator, canonical_target, xvec, yvec)
             history['val_wasserstein'].append(val_w1)
 
             if val_w1 < best_val_wasserstein:
@@ -1009,8 +1076,11 @@ def train_2d_qgan(
         else:
             # Regular logging
             if epoch % 10 == 0 or epoch == 1:
+                d_real_avg = np.mean(d_real_scores) if d_real_scores else 0.0
+                d_fake_avg = np.mean(d_fake_scores) if d_fake_scores else 0.0
                 print(f"Epoch {epoch:4d} | G: {float(g_loss):.4f} | D: {d_loss_avg:+.4f} | "
-                      f"W1: {w_dist:.4f} | GP: {gp_avg:.2f} | GPw: {current_gp_weight:.1f}")
+                      f"W1: {w_dist:.4f} | D(r):{d_real_avg:+.2f} D(f):{d_fake_avg:+.2f} | "
+                      f"SW:{current_sw:.2f} noise:{current_noise:.3f}")
 
         # === VISUALIZATION ===
         if epoch % plot_every == 0:
@@ -1039,7 +1109,7 @@ def train_2d_qgan(
         generator.weights.assign(best_weights)
 
     # Final validation
-    final_val = validate(generator, val_set, xvec, yvec)
+    final_val = validate(generator, canonical_target, xvec, yvec)
     print(f"Final validation W1: {final_val:.4f}")
 
     # Generate final samples with different z values
@@ -1233,18 +1303,26 @@ def main():
                        help='Disable Kerr gates (not recommended)')
     parser.add_argument('--epochs', type=int, default=500,
                        help='Number of training epochs')
-    parser.add_argument('--g-lr', type=float, default=0.001,
+    parser.add_argument('--g-lr', type=float, default=0.005,
                        help='Generator learning rate')
-    parser.add_argument('--d-lr', type=float, default=0.0005,
-                       help='Discriminator learning rate')
+    parser.add_argument('--d-lr', type=float, default=0.0002,
+                       help='Discriminator learning rate (keep much lower than G)')
     parser.add_argument('--n-critic', type=int, default=1,
-                       help='Discriminator steps per generator step')
-    parser.add_argument('--supervised-weight', type=float, default=0.0,
-                       help='Weight of supervised loss (0=pure GAN, 1=pure supervised)')
-    parser.add_argument('--gp-weight', type=float, default=10.0,
+                       help='Discriminator steps per generator step (1=equal)')
+    parser.add_argument('--supervised-weight', type=float, default=0.3,
+                       help='Initial supervised loss weight (0=pure GAN, 1=pure supervised)')
+    parser.add_argument('--supervised-warmup', type=int, default=200,
+                       help='Epochs over which supervised weight decays to 0')
+    parser.add_argument('--gp-weight', type=float, default=5.0,
                        help='Gradient penalty weight (lambda)')
     parser.add_argument('--gp-warmup', type=int, default=50,
                        help='Epochs to warm up gradient penalty')
+    parser.add_argument('--instance-noise', type=float, default=0.1,
+                       help='Initial instance noise std added to D inputs')
+    parser.add_argument('--noise-anneal', type=int, default=200,
+                       help='Epochs to anneal instance noise to 0')
+    parser.add_argument('--d-dropout', type=float, default=0.3,
+                       help='Dropout rate in discriminator')
     parser.add_argument('--latent-scale', type=float, default=1.0,
                        help='Scale for latent vector encoding')
     parser.add_argument('--grid-size', type=int, default=40,
@@ -1278,8 +1356,12 @@ def main():
         d_lr=args.d_lr,
         n_critic=args.n_critic,
         supervised_weight=args.supervised_weight,
+        supervised_warmup=args.supervised_warmup,
         gp_weight=args.gp_weight,
         gp_warmup=args.gp_warmup,
+        instance_noise=args.instance_noise,
+        noise_anneal=args.noise_anneal,
+        d_dropout=args.d_dropout,
         latent_scale=args.latent_scale,
         grid_size=args.grid_size,
         plot_every=args.plot_every,
