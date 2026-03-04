@@ -1,41 +1,100 @@
 """
-QNNCV Utils Package
-==================
+Utils package initialization
+============================
 
-This package provides utility functions and compatibility patches for QNNCV.
-
-The compatibility module is automatically imported to ensure that critical
-patches (especially for SciPy/Strawberry Fields compatibility) are applied
-before any problematic imports can occur.
+Utilities for CV Quantum GAN including visualization, monitoring, and compatibility.
 """
 
-# Import compatibility module to auto-apply critical patches
-from . import compatibility
-
-# Make key functions available at package level
-from .compatibility import apply_all_compatibility_patches, apply_scipy_compatibility_immediate
-from .quantum_metrics import QuantumMetrics
-from .visualization import plot_results, plot_training_history
-from .warning_suppression import suppress_all_quantum_warnings
-from .tensor_utils import (
-    safe_tensor_indexing, 
-    batch_gather, 
-    ensure_tensor, 
-    safe_reduce_mean,
-    safe_random_normal
+# Import visualization functions
+from .visualization import (
+    plot_wigner_3d,
+    plot_wigner_2d,
+    plot_wigner_comparison,
+    plot_distribution_comparison,
+    plot_latent_output_mapping,
+    plot_training_curves,
+    plot_gradient_norms,
+    plot_generation_statistics,
+    plot_wasserstein_distance,
+    plot_training_dashboard
 )
 
+# Import monitoring classes
+from .monitoring import (
+    TrainingMetrics,
+    TrainingMonitor,
+    QuantumStateMonitor
+)
+
+# Import compatibility utilities
+from .scipy_compat import _patch_scipy_simps
+
+# Import compatibility patches
+from .compatibility import (
+    apply_numpy_compatibility_patches,
+    apply_scipy_compatibility_patches,
+    apply_tensorflow_compatibility_patches,
+    apply_all_compatibility_patches,
+    check_environment_compatibility,
+    enable_clean_training
+)
+
+# Import warning suppression utilities
+from .warning_suppression import (
+    suppress_tensorflow_warnings,
+    suppress_strawberry_fields_warnings,
+    suppress_numpy_warnings,
+    suppress_all_quantum_warnings,
+    clean_training_output,
+    QuantumTrainingLogger,
+    setup_clean_environment,
+    enable_clean_training,
+    test_warning_suppression
+)
+
+# Import import checker utilities
+try:
+    from .import_checker import (
+        ImportChecker,
+        check_imports,
+        init_killoran_environment
+    )
+    IMPORT_CHECKER_AVAILABLE = True
+except ImportError:
+    ImportChecker = None
+    check_imports = None
+    init_killoran_environment = None
+    IMPORT_CHECKER_AVAILABLE = False
+
+# Define public API
 __all__ = [
-    'compatibility',
+    # Visualization functions
+    'plot_wigner_3d',
+    'plot_wigner_2d', 
+    'plot_wigner_comparison',
+    'plot_distribution_comparison',
+    'plot_latent_output_mapping',
+    'plot_training_curves',
+    'plot_gradient_norms',
+    'plot_generation_statistics',
+    'plot_wasserstein_distance',
+    'plot_training_dashboard',
+    
+    # Monitoring classes
+    'TrainingMetrics',
+    'TrainingMonitor',
+    'QuantumStateMonitor',
+    
+    # Compatibility functions
+    '_patch_scipy_simps',
+    'apply_numpy_compatibility_patches',
+    'apply_scipy_compatibility_patches',
+    'apply_tensorflow_compatibility_patches',
     'apply_all_compatibility_patches',
-    'apply_scipy_compatibility_immediate',
-    'QuantumMetrics',
-    'plot_results',
-    'plot_training_history',
-    'suppress_all_quantum_warnings',
-    'safe_tensor_indexing',
-    'batch_gather',
-    'ensure_tensor',
-    'safe_reduce_mean',
-    'safe_random_normal'
+    'check_environment_compatibility',
+    'enable_clean_training'
 ]
+
+# Add import checker to public API if available
+if IMPORT_CHECKER_AVAILABLE:
+    __all__.extend(['ImportChecker', 'check_imports', 'init_killoran_environment'])

@@ -1,13 +1,20 @@
-"""Quantum models module."""
+"""
+Models package initialization
 
-from .generators import PureQuantumGenerator
-from .discriminators import PureQuantumDiscriminator, QuantumWassersteinDiscriminator
-from .quantum_gan import QuantumGAN, create_quantum_gan
+Main models package for CV Quantum GAN including generators and discriminators.
+"""
 
+# Import from subpackages
+from .generators import QuantumSFGenerator, create_simple_generator, create_1mode_generator, QuantumDistributionGenerator
+from .discriminators import QuantumSFDiscriminator, ClassicalDiscriminator, DistributionDiscriminator
+
+# Define public API
 __all__ = [
-    'PureQuantumGenerator',
-    'PureQuantumDiscriminator', 
-    'QuantumWassersteinDiscriminator',
-    'QuantumGAN',
-    'create_quantum_gan'
+    'QuantumSFGenerator',
+    'create_simple_generator',
+    'create_1mode_generator',
+    'QuantumSFDiscriminator',
+    'ClassicalDiscriminator',
+    'DistributionDiscriminator',
+    'QuantumDistributionGenerator'
 ]

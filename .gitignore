@@ -1,13 +1,92 @@
+# ====================
+# QNNCV .gitignore
+# ====================
+
+# ----- Python -----
 __pycache__/
+.cache/ 
+*.py[cod]
+*$py.class
 *.pyc
-.ipynb_checkpoints/
-docs/_build/
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# ----- Virtual Environments -----
+.env
+.venv
 env/
-.venv/
+venv/
+ENV/
+
+# ----- IDE -----
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.pydevproject
+.settings/
+
+# ----- OS -----
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# ----- Jupyter -----
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+
+# ----- SF Tutorial Notebooks (reference only, not our code) -----
+run_quantum_neural_network.ipynb
+run_state_learner.ipynb
+run_tutorial_training.ipynb
+tutorials/qgan_synthetic.ipynb
+tutorials/new_architecture_qgan_wide.ipynb
+
+# ----- Training Outputs -----
+logs/
+checkpoints/
+*.npy
+!data/**/*.npy
+
+# ----- Results (regeneratable) -----
+src/examples/results/
+*.png
+*.svg
+!docs/**/*.svg
+!docs/**/*.png
+
+docs/_build/
 *.csv
 *.dat
 *.pdf
 *.png
+
+# ----- Large Data Files -----
+*.h5
+*.hdf5
+*.pkl
+*.pickle
 
 # Documentation notebooks (external references)
 tutorials/run_quantum_neural_network.ipynb
@@ -15,21 +94,12 @@ src/models/generators/run_state_learner.ipynb
 src/models/generators/run_tutorial_training.ipynb
 PULL_REQUEST_PHASE_3.md
 
-# Test files (development artifacts)
-test_*.py
-*_test.py
-gradient_preserving_trainer.py
-simplified_infrastructure_test.py
-enhanced_quantum_encodings_design.py
-
-# Jupyter Notebook checkpoints
-*.ipynb_checkpoints
-
-# Pytest cache
-.cache/ 
-
-# Coverage reports
+# ----- Testing -----
+.pytest_cache/
 .coverage
+htmlcov/
+.tox/
+.nox/
 
 # Legacy files
 legacy/*
@@ -38,3 +108,19 @@ results/*
 
 # Log files
 *.log
+logs/ 
+
+# ----- Build -----
+*.manifest
+*.spec
+
+# ----- Config (keep templates) -----
+config/local_*.yaml
+!config/config.yaml
+
+# ----- Temporary -----
+tmp/
+temp/
+*.tmp
+*.temp
+*.bak
