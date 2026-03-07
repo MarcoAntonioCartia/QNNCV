@@ -1282,6 +1282,53 @@ def plot_training_history(history, save_path):
 # Main
 # =============================================================================
 
+def _format_val(v):
+    """Format a value for directory naming (strip trailing zeros from floats)."""
+    if isinstance(v, float):
+        return f"{v:g}"
+    return str(v)
+
+
+def build_hp_suffix(args, parser):
+    """Build a suffix string from non-default hyperparameters.
+
+    Only parameters that differ from argparse defaults are included,
+    using short abbreviations. Cosmetic params are excluded.
+    """
+    # (argparse dest, abbreviation) in display order
+    HP_MAP = [
+        ('n_modes',           'm'),
+        ('n_layers',          'nl'),
+        ('cutoff_dim',        'c'),
+        ('no_kerr',           'nokerr'),
+        ('epochs',            'ep'),
+        ('g_lr',              'glr'),
+        ('d_lr',              'dlr'),
+        ('n_critic',          'nc'),
+        ('supervised_weight', 'sw'),
+        ('supervised_warmup', 'swup'),
+        ('gp_weight',         'gp'),
+        ('gp_warmup',         'gpwup'),
+        ('instance_noise',    'noise'),
+        ('noise_anneal',      'nann'),
+        ('d_dropout',         'drop'),
+        ('latent_scale',      'ls'),
+        ('grid_size',         'gs'),
+    ]
+
+    parts = []
+    for dest, abbrev in HP_MAP:
+        default = parser.get_default(dest)
+        actual = getattr(args, dest, default)
+        if actual != default:
+            if isinstance(actual, bool):
+                if actual:          # flag was set (e.g. --no-kerr)
+                    parts.append(abbrev)
+            else:
+                parts.append(f"{abbrev}{_format_val(actual)}")
+    return ('_' + '_'.join(parts)) if parts else ''
+
+
 def main():
     parser = argparse.ArgumentParser(description='Train 2D CV-QGAN with Pre-Generated Dataset')
     parser.add_argument('--family', type=str, required=True,
@@ -1343,6 +1390,13 @@ def main():
     if n_total_modes < 2:
         parser.error("--n-modes must be at least 2 (need 2 output modes)")
 
+    # Build log directory name with non-default hyperparameters
+    # If --n-ancilla was used, reflect it in args.n_modes for suffix building
+    args.n_modes = n_total_modes
+    hp_suffix = build_hp_suffix(args, parser)
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    log_dir = f"./logs/qgan_2d_{args.family}_{timestamp}{hp_suffix}"
+
     train_2d_qgan(
         family_name=args.family,
         n_train=args.n_train,
@@ -1364,6 +1418,7 @@ def main():
         d_dropout=args.d_dropout,
         latent_scale=args.latent_scale,
         grid_size=args.grid_size,
+        log_dir=log_dir,
         plot_every=args.plot_every,
         val_every=args.val_every,
     )
