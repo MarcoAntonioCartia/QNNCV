@@ -1,7 +1,8 @@
 {
   "permissions": {
     "allow": [
-      "Bash(python:*)"
+      "Bash(python:*)",
+      "Bash(PYTHONIOENCODING=utf-8 /c/Users/mende/.conda/envs/qnncv/python.exe)"
     ]
   }
 }
