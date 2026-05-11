@@ -337,7 +337,7 @@ class CVQGANGenerator:
         result = self.eng.run(self.prog, args=mapping)
         return result.state
 
-    def generate_distribution_2d(self, z, xvec, yvec):
+    def generate_distribution_2d(self, z, xvec, yvec, return_ket_norm=False):
         """
         Generate 2D distribution for a single latent vector.
 
@@ -352,9 +352,11 @@ class CVQGANGenerator:
             z: Latent vector [latent_dim]
             xvec: x-axis grid points
             yvec: y-axis grid points
+            return_ket_norm: if True, also return the differentiable ket norm
 
         Returns:
             prob: (len(xvec), len(yvec)) joint probability distribution
+            ket_norm (optional): scalar tf.Tensor, sum |ket|^2 inside the Fock cutoff
         """
         # Get quantum state
         state = self._run_circuit(z)
@@ -367,6 +369,10 @@ class CVQGANGenerator:
         ket_c = tf.cast(ket, tf.complex64)
         hx_c = tf.cast(hermite_x, tf.complex64)
         hy_c = tf.cast(hermite_y, tf.complex64)
+
+        # Differentiable ket norm: |ket|^2 summed over all Fock indices.
+        # = 1.0 if cutoff captures the full state; < 1.0 means truncation.
+        ket_norm = tf.reduce_sum(tf.abs(ket_c) ** 2)
 
         if self.n_ancilla == 0:
             # Original 2-mode path (no ancilla) -- no partial trace needed
@@ -391,6 +397,8 @@ class CVQGANGenerator:
         # Normalize
         prob = prob / (tf.reduce_sum(prob) + 1e-10)
 
+        if return_ket_norm:
+            return prob, ket_norm
         return prob
 
     def get_ket_norm(self, z):
@@ -795,6 +803,8 @@ def train_2d_qgan(
     noise_anneal=200,       # Epochs to anneal instance noise to 0
     d_dropout=0.3,          # Dropout rate in discriminator
     latent_scale=1.0,
+    ket_penalty_weight=20.0,  # Weight on (1 - ket_norm)^2 penalty in G's loss
+    g_grad_clip=5.0,          # Max norm for G gradient clipping (<=0 disables)
     grid_size=40,
     x_range=3.0,
     log_dir=None,
@@ -842,6 +852,9 @@ def train_2d_qgan(
     print(f"Instance noise: std={instance_noise}, anneal over {noise_anneal} epochs")
     print(f"Supervised weight: {supervised_weight} (warmup decay over {supervised_warmup} epochs)")
     print(f"Gradient penalty: weight={gp_weight}, warmup={gp_warmup} epochs")
+    print(f"Ket-norm penalty weight: {ket_penalty_weight}")
+    print(f"Latent scale: {latent_scale}")
+    print(f"G gradient clip: {g_grad_clip if g_grad_clip > 0 else 'disabled'}")
     print(f"Output: {log_dir}")
     print("=" * 70)
 
@@ -1003,7 +1016,9 @@ def train_2d_qgan(
         z = tf.random.normal([generator.latent_dim])
 
         with tf.GradientTape() as tape:
-            gen_prob = generator.generate_distribution_2d(z, xvec, yvec)
+            gen_prob, ket_norm_tf = generator.generate_distribution_2d(
+                z, xvec, yvec, return_ket_norm=True
+            )
 
             if not tf.reduce_all(tf.math.is_finite(gen_prob)):
                 print(f"  Warning: Degenerate at epoch {epoch}")
@@ -1024,14 +1039,26 @@ def train_2d_qgan(
             # Supervised loss: direct distribution matching
             supervised_loss = tf.reduce_mean(tf.square(gen_prob - real_tf))
 
+            # Ket-norm penalty: keep the truncated state representable in the Fock
+            # cutoff. Without it, the optimizer drifts gate parameters past safe
+            # thresholds (squeeze magnitudes > 0.5 are catastrophic at cutoff=10)
+            # and W1 numbers become truncation artifacts.
+            ket_penalty = tf.square(1.0 - ket_norm_tf)
+
             # Combined loss with supervised warmup decay
             current_sw = supervised_weight * max(0.0, 1.0 - epoch / max(1, supervised_warmup))
-            g_loss = (1 - current_sw) * adversarial_loss + current_sw * supervised_loss
+            g_loss = (
+                (1 - current_sw) * adversarial_loss
+                + current_sw * supervised_loss
+                + ket_penalty_weight * ket_penalty
+            )
 
         g_grads = tape.gradient(g_loss, generator.trainable_variables)
         if g_grads[0] is not None:
-            # Clip gradients to prevent large parameter updates
-            g_grads = [tf.clip_by_norm(g, 1.0) for g in g_grads if g is not None]
+            if g_grad_clip > 0:
+                g_grads = [tf.clip_by_norm(g, g_grad_clip) for g in g_grads if g is not None]
+            else:
+                g_grads = [g for g in g_grads if g is not None]
             g_optimizer.apply_gradients(zip(g_grads, generator.trainable_variables))
             g_grad_norm = float(tf.linalg.global_norm(g_grads))
         else:
@@ -1055,12 +1082,12 @@ def train_2d_qgan(
         history['supervised_weight_current'].append(current_sw)
         history['instance_noise_current'].append(current_noise)
 
-        # Ket norm diagnostic (periodic - expensive to compute)
-        if epoch % val_every == 0:
-            ket_norm = generator.get_ket_norm(z)
-            history['ket_norm'].append(ket_norm)
-            if ket_norm < 0.9:
-                print(f"  WARNING: Ket norm = {ket_norm:.3f} (cutoff may be too low)")
+        # Ket norm diagnostic — recorded every epoch (free: same tensor used in G loss).
+        # Print a warning at val_every cadence so logs don't get spammy.
+        ket_norm = float(ket_norm_tf)
+        history['ket_norm'].append(ket_norm)
+        if epoch % val_every == 0 and ket_norm < 0.9:
+            print(f"  WARNING: Ket norm = {ket_norm:.3f} (cutoff may be too low)")
 
         # === VALIDATION ===
         if epoch % val_every == 0:
@@ -1313,6 +1340,8 @@ def build_hp_suffix(args, parser):
         ('noise_anneal',      'nann'),
         ('d_dropout',         'drop'),
         ('latent_scale',      'ls'),
+        ('ket_penalty_weight', 'kpen'),
+        ('g_grad_clip',       'gclip'),
         ('grid_size',         'gs'),
     ]
 
@@ -1344,7 +1373,7 @@ def main():
                        help='Number of ancilla modes (alternative to --n-modes)')
     parser.add_argument('--n-layers', type=int, default=6,
                        help='Number of CV-QNN layers')
-    parser.add_argument('--cutoff-dim', type=int, default=8,
+    parser.add_argument('--cutoff-dim', type=int, default=12,
                        help='Fock space cutoff dimension')
     parser.add_argument('--no-kerr', action='store_true',
                        help='Disable Kerr gates (not recommended)')
@@ -1370,8 +1399,12 @@ def main():
                        help='Epochs to anneal instance noise to 0')
     parser.add_argument('--d-dropout', type=float, default=0.3,
                        help='Dropout rate in discriminator')
-    parser.add_argument('--latent-scale', type=float, default=1.0,
+    parser.add_argument('--latent-scale', type=float, default=0.3,
                        help='Scale for latent vector encoding')
+    parser.add_argument('--ket-penalty-weight', type=float, default=20.0,
+                       help='Weight on (1 - ket_norm)^2 penalty in G loss to prevent Fock truncation')
+    parser.add_argument('--g-grad-clip', type=float, default=5.0,
+                       help='Max norm for G gradient clipping (<=0 disables)')
     parser.add_argument('--grid-size', type=int, default=40,
                        help='Grid resolution')
     parser.add_argument('--plot-every', type=int, default=20,
@@ -1417,6 +1450,8 @@ def main():
         noise_anneal=args.noise_anneal,
         d_dropout=args.d_dropout,
         latent_scale=args.latent_scale,
+        ket_penalty_weight=args.ket_penalty_weight,
+        g_grad_clip=args.g_grad_clip,
         grid_size=args.grid_size,
         log_dir=log_dir,
         plot_every=args.plot_every,

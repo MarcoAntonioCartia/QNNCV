@@ -54,6 +54,8 @@ SWEEP_PARAMS = {
     "noise_anneal":      ("--noise-anneal",      int,   "nann",  0,    1000),
     "d_dropout":         ("--d-dropout",         float, "drop",  0.0,  0.9),
     "latent_scale":      ("--latent-scale",      float, "ls",    0.01, 10.0),
+    "ket_penalty_weight":("--ket-penalty-weight", float, "kpen",  0.0,  500.0),
+    "g_grad_clip":       ("--g-grad-clip",       float, "gclip", 0.0,  100.0),
     "grid_size":         ("--grid-size",         int,   "gs",    10,   100),
 }
 
