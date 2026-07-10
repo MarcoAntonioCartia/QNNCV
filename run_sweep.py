@@ -52,6 +52,8 @@ SWEEP_PARAMS = {
     "supervised_warmup": ("--supervised-warmup",  int,   "swup",  0,    1000),
     "instance_noise":    ("--instance-noise",    float, "noise", 0.0,  1.0),
     "noise_anneal":      ("--noise-anneal",      int,   "nann",  0,    1000),
+    "noise_floor":       ("--noise-floor",       float, "nfloor", 0.0, 1.0),
+    "critic_blur":       ("--critic-blur",       float, "blur",  0.0,  5.0),
     "d_dropout":         ("--d-dropout",         float, "drop",  0.0,  0.9),
     "latent_scale":      ("--latent-scale",      float, "ls",    0.01, 10.0),
     "ket_penalty_weight":("--ket-penalty-weight", float, "kpen",  0.0,  500.0),

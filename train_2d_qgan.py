@@ -1844,12 +1844,12 @@ def main():
                        help='Number of training epochs')
     parser.add_argument('--g-lr', type=float, default=0.005,
                        help='Generator learning rate')
-    parser.add_argument('--d-lr', type=float, default=0.0002,
+    parser.add_argument('--d-lr', type=float, default=0.005,
                        help='Critic learning rate (WGAN-GP wants a well-trained '
                             'critic; consider raising toward --g-lr)')
-    parser.add_argument('--n-critic', type=int, default=1,
+    parser.add_argument('--n-critic', type=int, default=5,
                        help='Critic steps per generator step (WGAN-GP standard: 5)')
-    parser.add_argument('--batch-size', type=int, default=1,
+    parser.add_argument('--batch-size', type=int, default=8,
                        help='Samples per training step via SF TF backend batching '
                             '(1 = legacy sequential; try 8)')
     parser.add_argument('--supervised-weight', type=float, default=0.0,
@@ -1869,7 +1869,7 @@ def main():
     parser.add_argument('--critic-blur', type=float, default=0.0,
                        help='Gaussian blur sigma (grid cells) applied identically to real '
                             'and fake critic inputs; 0 = off (legacy). Intended range 0.5-1.0')
-    parser.add_argument('--d-dropout', type=float, default=0.3,
+    parser.add_argument('--d-dropout', type=float, default=0.0,
                        help='Dropout rate in discriminator')
     parser.add_argument('--latent-scale', type=float, default=0.3,
                        help='Scale for latent vector encoding')
