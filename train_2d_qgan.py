@@ -7,7 +7,7 @@ TRUE QGAN Implementation with these key improvements:
 1. Pre-generate 500 distributions (400 train, 100 validation)
 2. Generator receives RANDOM latent vectors z as input
 3. z is encoded into the circuit via displacement gates
-4. Sequential training (no batching - circuits run one at a time)
+4. Optional true batching via the SF TF backend (--batch-size; 1 = sequential)
 5. Visualizations show ACTUAL training samples, not just canonical
 6. Validation on held-out set for generalization metrics
 
@@ -154,8 +154,10 @@ class CVQGANGenerator:
         latent_scale: float = 1.0,  # Scale for latent vector encoding
         active_sd: float = 0.1,     # Init std for active params (squeeze, displacement, kerr)
         passive_sd: float = 0.1,    # Init std for passive params (interferometer)
+        batch_size=None,            # SF TF backend batching (None/1 = unbatched)
     ):
         self.n_modes = n_modes
+        self.batch_size = batch_size if (batch_size and batch_size > 1) else None
         self.n_output_modes = n_output_modes
         self.n_ancilla = n_modes - n_output_modes
         self.n_layers = n_layers
@@ -188,7 +190,12 @@ class CVQGANGenerator:
 
         # Create SF program and engine
         self.prog = sf.Program(n_modes)
-        self.eng = sf.Engine('tf', backend_options={'cutoff_dim': cutoff_dim})
+        backend_options = {'cutoff_dim': cutoff_dim}
+        if self.batch_size:
+            # SF TF backend evaluates the whole batch in one vectorized run;
+            # gradients flow through exactly as in the unbatched case.
+            backend_options['batch_size'] = self.batch_size
+        self.eng = sf.Engine('tf', backend_options=backend_options)
 
         # Create symbolic parameters for the circuit
         self._build_symbolic_circuit()
@@ -201,6 +208,7 @@ class CVQGANGenerator:
         print(f"  Use Kerr: {use_kerr}")
         print(f"  Latent dim: {self.latent_dim}")
         print(f"  Total trainable params: {self.total_params}")
+        print(f"  Batch size: {self.batch_size or 1}")
 
     def _calc_interferometer_params(self, n_modes):
         """Number of parameters for an N-mode interferometer."""
@@ -317,19 +325,24 @@ class CVQGANGenerator:
 
         return start_idx + self.interferometer_params
 
-    def _run_circuit(self, z_single):
-        """Run the circuit for a single latent vector."""
+    def _run_circuit(self, z):
+        """Run the circuit for one latent vector (latent_dim,) or, in
+        batched-engine mode, a batch (batch_size, latent_dim).
+
+        Scalar parameters broadcast across the batch, so single-z calls
+        also work on a batched engine (all batch elements identical)."""
         if self.eng.run_progs:
             self.eng.reset()
 
         # Build parameter mapping
         mapping = {}
+        batched_z = (len(z.shape) == 2)
 
-        # Map latent vector
+        # Map latent vector(s): one (batch_size,) tensor per parameter when batched
         for i, param in enumerate(self.latent_params):
-            mapping[param.name] = z_single[i]
+            mapping[param.name] = z[:, i] if batched_z else z[i]
 
-        # Map QNN weights
+        # Map QNN weights (scalars; broadcast over the batch)
         for i, param in enumerate(self.weight_params):
             mapping[param.name] = self.weights[i]
 
@@ -361,6 +374,10 @@ class CVQGANGenerator:
         # Get quantum state
         state = self._run_circuit(z)
         ket = state.ket()  # shape: (cutoff,) * n_modes
+        if self.batch_size:
+            # A batched engine broadcasts the single z to identical batch
+            # elements; keep one.
+            ket = ket[0]
 
         # Compute Hermite basis for the 2 output modes
         hermite_x = compute_hermite_basis(xvec, self.cutoff_dim)
@@ -401,10 +418,77 @@ class CVQGANGenerator:
             return prob, ket_norm
         return prob
 
+    def generate_batch(self, z_batch, xvec, yvec, return_ket_norm=False):
+        """
+        Generate distributions for a batch of latent vectors.
+
+        Args:
+            z_batch: (B, latent_dim) latent vectors. When the engine is
+                batched, B must equal self.batch_size (one vectorized SF
+                run); otherwise circuits run sequentially and are stacked.
+            xvec, yvec: grid points
+            return_ket_norm: if True, also return (B,) ket norms
+
+        Returns:
+            probs: (B, len(xvec), len(yvec)); optionally ket_norms (B,)
+        """
+        n = int(z_batch.shape[0])
+        if self.batch_size and n == self.batch_size:
+            return self._generate_batched(z_batch, xvec, yvec, return_ket_norm)
+
+        # Sequential fallback (also the batch_size=1 legacy path)
+        probs, norms = [], []
+        for b in range(n):
+            p, kn = self.generate_distribution_2d(
+                z_batch[b], xvec, yvec, return_ket_norm=True)
+            probs.append(p)
+            norms.append(kn)
+        probs = tf.stack(probs)
+        norms = tf.stack(norms)
+        if return_ket_norm:
+            return probs, norms
+        return probs
+
+    def _generate_batched(self, z_batch, xvec, yvec, return_ket_norm=False):
+        """Batched-engine path: one SF run for the whole batch."""
+        state = self._run_circuit(z_batch)
+        ket = state.ket()  # (batch_size,) + (cutoff,) * n_modes
+
+        hermite_x = compute_hermite_basis(xvec, self.cutoff_dim)
+        hermite_y = compute_hermite_basis(yvec, self.cutoff_dim)
+
+        ket_c = tf.cast(ket, tf.complex64)
+        hx_c = tf.cast(hermite_x, tf.complex64)
+        hy_c = tf.cast(hermite_y, tf.complex64)
+
+        # Per-element ket norm: sum |ket|^2 over all Fock indices -> (B,)
+        ket_norm = tf.reduce_sum(
+            tf.abs(ket_c) ** 2, axis=list(range(1, self.n_modes + 1)))
+
+        if self.n_ancilla == 0:
+            psi = tf.einsum('bnm,xn,ym->bxy', ket_c, hx_c, hy_c)
+            prob = tf.abs(psi) ** 2
+        else:
+            # Partial trace over ancilla modes, batched
+            c = self.cutoff_dim
+            K = c ** self.n_ancilla
+            ket_reshaped = tf.reshape(ket_c, [self.batch_size, c, c, K])
+            psi_all = tf.einsum('bnmk,xn,ym->bxyk', ket_reshaped, hx_c, hy_c)
+            prob = tf.reduce_sum(tf.abs(psi_all) ** 2, axis=-1)
+
+        # Normalize each batch element separately
+        prob = prob / (tf.reduce_sum(prob, axis=[1, 2], keepdims=True) + 1e-10)
+
+        if return_ket_norm:
+            return prob, ket_norm
+        return prob
+
     def get_ket_norm(self, z):
         """Compute the norm of the ket state (should be ~1.0 if cutoff is sufficient)."""
         state = self._run_circuit(z)
         ket = state.ket()
+        if self.batch_size:
+            ket = ket[0]
         return float(tf.reduce_sum(tf.abs(tf.cast(ket, tf.complex64)) ** 2))
 
     @property
@@ -802,6 +886,53 @@ def compute_wasserstein_2d(p, q):
         return float('inf')
 
 
+def build_energy_distance_context(X, Y, val_set, canonical_target):
+    """
+    Precompute what's needed to evaluate 2D energy distances cheaply.
+
+    Energy distance between distributions p, q supported on the same grid:
+        ED(p, q) = 2 p^T D q  -  p^T D p  -  q^T D q
+    with D[i, j] = Euclidean distance between grid points i and j (in x/y
+    units, NOT grid cells). It is a proper metric on distributions and is
+    sensitive to the full 2D geometry -- unlike compute_wasserstein_2d,
+    which only compares marginals and cannot distinguish e.g. a ring from
+    a 4-lobe pattern with matching marginals.
+
+    Precomputing D @ q for every validation member turns nearest-member
+    search into one matrix-vector product per generated sample.
+    """
+    coords = np.stack([X.ravel(), Y.ravel()], axis=1).astype(np.float32)
+    diff = coords[:, None, :] - coords[None, :, :]
+    D = np.sqrt((diff ** 2).sum(axis=-1))  # (G^2, G^2), ~10 MB at 40x40
+
+    def _flat(p):
+        p = np.asarray(p, dtype=np.float32).ravel()
+        return p / (p.sum() + 1e-10)
+
+    val_flat = np.stack([_flat(m) for m, _ in val_set], axis=1)  # (G^2, n_val)
+    val_Dq = D @ val_flat                                        # (G^2, n_val)
+    val_self = np.einsum('ij,ij->j', val_flat, val_Dq)           # (n_val,)
+
+    canon_flat = _flat(canonical_target)
+    canon_Dq = D @ canon_flat
+    canon_self = float(canon_flat @ canon_Dq)
+
+    return {'D': D, 'val_Dq': val_Dq, 'val_self': val_self,
+            'canon_Dq': canon_Dq, 'canon_self': canon_self}
+
+
+def energy_distances(p, ed_ctx):
+    """Return (ED to canonical, ED to nearest validation member) for density p."""
+    p = np.asarray(p, dtype=np.float32).ravel()
+    p = p / (p.sum() + 1e-10)
+    Dp = ed_ctx['D'] @ p
+    p_self = float(p @ Dp)
+
+    ed_canon = 2.0 * float(p @ ed_ctx['canon_Dq']) - p_self - ed_ctx['canon_self']
+    ed_val = 2.0 * (p @ ed_ctx['val_Dq']) - p_self - ed_ctx['val_self']
+    return ed_canon, float(ed_val.min())
+
+
 # =============================================================================
 # Dataset Generation (NEW)
 # =============================================================================
@@ -834,68 +965,131 @@ def generate_dataset(family, n_samples):
 # Validation Function (NEW)
 # =============================================================================
 
-def validate(generator, canonical_target, xvec, yvec, n_samples=10):
+def validate(generator, canonical_target, val_set, xvec, yvec, ed_ctx=None,
+             n_samples=10):
     """
-    Validate generator by comparing generated distributions to canonical target.
+    Validate generator over n_samples random z draws.
 
-    Generates n_samples distributions with different random z vectors and
-    computes the average Wasserstein distance to the canonical target.
-    This measures how well the generator has learned the distribution shape,
-    independent of the random latent input.
+    Metrics (all marginal-W1 based, grid-cell units):
+      canonical_w1: mean W1 to the canonical family member. Legacy metric,
+          kept for continuity with earlier runs (rewards collapse-to-canonical).
+      nearest_w1:  mean over samples of the W1 to the CLOSEST validation-set
+          member. Does not penalize a generator that learned family variety.
+      diversity:   mean pairwise W1 between the generated samples themselves.
+          ~0 means z-ignoring mode collapse. Compare against the validation
+          set's own self-diversity printed at startup.
 
-    Args:
-        generator: CVQGANGenerator instance
-        canonical_target: The canonical (reference) distribution from the family
-        xvec: x-axis grid points
-        yvec: y-axis grid points
-        n_samples: Number of z vectors to average over
+    Caveat: nearest_w1 alone cannot see collapse onto a single val member --
+    always read it together with diversity.
+
+    If ed_ctx (from build_energy_distance_context) is given, also reports
+    full-2D energy distances (x/y units, NOT grid cells like the W1s):
+      canonical_ed / nearest_ed: analogous to the W1 metrics but sensitive
+          to the full 2D geometry, not just the marginals.
 
     Returns:
-        Average Wasserstein distance to canonical target.
+        dict with keys 'canonical_w1', 'nearest_w1', 'diversity',
+        'canonical_ed', 'nearest_ed' (EDs are NaN when ed_ctx is None).
     """
-    w_distances = []
+    samples = []
+    B = getattr(generator, 'batch_size', None)
+    if B:
+        # Batched engine: fill the sample budget a batch at a time
+        attempts = 0
+        while len(samples) < n_samples and attempts < 10:
+            attempts += 1
+            z = tf.random.normal([B, generator.latent_dim])
+            batch = generator.generate_batch(z, xvec, yvec).numpy()
+            for b in range(B):
+                if len(samples) < n_samples and np.isfinite(batch[b]).all():
+                    samples.append(batch[b])
+    else:
+        for _ in range(n_samples):
+            z = tf.random.normal([generator.latent_dim])
+            fake = generator.generate_distribution_2d(z, xvec, yvec).numpy()
+            if np.isfinite(fake).all():
+                samples.append(fake)
 
-    for _ in range(n_samples):
-        z = tf.random.normal([generator.latent_dim])
-        fake_dist = generator.generate_distribution_2d(z, xvec, yvec).numpy()
-        w = compute_wasserstein_2d(canonical_target, fake_dist)
+    if not samples:
+        return {'canonical_w1': float('inf'),
+                'nearest_w1': float('inf'),
+                'diversity': 0.0,
+                'canonical_ed': float('inf'),
+                'nearest_ed': float('inf')}
 
-        if np.isfinite(w):
-            w_distances.append(w)
+    canonical_w1s, nearest_w1s = [], []
+    canonical_eds, nearest_eds = [], []
+    for fake in samples:
+        w_canon = compute_wasserstein_2d(canonical_target, fake)
+        if np.isfinite(w_canon):
+            canonical_w1s.append(w_canon)
+        w_near = min(compute_wasserstein_2d(member, fake)
+                     for member, _ in val_set)
+        if np.isfinite(w_near):
+            nearest_w1s.append(w_near)
+        if ed_ctx is not None:
+            ed_canon, ed_near = energy_distances(fake, ed_ctx)
+            if np.isfinite(ed_canon):
+                canonical_eds.append(ed_canon)
+            if np.isfinite(ed_near):
+                nearest_eds.append(ed_near)
 
-    return np.mean(w_distances) if w_distances else float('inf')
+    pair_w1s = [compute_wasserstein_2d(samples[i], samples[j])
+                for i in range(len(samples))
+                for j in range(i + 1, len(samples))]
+    pair_w1s = [w for w in pair_w1s if np.isfinite(w)]
+
+    return {
+        'canonical_w1': np.mean(canonical_w1s) if canonical_w1s else float('inf'),
+        'nearest_w1': np.mean(nearest_w1s) if nearest_w1s else float('inf'),
+        'diversity': np.mean(pair_w1s) if pair_w1s else 0.0,
+        'canonical_ed': np.mean(canonical_eds) if canonical_eds else float('nan'),
+        'nearest_ed': np.mean(nearest_eds) if nearest_eds else float('nan'),
+    }
 
 
-def compute_gradient_penalty(discriminator, real_dist, fake_dist):
+def to_critic_input(x):
     """
-    Compute gradient penalty for WGAN-GP.
+    Rescale densities to peak = 1 for the critic (per sample if batched).
 
-    GP = E[(||∇D(x̂)||_2 - 1)²]
-    where x̂ = ε*real + (1-ε)*fake
-
-    This enforces a 1-Lipschitz constraint on the discriminator.
+    Sum-normalized 40x40 densities have pixel values ~0.01 and L2 distances
+    ~0.1 between entirely different shapes, so a Lipschitz-constrained
+    (WGAN-GP) critic can never separate real from fake by more than ~0.1 --
+    observed as D(r) = D(f) throughout training. Peak-normalization restores
+    O(1) dynamic range. Differentiable (also used inside the generator's
+    tape), accepts (gx, gy) or (B, gx, gy).
     """
-    # Random interpolation coefficient
-    epsilon = tf.random.uniform([1], 0.0, 1.0)
+    peak = tf.reduce_max(x, axis=[-2, -1], keepdims=True)
+    return x / (peak + 1e-10)
+
+
+def compute_gradient_penalty(discriminator, real_batch, fake_batch):
+    """
+    Compute gradient penalty for WGAN-GP over a batch.
+
+    GP = E_b[(||∇D(x̂_b)||_2 - 1)²]
+    where x̂_b = ε_b*real_b + (1-ε_b)*fake_b, one ε per batch element.
+
+    Inputs are (B, gx, gy) and should be the SAME tensors the critic is
+    trained on (peak-normalized, noisy if instance noise is active).
+    """
+    # Random interpolation coefficient per batch element (eager: shape is concrete)
+    b = real_batch.shape[0]
+    epsilon = tf.random.uniform([b, 1, 1], 0.0, 1.0)
 
     # Interpolate between real and fake
-    interpolated = epsilon * real_dist + (1 - epsilon) * fake_dist
-    interpolated = tf.expand_dims(interpolated, 0)  # Add batch dim
+    interpolated = epsilon * real_batch + (1 - epsilon) * fake_batch
 
     with tf.GradientTape() as gp_tape:
         gp_tape.watch(interpolated)
         pred = discriminator(interpolated, training=True)
 
-    # Compute gradients w.r.t. interpolated input
-    grads = gp_tape.gradient(pred, interpolated)
+    # Compute gradients w.r.t. interpolated input, per element
+    grads = gp_tape.gradient(pred, interpolated)  # (B, gx, gy)
 
-    # Compute L2 norm of gradients
-    grad_norm = tf.sqrt(tf.reduce_sum(tf.square(grads)) + 1e-8)
-
-    # Gradient penalty: (||grad|| - 1)²
-    gp = tf.square(grad_norm - 1.0)
-
-    return gp
+    # Per-element L2 norm, then mean penalty over the batch
+    grad_norm = tf.sqrt(tf.reduce_sum(tf.square(grads), axis=[1, 2]) + 1e-8)
+    return tf.reduce_mean(tf.square(grad_norm - 1.0))
 
 
 # =============================================================================
@@ -912,8 +1106,9 @@ def train_2d_qgan(
     use_kerr=True,
     epochs=500,
     g_lr=0.005,
-    d_lr=0.0002,            # D learns 25x slower than G (capacity mismatch)
-    n_critic=1,             # Equal updates — D is already much stronger than Q-G
+    d_lr=0.0002,            # Critic LR; raise toward g_lr for a strong WGAN critic
+    n_critic=1,             # Critic steps per G step (WGAN-GP standard: 5)
+    batch_size=1,           # Samples per step via SF TF batching (1 = legacy sequential)
     supervised_weight=0.0,  # Start with 30% supervised to give G a head start
     supervised_warmup=200,  # Slow decay from supervised to adversarial
     gp_weight=5.0,          # Gradient penalty weight (lambda)
@@ -935,7 +1130,7 @@ def train_2d_qgan(
 
     Key features:
     1. Pre-generate 500 distributions (400 train, 100 validation)
-    2. Sequential training (no batching - circuits run one at a time)
+    2. Optional true batching via the SF TF backend (batch_size > 1)
     3. TRUE QGAN with latent vector input
     4. Validation on held-out set
     5. Show ACTUAL training samples in visualizations
@@ -967,6 +1162,7 @@ def train_2d_qgan(
     print(f"Grid: {grid_size}x{grid_size}, Range: [-{x_range}, {x_range}]")
     print(f"Learning rates - G: {g_lr}, D: {d_lr}")
     print(f"D steps per G step: {n_critic}")
+    print(f"Batch size: {batch_size}")
     print(f"Discriminator hidden dims: [16, 8], dropout={d_dropout}")
     print(f"Instance noise: std={instance_noise}, anneal over {noise_anneal} epochs")
     print(f"Supervised weight: {supervised_weight} (warmup decay over {supervised_warmup} epochs)")
@@ -989,10 +1185,24 @@ def train_2d_qgan(
     train_set = full_dataset[:n_train]
     val_set = full_dataset[n_train:]
     print(f"Split: {len(train_set)} train, {len(val_set)} validation")
+
+    # Reference diversity of the data itself: the generator's 'diversity'
+    # metric should approach this value, not zero.
+    _idx = np.random.choice(len(val_set), size=(50, 2))
+    _pairs = [(i, j) for i, j in _idx if i != j]
+    data_diversity = np.mean([
+        compute_wasserstein_2d(val_set[i][0], val_set[j][0])
+        for i, j in _pairs]) if _pairs else 0.0
+    print(f"Validation-set self-diversity (mean pairwise W1): {data_diversity:.4f}")
     print("=" * 70)
 
     # Get canonical target for reference
     canonical_target, _ = family.get_canonical()
+
+    # Full-2D metric (energy distance): precompute the grid distance matrix
+    # and per-val-member products so nearest-member search is one matvec.
+    print("Precomputing energy-distance context...")
+    ed_ctx = build_energy_distance_context(X, Y, val_set, canonical_target)
 
     # Initialize generator
     print("\nInitializing generator...")
@@ -1003,6 +1213,7 @@ def train_2d_qgan(
         cutoff_dim=cutoff_dim,
         use_kerr=use_kerr,
         latent_scale=latent_scale,
+        batch_size=batch_size,
     )
 
     # Initialize discriminator
@@ -1016,6 +1227,8 @@ def train_2d_qgan(
     # History tracking
     history = {
         'g_loss': [], 'd_loss': [], 'wasserstein': [], 'val_wasserstein': [],
+        'val_nearest_w1': [], 'val_diversity': [],  # family-aware validation (vs canonical-only)
+        'val_canonical_ed': [], 'val_nearest_ed': [],  # full-2D energy distance (x/y units)
         'g_grad_norm': [], 'd_grad_norm': [],
         'supervised_loss': [], 'adversarial_loss': [],
         'gp_value': [], 'gp_weight_current': [],  # Gradient penalty tracking
@@ -1025,14 +1238,16 @@ def train_2d_qgan(
         'instance_noise_current': [],               # Current instance noise std
     }
 
-    best_val_wasserstein = float('inf')
+    best_val_metric = float('inf')
     best_weights = None
     degenerate_count = 0
 
     # Initial validation
     print("\nComputing initial validation...")
-    init_val = validate(generator, canonical_target, xvec, yvec)
-    print(f"Initial validation W1: {init_val:.4f}")
+    init_val = validate(generator, canonical_target, val_set, xvec, yvec, ed_ctx)
+    print(f"Initial validation: canonW1 {init_val['canonical_w1']:.4f} | "
+          f"nearW1 {init_val['nearest_w1']:.4f} | div {init_val['diversity']:.4f} | "
+          f"nearED {init_val['nearest_ed']:.4f}")
 
     # Plot initial state
     print("\nGenerating initial distribution...")
@@ -1050,15 +1265,31 @@ def train_2d_qgan(
     print("Training...")
     print("-" * 70)
 
+    # =========================================================================
+    # PATH A DETECTION (pure supervised representability test)
+    # -------------------------------------------------------------------------
+    # When the caller sets supervised_weight >= 1.0 AND supervised_warmup >= epochs
+    # (i.e. the supervised weight never decays below 1.0), we interpret the run as
+    # a PURE SUPERVISED representability experiment:
+    #   * the discriminator is not trained at all (no adversarial machinery),
+    #   * the generator fits ONE fixed target (the canonical family member),
+    #   * the generator objective is a scale-free KL divergence.
+    # This cleanly answers "can a CV-QNN at this cutoff represent this target?"
+    # without any GAN dynamics confounding the result.
+    # =========================================================================
+    pure_supervised = (supervised_weight >= 1.0 and supervised_warmup >= epochs)
+    fixed_real_tf = tf.constant(canonical_target, dtype=tf.float32)
+    if pure_supervised:
+        print("\n" + "*" * 70)
+        print("PATH A MODE: pure supervised representability test")
+        print("  - discriminator DISABLED (no adversarial training)")
+        print("  - target FIXED to canonical family member")
+        print("  - generator objective: KL(target || generated)")
+        print("*" * 70)
+
     for epoch in range(1, epochs + 1):
 
         # === DISCRIMINATOR TRAINING ===
-        d_losses = []
-        d_grad_norms = []
-        gp_values = []
-        d_real_scores = []
-        d_fake_scores = []
-
         # Compute current GP weight (warmup)
         current_gp_weight = gp_weight * min(1.0, epoch / max(1, gp_warmup))
 
@@ -1066,76 +1297,94 @@ def train_2d_qgan(
         # This blurs real/fake boundary, preventing D from trivially winning
         current_noise = instance_noise * max(0.0, 1.0 - epoch / max(1, noise_anneal))
 
-        for _ in range(n_critic):
-            # Pick RANDOM real sample from train_set
-            idx = np.random.randint(len(train_set))
-            real_dist, _ = train_set[idx]
-            real_tf = tf.constant(real_dist, dtype=tf.float32)
+        if pure_supervised:
+            # Path A: no critic. Skip discriminator training entirely.
+            d_loss_avg = 0.0
+            d_grad_avg = 0.0
+            gp_avg = 0.0
+            d_real_scores = []
+            d_fake_scores = []
+        else:
+            d_losses = []
+            d_grad_norms = []
+            gp_values = []
+            d_real_scores = []
+            d_fake_scores = []
 
-            # Generate with random z
-            z = tf.random.normal([generator.latent_dim])
+            for _ in range(n_critic):
+                # Pick a RANDOM batch of real samples from train_set
+                idxs = np.random.randint(len(train_set), size=batch_size)
+                real_tf = tf.constant(
+                    np.stack([train_set[i][0] for i in idxs]), dtype=tf.float32)
 
-            with tf.GradientTape() as tape:
-                # Generate fake distribution
-                gen_prob = generator.generate_distribution_2d(z, xvec, yvec)
-
+                # Generate with random z, OUTSIDE the critic's tape: the fake
+                # is a constant for the D update, and recording the SF circuit
+                # on D's tape costs memory/time for gradients never taken.
+                z = tf.random.normal([batch_size, generator.latent_dim])
+                gen_prob = generator.generate_batch(z, xvec, yvec)
                 if not tf.reduce_all(tf.math.is_finite(gen_prob)):
                     continue
+                gen_prob = tf.stop_gradient(gen_prob)
 
-                # Add instance noise to D inputs (handicap D)
-                if current_noise > 0:
-                    real_noisy = real_tf + current_noise * tf.random.normal(real_tf.shape)
-                    real_noisy = tf.nn.relu(real_noisy)
-                    real_noisy = real_noisy / (tf.reduce_sum(real_noisy) + 1e-10)
+                # Peak-normalize what the critic sees (see to_critic_input)
+                real_in = to_critic_input(real_tf)
+                fake_in = to_critic_input(gen_prob)
 
-                    fake_noisy = gen_prob + current_noise * tf.random.normal(gen_prob.shape)
-                    fake_noisy = tf.nn.relu(fake_noisy)
-                    fake_noisy = fake_noisy / (tf.reduce_sum(fake_noisy) + 1e-10)
-                else:
-                    real_noisy = real_tf
-                    fake_noisy = gen_prob
+                with tf.GradientTape() as tape:
+                    # Add instance noise to D inputs (handicap D); noise std is
+                    # now relative to peak=1, so 0.1 = 10% of the brightest pixel
+                    if current_noise > 0:
+                        real_in_n = to_critic_input(tf.nn.relu(
+                            real_in + current_noise * tf.random.normal(tf.shape(real_in))))
+                        fake_in_n = to_critic_input(tf.nn.relu(
+                            fake_in + current_noise * tf.random.normal(tf.shape(fake_in))))
+                    else:
+                        real_in_n = real_in
+                        fake_in_n = fake_in
 
-                # Discriminator scores
-                real_batch = tf.expand_dims(real_noisy, 0)
-                fake_batch = tf.expand_dims(fake_noisy, 0)
+                    # Discriminator scores (inputs already carry the batch dim)
+                    real_score = discriminator(real_in_n, training=True)
+                    fake_score = discriminator(fake_in_n, training=True)
 
-                real_score = discriminator(real_batch, training=True)
-                fake_score = discriminator(fake_batch, training=True)
+                    # WGAN loss: D wants real_score > fake_score
+                    d_loss_wgan = tf.reduce_mean(fake_score) - tf.reduce_mean(real_score)
 
-                # WGAN loss: D wants real_score > fake_score
-                d_loss_wgan = tf.reduce_mean(fake_score) - tf.reduce_mean(real_score)
+                    # Gradient penalty (WGAN-GP), on the same inputs D sees
+                    gp = compute_gradient_penalty(discriminator, real_in_n, fake_in_n)
 
-                # Gradient penalty (WGAN-GP)
-                gp = compute_gradient_penalty(discriminator, real_tf, gen_prob)
+                    # Total D loss = WGAN loss + λ * GP
+                    d_loss = d_loss_wgan + current_gp_weight * gp
 
-                # Total D loss = WGAN loss + λ * GP
-                d_loss = d_loss_wgan + current_gp_weight * gp
+                d_grads = tape.gradient(d_loss, discriminator.trainable_variables)
+                if d_grads[0] is not None:
+                    d_optimizer.apply_gradients(zip(d_grads, discriminator.trainable_variables))
+                    d_grad_norms.append(float(tf.linalg.global_norm(d_grads)))
 
-            d_grads = tape.gradient(d_loss, discriminator.trainable_variables)
-            if d_grads[0] is not None:
-                d_optimizer.apply_gradients(zip(d_grads, discriminator.trainable_variables))
-                d_grad_norms.append(float(tf.linalg.global_norm(d_grads)))
+                d_losses.append(float(d_loss_wgan))  # Track WGAN loss (not total)
+                gp_values.append(float(gp))
+                d_real_scores.append(float(tf.reduce_mean(real_score)))
+                d_fake_scores.append(float(tf.reduce_mean(fake_score)))
 
-            d_losses.append(float(d_loss_wgan))  # Track WGAN loss (not total)
-            gp_values.append(float(gp))
-            d_real_scores.append(float(tf.reduce_mean(real_score)))
-            d_fake_scores.append(float(tf.reduce_mean(fake_score)))
-
-        d_loss_avg = np.mean(d_losses) if d_losses else 0.0
-        d_grad_avg = np.mean(d_grad_norms) if d_grad_norms else 0.0
-        gp_avg = np.mean(gp_values) if gp_values else 0.0
+            d_loss_avg = np.mean(d_losses) if d_losses else 0.0
+            d_grad_avg = np.mean(d_grad_norms) if d_grad_norms else 0.0
+            gp_avg = np.mean(gp_values) if gp_values else 0.0
 
         # === GENERATOR TRAINING ===
-        # Pick random real sample for G
-        idx = np.random.randint(len(train_set))
-        real_dist, _ = train_set[idx]
-        real_tf = tf.constant(real_dist, dtype=tf.float32)
+        # Select the real target(s).
+        #   Path A: always the SAME fixed canonical target (representability test).
+        #   GAN mode: random family members (adversarial training over the family).
+        if pure_supervised:
+            real_tf = tf.expand_dims(fixed_real_tf, 0)   # broadcasts over the batch
+        else:
+            idxs = np.random.randint(len(train_set), size=batch_size)
+            real_tf = tf.constant(
+                np.stack([train_set[i][0] for i in idxs]), dtype=tf.float32)
 
-        # Sample new latent vector
-        z = tf.random.normal([generator.latent_dim])
+        # Sample new latent vectors
+        z = tf.random.normal([batch_size, generator.latent_dim])
 
         with tf.GradientTape() as tape:
-            gen_prob, ket_norm_tf = generator.generate_distribution_2d(
+            gen_prob, ket_norm_tf = generator.generate_batch(
                 z, xvec, yvec, return_ket_norm=True
             )
 
@@ -1149,28 +1398,43 @@ def train_2d_qgan(
             else:
                 degenerate_count = 0
 
-            fake_batch = tf.expand_dims(gen_prob, 0)
-            fake_score = discriminator(fake_batch, training=False)
+            fake_score = discriminator(to_critic_input(gen_prob), training=False)
 
             # Adversarial loss: G wants to maximize fake_score
             adversarial_loss = -tf.reduce_mean(fake_score)
 
-            # Supervised loss: direct distribution matching
-            supervised_loss = tf.reduce_mean(tf.square(gen_prob - real_tf))
+            # Supervised loss: KL(target || generated).
+            # Scale-free (dimensionless, independent of grid resolution) and
+            # order-1 in magnitude, unlike mean-squared-error over a normalized
+            # density which is ~1e-6 here and produces vanishing gradients.
+            # Both tensors are already normalized to sum to 1 in
+            # generate_distribution_2d. KL heavily penalizes placing ~zero mass
+            # where the target has mass -- exactly the ring-hole failure mode.
+            eps = 1e-10
+            supervised_loss = tf.reduce_mean(tf.reduce_sum(
+                real_tf * (tf.math.log(real_tf + eps) - tf.math.log(gen_prob + eps)),
+                axis=[-2, -1]
+            ))
 
             # Ket-norm penalty: keep the truncated state representable in the Fock
             # cutoff. Without it, the optimizer drifts gate parameters past safe
             # thresholds (squeeze magnitudes > 0.5 are catastrophic at cutoff=10)
             # and W1 numbers become truncation artifacts.
-            ket_penalty = tf.square(1.0 - ket_norm_tf)
+            ket_penalty = tf.reduce_mean(tf.square(1.0 - ket_norm_tf))
 
-            # Combined loss with supervised warmup decay
-            current_sw = supervised_weight * max(0.0, 1.0 - epoch / max(1, supervised_warmup))
-            g_loss = (
-                (1 - current_sw) * adversarial_loss
-                + current_sw * supervised_loss
-                + ket_penalty_weight * ket_penalty
-            )
+            # Combined loss.
+            #   Path A: pure supervised (KL) + ket penalty, no adversarial term.
+            #   GAN mode: warmup-decayed blend of adversarial + supervised.
+            if pure_supervised:
+                current_sw = 1.0
+                g_loss = supervised_loss + ket_penalty_weight * ket_penalty
+            else:
+                current_sw = supervised_weight * max(0.0, 1.0 - epoch / max(1, supervised_warmup))
+                g_loss = (
+                    (1 - current_sw) * adversarial_loss
+                    + current_sw * supervised_loss
+                    + ket_penalty_weight * ket_penalty
+                )
 
         g_grads = tape.gradient(g_loss, generator.trainable_variables)
         if g_grads[0] is not None:
@@ -1184,7 +1448,7 @@ def train_2d_qgan(
             g_grad_norm = 0.0
 
         # === METRICS ===
-        gen_np = gen_prob.numpy()
+        gen_np = gen_prob.numpy()[0]  # first batch element for the cheap per-epoch metric
         w_dist = compute_wasserstein_2d(canonical_target, gen_np)
 
         history['g_loss'].append(float(g_loss))
@@ -1203,22 +1467,37 @@ def train_2d_qgan(
 
         # Ket norm diagnostic — recorded every epoch (free: same tensor used in G loss).
         # Print a warning at val_every cadence so logs don't get spammy.
-        ket_norm = float(ket_norm_tf)
+        ket_norm = float(tf.reduce_mean(ket_norm_tf))
         history['ket_norm'].append(ket_norm)
-        if epoch % val_every == 0 and ket_norm < 0.9:
-            print(f"  WARNING: Ket norm = {ket_norm:.3f} (cutoff may be too low)")
+        if epoch % val_every == 0:
+            flag = "  <-- LOW (raise cutoff_dim)" if ket_norm < 0.9 else ""
+            print(f"  ket_norm = {ket_norm:.3f}{flag}")
 
         # === VALIDATION ===
         if epoch % val_every == 0:
-            val_w1 = validate(generator, canonical_target, xvec, yvec)
-            history['val_wasserstein'].append(val_w1)
+            val_metrics = validate(generator, canonical_target, val_set,
+                                   xvec, yvec, ed_ctx)
+            history['val_wasserstein'].append(val_metrics['canonical_w1'])
+            history['val_nearest_w1'].append(val_metrics['nearest_w1'])
+            history['val_diversity'].append(val_metrics['diversity'])
+            history['val_canonical_ed'].append(val_metrics['canonical_ed'])
+            history['val_nearest_ed'].append(val_metrics['nearest_ed'])
 
-            if val_w1 < best_val_wasserstein:
-                best_val_wasserstein = val_w1
+            # Checkpoint selection:
+            #   GAN mode: nearest-member W1 (doesn't reward collapse-to-canonical)
+            #   Path A:   canonical W1 (the objective IS the canonical member;
+            #             keeps runs comparable with validated Path A results)
+            select_metric = (val_metrics['canonical_w1'] if pure_supervised
+                             else val_metrics['nearest_w1'])
+            if select_metric < best_val_metric:
+                best_val_metric = select_metric
                 best_weights = generator.weights.numpy().copy()
 
             print(f"Epoch {epoch:4d} | G: {float(g_loss):.4f} | D: {d_loss_avg:+.4f} | "
-                  f"W1: {w_dist:.4f} | Val W1: {val_w1:.4f} | Best Val: {best_val_wasserstein:.4f}")
+                  f"nearW1: {val_metrics['nearest_w1']:.4f} | "
+                  f"canonW1: {val_metrics['canonical_w1']:.4f} | "
+                  f"div: {val_metrics['diversity']:.4f} | "
+                  f"nearED: {val_metrics['nearest_ed']:.4f} | Best: {best_val_metric:.4f}")
         else:
             # Regular logging
             if epoch % 10 == 0 or epoch == 1:
@@ -1247,16 +1526,22 @@ def train_2d_qgan(
     print("\n" + "=" * 70)
     print("Training Complete!")
     print("=" * 70)
-    print(f"Best validation W1: {best_val_wasserstein:.4f}")
+    select_name = 'canonical W1' if pure_supervised else 'nearest-member W1'
+    print(f"Best validation ({select_name}): {best_val_metric:.4f}")
 
     # Restore best weights
     if best_weights is not None:
         print("Restoring best weights from validation...")
         generator.weights.assign(best_weights)
+        # Persist for post-hoc re-scoring (e.g. with metrics added later);
+        # history.npz alone cannot reconstruct the generator.
+        np.save(f"{log_dir}/best_weights.npy", best_weights)
 
     # Final validation
-    final_val = validate(generator, canonical_target, xvec, yvec)
-    print(f"Final validation W1: {final_val:.4f}")
+    final_val = validate(generator, canonical_target, val_set, xvec, yvec, ed_ctx)
+    print(f"Final validation: canonW1 {final_val['canonical_w1']:.4f} | "
+          f"nearW1 {final_val['nearest_w1']:.4f} | div {final_val['diversity']:.4f} | "
+          f"nearED {final_val['nearest_ed']:.4f}")
 
     # Generate final samples with different z values
     print("\nGenerating final samples with different latent vectors...")
@@ -1353,9 +1638,14 @@ def plot_training_history(history, save_path):
         valid_val_w = [x for x in val_w if x < float('inf')]
         if valid_val_w:
             axes[0, 1].plot(range(1, len(valid_val_w) + 1), valid_val_w, 'b-',
-                           linewidth=2, marker='o', label='Validation')
+                           linewidth=2, marker='o', label='Val (canonical)')
             axes[0, 1].axhline(y=min(valid_val_w), color='r', linestyle='--',
                               label=f'Best Val: {min(valid_val_w):.4f}')
+
+    val_near = [x for x in history.get('val_nearest_w1', []) if x < float('inf')]
+    if val_near:
+        axes[0, 1].plot(range(1, len(val_near) + 1), val_near, 'm-',
+                       linewidth=2, marker='s', label='Val (nearest member)')
 
     axes[0, 1].set_xlabel('Epoch')
     axes[0, 1].set_ylabel('Wasserstein Distance')
@@ -1451,6 +1741,7 @@ def build_hp_suffix(args, parser):
         ('g_lr',              'glr'),
         ('d_lr',              'dlr'),
         ('n_critic',          'nc'),
+        ('batch_size',        'bs'),
         ('supervised_weight', 'sw'),
         ('supervised_warmup', 'swup'),
         ('gp_weight',         'gp'),
@@ -1501,10 +1792,14 @@ def main():
     parser.add_argument('--g-lr', type=float, default=0.005,
                        help='Generator learning rate')
     parser.add_argument('--d-lr', type=float, default=0.0002,
-                       help='Discriminator learning rate (keep much lower than G)')
+                       help='Critic learning rate (WGAN-GP wants a well-trained '
+                            'critic; consider raising toward --g-lr)')
     parser.add_argument('--n-critic', type=int, default=1,
-                       help='Discriminator steps per generator step (1=equal)')
-    parser.add_argument('--supervised-weight', type=float, default=0.3,
+                       help='Critic steps per generator step (WGAN-GP standard: 5)')
+    parser.add_argument('--batch-size', type=int, default=1,
+                       help='Samples per training step via SF TF backend batching '
+                            '(1 = legacy sequential; try 8)')
+    parser.add_argument('--supervised-weight', type=float, default=0.0,
                        help='Initial supervised loss weight (0=pure GAN, 1=pure supervised)')
     parser.add_argument('--supervised-warmup', type=int, default=200,
                        help='Epochs over which supervised weight decays to 0')
@@ -1561,6 +1856,7 @@ def main():
         g_lr=args.g_lr,
         d_lr=args.d_lr,
         n_critic=args.n_critic,
+        batch_size=args.batch_size,
         supervised_weight=args.supervised_weight,
         supervised_warmup=args.supervised_warmup,
         gp_weight=args.gp_weight,
