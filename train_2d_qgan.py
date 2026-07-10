@@ -1063,6 +1063,42 @@ def to_critic_input(x):
     return x / (peak + 1e-10)
 
 
+def build_blur_kernel(sigma):
+    """Build the fixed Gaussian kernel for critic_blur (None if sigma <= 0).
+
+    sigma is in grid cells; kernel radius 3*sigma (odd size), normalized
+    to sum 1 so density mass is preserved (up to border clipping).
+    """
+    if sigma is None or sigma <= 0:
+        return None
+    radius = max(1, int(np.ceil(3 * sigma)))
+    coords = np.arange(-radius, radius + 1)
+    g = np.exp(-0.5 * (coords / sigma) ** 2)
+    kernel2d = np.outer(g, g)
+    kernel2d /= kernel2d.sum()
+    return tf.constant(kernel2d[:, :, None, None], dtype=tf.float32)
+
+
+def critic_blur(x, kernel):
+    """Differentiable Gaussian blur of densities, (gx, gy) or (B, gx, gy).
+
+    Removes the high-frequency Hermite/Fock interference ripples that only
+    generated densities carry, so the critic must judge on coarse shape.
+    Applied exactly once per critic input, BEFORE peak-normalization; since
+    blur is linear, GP interpolants of blurred inputs equal blurred
+    interpolants. No-op when kernel is None (--critic-blur 0).
+    """
+    if kernel is None:
+        return x
+    single = (len(x.shape) == 2)
+    if single:
+        x = tf.expand_dims(x, 0)
+    x = tf.nn.conv2d(x[..., None], kernel, strides=1, padding='SAME')[..., 0]
+    if single:
+        x = x[0]
+    return x
+
+
 def compute_gradient_penalty(discriminator, real_batch, fake_batch):
     """
     Compute gradient penalty for WGAN-GP over a batch.
@@ -1114,7 +1150,9 @@ def train_2d_qgan(
     gp_weight=5.0,          # Gradient penalty weight (lambda)
     gp_warmup=50,           # Epochs to warm up GP
     instance_noise=0.1,     # Initial noise std added to D inputs (capacity handicap)
-    noise_anneal=200,       # Epochs to anneal instance noise to 0
+    noise_anneal=200,       # Epochs to anneal instance noise to the floor
+    noise_floor=0.0,        # Instance noise floor after anneal (0 = legacy, anneal to zero)
+    critic_blur_sigma=0.0,  # Gaussian blur (grid cells) on critic inputs (0 = off)
     d_dropout=0.3,          # Dropout rate in discriminator
     latent_scale=1.0,
     ket_penalty_weight=20.0,  # Weight on (1 - ket_norm)^2 penalty in G's loss
@@ -1164,7 +1202,9 @@ def train_2d_qgan(
     print(f"D steps per G step: {n_critic}")
     print(f"Batch size: {batch_size}")
     print(f"Discriminator hidden dims: [16, 8], dropout={d_dropout}")
-    print(f"Instance noise: std={instance_noise}, anneal over {noise_anneal} epochs")
+    print(f"Instance noise: std={instance_noise}, anneal over {noise_anneal} "
+          f"epochs to floor {noise_floor}")
+    print(f"Critic blur sigma: {critic_blur_sigma} cells")
     print(f"Supervised weight: {supervised_weight} (warmup decay over {supervised_warmup} epochs)")
     print(f"Gradient penalty: weight={gp_weight}, warmup={gp_warmup} epochs")
     print(f"Ket-norm penalty weight: {ket_penalty_weight}")
@@ -1219,6 +1259,9 @@ def train_2d_qgan(
     # Initialize discriminator
     print("\nInitializing discriminator...")
     discriminator = Discriminator2D(hidden_dims=[16, 8], dropout_rate=d_dropout)
+
+    # Fixed Gaussian kernel for critic-input blur (None = off)
+    blur_kernel = build_blur_kernel(critic_blur_sigma)
 
     # Optimizers
     g_optimizer = tf.keras.optimizers.Adam(learning_rate=g_lr, beta_1=0.5, beta_2=0.9)
@@ -1295,7 +1338,12 @@ def train_2d_qgan(
 
         # Instance noise: decays to 0 over noise_anneal epochs
         # This blurs real/fake boundary, preventing D from trivially winning
-        current_noise = instance_noise * max(0.0, 1.0 - epoch / max(1, noise_anneal))
+        # Decays from instance_noise to noise_floor over noise_anneal epochs.
+        # A nonzero floor keeps the critic from overfitting high-frequency
+        # generator ripples after the anneal ends. floor=0 reduces exactly
+        # to the legacy schedule.
+        current_noise = noise_floor + (instance_noise - noise_floor) * max(
+            0.0, 1.0 - epoch / max(1, noise_anneal))
 
         if pure_supervised:
             # Path A: no critic. Skip discriminator training entirely.
@@ -1326,9 +1374,11 @@ def train_2d_qgan(
                     continue
                 gen_prob = tf.stop_gradient(gen_prob)
 
-                # Peak-normalize what the critic sees (see to_critic_input)
-                real_in = to_critic_input(real_tf)
-                fake_in = to_critic_input(gen_prob)
+                # Blur (optional), then peak-normalize what the critic sees.
+                # Single blur per pipeline: the noise re-normalization below
+                # must NOT blur again.
+                real_in = to_critic_input(critic_blur(real_tf, blur_kernel))
+                fake_in = to_critic_input(critic_blur(gen_prob, blur_kernel))
 
                 with tf.GradientTape() as tape:
                     # Add instance noise to D inputs (handicap D); noise std is
@@ -1398,7 +1448,8 @@ def train_2d_qgan(
             else:
                 degenerate_count = 0
 
-            fake_score = discriminator(to_critic_input(gen_prob), training=False)
+            fake_score = discriminator(
+                to_critic_input(critic_blur(gen_prob, blur_kernel)), training=False)
 
             # Adversarial loss: G wants to maximize fake_score
             adversarial_loss = -tf.reduce_mean(fake_score)
@@ -1748,6 +1799,8 @@ def build_hp_suffix(args, parser):
         ('gp_warmup',         'gpwup'),
         ('instance_noise',    'noise'),
         ('noise_anneal',      'nann'),
+        ('noise_floor',       'nfloor'),
+        ('critic_blur',       'blur'),
         ('d_dropout',         'drop'),
         ('latent_scale',      'ls'),
         ('ket_penalty_weight', 'kpen'),
@@ -1810,7 +1863,12 @@ def main():
     parser.add_argument('--instance-noise', type=float, default=0.1,
                        help='Initial instance noise std added to D inputs')
     parser.add_argument('--noise-anneal', type=int, default=200,
-                       help='Epochs to anneal instance noise to 0')
+                       help='Epochs to anneal instance noise to the floor')
+    parser.add_argument('--noise-floor', type=float, default=0.0,
+                       help='Instance-noise floor after anneal (0 = anneal to zero, legacy)')
+    parser.add_argument('--critic-blur', type=float, default=0.0,
+                       help='Gaussian blur sigma (grid cells) applied identically to real '
+                            'and fake critic inputs; 0 = off (legacy). Intended range 0.5-1.0')
     parser.add_argument('--d-dropout', type=float, default=0.3,
                        help='Dropout rate in discriminator')
     parser.add_argument('--latent-scale', type=float, default=0.3,
@@ -1863,6 +1921,8 @@ def main():
         gp_warmup=args.gp_warmup,
         instance_noise=args.instance_noise,
         noise_anneal=args.noise_anneal,
+        noise_floor=args.noise_floor,
+        critic_blur_sigma=args.critic_blur,
         d_dropout=args.d_dropout,
         latent_scale=args.latent_scale,
         ket_penalty_weight=args.ket_penalty_weight,

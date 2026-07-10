@@ -12,10 +12,15 @@ Checks, in order:
   3. Gradients flow through the batched circuit AND peak-normalization
      to the generator weights -- the TF tape is NOT broken.
   4. to_critic_input: peak=1 per sample, differentiable.
-  5. Tiny GAN-mode run (batch_size=4, n_critic=2): D and G gradient
-     norms non-zero every epoch, D outputs move, metrics finite.
-  6. Tiny Path A run (default batch_size=1): banner prints, D never
-     trains -- legacy behavior preserved.
+  4b. critic_blur / build_blur_kernel: sigma<=0 -> None kernel and a
+     bitwise no-op path; kernel sums to 1; mass preserved away from
+     borders; gradient flows through blur + peak-normalization.
+  5. Tiny GAN-mode run (batch_size=4, n_critic=2, noise_floor=0.03,
+     critic_blur_sigma=0.7 -- knobs stacked here ONLY to verify plumbing,
+     not as a training experiment): D and G gradient norms non-zero
+     every epoch, D outputs move, metrics finite.
+  6. Tiny Path A run (default batch_size=1, BOTH knobs nonzero): banner
+     prints, D never trains -- both knobs are inert in Path A.
 """
 import io
 import os
@@ -94,6 +99,34 @@ g = t2.gradient(out, v)
 assert g is not None and float(tf.reduce_max(tf.abs(g))) > 0
 print('PASS: to_critic_input scales to peak=1 and is differentiable')
 
+# --- 4b. critic_blur / build_blur_kernel ---
+assert mod.build_blur_kernel(0.0) is None
+assert mod.build_blur_kernel(-1.0) is None
+K = mod.build_blur_kernel(0.7)
+assert abs(float(tf.reduce_sum(K)) - 1.0) < 1e-6, 'kernel not normalized'
+
+xx = tf.constant(np.random.rand(2, 40, 40).astype('float32'))
+assert mod.critic_blur(xx, None) is xx, 'sigma=0 path is not a no-op'
+xb = mod.critic_blur(xx, K)
+assert xb.shape == xx.shape
+x2 = mod.critic_blur(xx[0], K)          # 2D (gx, gy) path
+assert x2.shape == xx[0].shape
+
+# Mass preserved away from borders: a uniform density stays uniform
+u = tf.ones([1, 40, 40]) / 1600.0
+ub = mod.critic_blur(u, K).numpy()
+assert np.allclose(ub[0, 10:30, 10:30], 1 / 1600.0, rtol=1e-4), \
+    'blur does not preserve interior mass'
+
+# Gradient flows through blur + peak-normalization
+v2 = tf.Variable(xx)
+with tf.GradientTape() as t3:
+    out2 = tf.reduce_sum(tf.square(mod.to_critic_input(mod.critic_blur(v2, K))))
+g2 = t3.gradient(out2, v2)
+assert g2 is not None and float(tf.reduce_max(tf.abs(g2))) > 0, \
+    'no gradient through critic_blur!'
+print('PASS: critic_blur kernel / no-op / mass / gradient checks')
+
 # --- 5. GAN-mode training run, batch_size=4 ---
 print('=== GAN-mode run (batch_size=4, n_critic=2, d_dropout=0) ===')
 common = dict(family_name='gaussian', n_train=8, n_val=6, n_total_modes=2,
@@ -101,6 +134,7 @@ common = dict(family_name='gaussian', n_train=8, n_val=6, n_total_modes=2,
 gen, hist = mod.train_2d_qgan(
     g_lr=0.005, d_lr=0.005, n_critic=2, d_dropout=0.0,
     supervised_weight=0.0, batch_size=4,
+    noise_floor=0.03, critic_blur_sigma=0.7,
     log_dir=os.path.join(OUT, 'qnncv_verify_batchgan'), **common)
 
 assert min(hist['d_grad_norm']) > 0, \
@@ -133,12 +167,14 @@ class Tee:
 with redirect_stdout(Tee()):
     gen2, hist2 = mod.train_2d_qgan(
         supervised_weight=1.0, supervised_warmup=4,
+        noise_floor=0.05, critic_blur_sigma=1.0,   # must be inert here
         log_dir=os.path.join(OUT, 'qnncv_verify_batchpatha'), **common)
 out = buf.getvalue()
 
 assert 'PATH A MODE' in out, 'Path A banner missing'
 assert all(x == 0.0 for x in hist2['d_grad_norm']), 'D trained in Path A!'
 assert min(hist2['g_grad_norm']) > 0, 'G gradients zero in Path A!'
-print('PASS: Path A banner printed, D never trained, G still learns')
+print('PASS: Path A banner printed, D never trained, G still learns '
+      '(noise_floor and critic_blur inert)')
 
 print('\nALL CHECKS PASSED')
