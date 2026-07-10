@@ -213,7 +213,13 @@ def build_hp_suffix(args, parser):
     return ('_' + '_'.join(parts)) if parts else ''
 
 
-def main():
+def build_parser():
+    """Build the CLI argument parser.
+
+    Exposed as a function (CLI-shim seam) so tooling can introspect the flag
+    surface — e.g. tests/golden/test_sweep_sync.py keeps run_sweep.py's
+    SWEEP_PARAMS from drifting out of sync with these flags.
+    """
     parser = argparse.ArgumentParser(description='Train 2D CV-QGAN with Pre-Generated Dataset')
     parser.add_argument('--family', type=str, required=True,
                        choices=['gaussian', 'ring', 'correlated', 'four_gaussians', 'vibronic'],
@@ -284,6 +290,11 @@ def main():
                             'TF op determinism + single-threaded intra/inter-op + '
                             'TF_DETERMINISTIC_OPS/oneDNN env (off by default).')
 
+    return parser
+
+
+def main():
+    parser = build_parser()
     args = parser.parse_args()
 
     # Resolve total modes from --n-modes or --n-ancilla
