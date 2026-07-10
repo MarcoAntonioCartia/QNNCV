@@ -1,0 +1,98 @@
+QNNCV: Applying compatibility patches...
+Applying all compatibility patches...
+Applying NumPy compatibility patches...
+  NumPy version: 2.0.2
+Applying SciPy compatibility patches...
+  SciPy version: unknown
+Applying TensorFlow compatibility patches...
+  TensorFlow version: 2.18.0
+  ✓ Applied TensorFlow compatibility patches
+Compatibility patches: 3/3 successful
+Clean training environment initialized
+Warnings suppressed, ready for quantum training
+Clean training environment initialized
+Warnings suppressed, ready for quantum training
+Clean training environment initialized
+Warnings suppressed, ready for quantum training
+Clean training environment initialized
+Warnings suppressed, ready for quantum training
+Clean training environment initialized
+Warnings suppressed, ready for quantum training
+----------------------------------------------------------------------
+Determinism / reproducibility
+  Seed: 0
+  TF: 2.18.0 | NumPy: 2.0.2 | SF: 0.23.0
+  --deterministic: True | TF_DETERMINISTIC_OPS=1 | TF_ENABLE_ONEDNN_OPTS=0
+  Note: seeding gives same-machine reproducibility; cross-machine (CPU ISA / BLAS / oneDNN / lib versions) can still drift.
+----------------------------------------------------------------------
+======================================================================
+2D CV-QGAN with Pre-Generated Dataset
+======================================================================
+Family: ring
+Dataset: 8 train, 6 validation
+Modes: 3 total (2 output + 1 ancilla)
+Layers: 2, Cutoff: 6, Kerr: True
+Fock space: 216 states
+Grid: 40x40, Range: [-3.0, 3.0]
+Learning rates - G: 0.005, D: 0.0005
+D steps per G step: 5
+Batch size: 8
+Discriminator hidden dims: [16, 8], dropout=0.0
+Instance noise: std=0.1, anneal over 200 epochs to floor 0.0
+Critic blur sigma: 0.0 cells
+Supervised weight: 0.0 (warmup decay over 200 epochs)
+Gradient penalty: weight=10.0, warmup=50 epochs
+Ket-norm penalty weight: 20.0
+Latent scale: 0.3
+G gradient clip: 5.0
+Seed: 0
+Output: ./logs/qgan_2d_ring_20260710_235559_m3_nl2_c6_ep4_dlr0.0005_gp10_seed0
+======================================================================
+
+======================================================================
+Generating 14 distributions from RingFamily...
+  Generated 1/14...
+Dataset generation complete: 14 distributions
+Split: 8 train, 6 validation
+Validation-set self-diversity (mean pairwise W1): 2.1376
+======================================================================
+Precomputing energy-distance context...
+
+Initializing generator...
+CVQGANGenerator initialized:
+  Total modes: 3 (2 output + 1 ancilla)
+  Layers: 2
+  Cutoff: 6
+  Fock space: 216 states
+  Use Kerr: True
+  Latent dim: 6
+  Total trainable params: 62
+  Batch size: 8
+
+Initializing discriminator...
+
+Computing initial validation...
+Initial validation: canonW1 2.6211 | nearW1 2.0018 | div 2.2705 | nearED 0.1543
+
+Generating initial distribution...
+Initial plot saved.
+
+----------------------------------------------------------------------
+Training...
+----------------------------------------------------------------------
+Epoch    1 | G: -0.0784 | D: -0.0054 | W1: 1.6685 | D(r):+0.12 D(f):+0.12 | SW:0.00 noise:0.100
+  ket_norm = 1.000
+Epoch    2 | G: -0.0506 | D: -0.1199 | nearW1: 1.4573 | canonW1: 2.0225 | div: 1.4979 | nearED: 0.0830 | Best: 1.4573
+  ket_norm = 1.000
+Epoch    4 | G: 0.0199 | D: -0.2392 | nearW1: 2.0654 | canonW1: 2.6771 | div: 2.2425 | nearED: 0.1677 | Best: 1.4573
+
+======================================================================
+Training Complete!
+======================================================================
+Best validation (nearest-member W1): 1.4573
+Restoring best weights from validation...
+Final validation: canonW1 2.3065 | nearW1 1.7532 | div 1.3585 | nearED 0.1102
+
+Generating final samples with different latent vectors...
+
+Results saved to: ./logs/qgan_2d_ring_20260710_235559_m3_nl2_c6_ep4_dlr0.0005_gp10_seed0

@@ -1,0 +1,368 @@
+{
+  "CVQGANGenerator.__init__": [
+    {
+      "default": "<required>",
+      "kind": "POSITIONAL_OR_KEYWORD",
+      "name": "self"
+    },
+    {
+      "default": "2",
+      "kind": "POSITIONAL_OR_KEYWORD",
+      "name": "n_modes"
+    },
+    {
+      "default": "2",
+      "kind": "POSITIONAL_OR_KEYWORD",
+      "name": "n_output_modes"
+    },
+    {
+      "default": "6",
+      "kind": "POSITIONAL_OR_KEYWORD",
+      "name": "n_layers"
+    },
+    {
+      "default": "10",
+      "kind": "POSITIONAL_OR_KEYWORD",
+      "name": "cutoff_dim"
+    },
+    {
+      "default": "True",
+      "kind": "POSITIONAL_OR_KEYWORD",
+      "name": "use_kerr"
+    },
+    {
+      "default": "1.0",
+      "kind": "POSITIONAL_OR_KEYWORD",
+      "name": "latent_scale"
+    },
+    {
+      "default": "0.1",
+      "kind": "POSITIONAL_OR_KEYWORD",
+      "name": "active_sd"
+    },
+    {
+      "default": "0.1",
+      "kind": "POSITIONAL_OR_KEYWORD",
+      "name": "passive_sd"
+    },
+    {
+      "default": "None",
+      "kind": "POSITIONAL_OR_KEYWORD",
+      "name": "batch_size"
+    }
+  ],
+  "Discriminator2D.__init__": [
+    {
+      "default": "<required>",
+      "kind": "POSITIONAL_OR_KEYWORD",
+      "name": "self"
+    },
+    {
+      "default": "[16, 8]",
+      "kind": "POSITIONAL_OR_KEYWORD",
+      "name": "hidden_dims"
+    },
+    {
+      "default": "0.05",
+      "kind": "POSITIONAL_OR_KEYWORD",
+      "name": "init_scale"
+    },
+    {
+      "default": "0.3",
+      "kind": "POSITIONAL_OR_KEYWORD",
+      "name": "dropout_rate"
+    }
+  ],
+  "build_blur_kernel": [
+    {
+      "default": "<required>",
+      "kind": "POSITIONAL_OR_KEYWORD",
+      "name": "sigma"
+    }
+  ],
+  "compute_gradient_penalty": [
+    {
+      "default": "<required>",
+      "kind": "POSITIONAL_OR_KEYWORD",
+      "name": "discriminator"
+    },
+    {
+      "default": "<required>",
+      "kind": "POSITIONAL_OR_KEYWORD",
+      "name": "real_batch"
+    },
+    {
+      "default": "<required>",
+      "kind": "POSITIONAL_OR_KEYWORD",
+      "name": "fake_batch"
+    }
+  ],
+  "compute_hermite_basis": [
+    {
+      "default": "<required>",
+      "kind": "POSITIONAL_OR_KEYWORD",
+      "name": "xvec"
+    },
+    {
+      "default": "<required>",
+      "kind": "POSITIONAL_OR_KEYWORD",
+      "name": "cutoff_dim"
+    }
+  ],
+  "critic_blur": [
+    {
+      "default": "<required>",
+      "kind": "POSITIONAL_OR_KEYWORD",
+      "name": "x"
+    },
+    {
+      "default": "<required>",
+      "kind": "POSITIONAL_OR_KEYWORD",
+      "name": "kernel"
+    }
+  ],
+  "generate_dataset": [
+    {
+      "default": "<required>",
+      "kind": "POSITIONAL_OR_KEYWORD",
+      "name": "family"
+    },
+    {
+      "default": "<required>",
+      "kind": "POSITIONAL_OR_KEYWORD",
+      "name": "n_samples"
+    }
+  ],
+  "get_family": [
+    {
+      "default": "<required>",
+      "kind": "POSITIONAL_OR_KEYWORD",
+      "name": "name"
+    },
+    {
+      "default": "40",
+      "kind": "POSITIONAL_OR_KEYWORD",
+      "name": "grid_size"
+    },
+    {
+      "default": "3.0",
+      "kind": "POSITIONAL_OR_KEYWORD",
+      "name": "x_range"
+    }
+  ],
+  "resolve_seed": [
+    {
+      "default": "<required>",
+      "kind": "POSITIONAL_OR_KEYWORD",
+      "name": "seed"
+    }
+  ],
+  "seed_everything": [
+    {
+      "default": "<required>",
+      "kind": "POSITIONAL_OR_KEYWORD",
+      "name": "seed"
+    }
+  ],
+  "to_critic_input": [
+    {
+      "default": "<required>",
+      "kind": "POSITIONAL_OR_KEYWORD",
+      "name": "x"
+    }
+  ],
+  "train_2d_qgan": [
+    {
+      "default": "'ring'",
+      "kind": "POSITIONAL_OR_KEYWORD",
+      "name": "family_name"
+    },
+    {
+      "default": "400",
+      "kind": "POSITIONAL_OR_KEYWORD",
+      "name": "n_train"
+    },
+    {
+      "default": "100",
+      "kind": "POSITIONAL_OR_KEYWORD",
+      "name": "n_val"
+    },
+    {
+      "default": "2",
+      "kind": "POSITIONAL_OR_KEYWORD",
+      "name": "n_total_modes"
+    },
+    {
+      "default": "6",
+      "kind": "POSITIONAL_OR_KEYWORD",
+      "name": "n_layers"
+    },
+    {
+      "default": "8",
+      "kind": "POSITIONAL_OR_KEYWORD",
+      "name": "cutoff_dim"
+    },
+    {
+      "default": "True",
+      "kind": "POSITIONAL_OR_KEYWORD",
+      "name": "use_kerr"
+    },
+    {
+      "default": "500",
+      "kind": "POSITIONAL_OR_KEYWORD",
+      "name": "epochs"
+    },
+    {
+      "default": "0.005",
+      "kind": "POSITIONAL_OR_KEYWORD",
+      "name": "g_lr"
+    },
+    {
+      "default": "0.0002",
+      "kind": "POSITIONAL_OR_KEYWORD",
+      "name": "d_lr"
+    },
+    {
+      "default": "1",
+      "kind": "POSITIONAL_OR_KEYWORD",
+      "name": "n_critic"
+    },
+    {
+      "default": "1",
+      "kind": "POSITIONAL_OR_KEYWORD",
+      "name": "batch_size"
+    },
+    {
+      "default": "0.0",
+      "kind": "POSITIONAL_OR_KEYWORD",
+      "name": "supervised_weight"
+    },
+    {
+      "default": "200",
+      "kind": "POSITIONAL_OR_KEYWORD",
+      "name": "supervised_warmup"
+    },
+    {
+      "default": "5.0",
+      "kind": "POSITIONAL_OR_KEYWORD",
+      "name": "gp_weight"
+    },
+    {
+      "default": "50",
+      "kind": "POSITIONAL_OR_KEYWORD",
+      "name": "gp_warmup"
+    },
+    {
+      "default": "0.1",
+      "kind": "POSITIONAL_OR_KEYWORD",
+      "name": "instance_noise"
+    },
+    {
+      "default": "200",
+      "kind": "POSITIONAL_OR_KEYWORD",
+      "name": "noise_anneal"
+    },
+    {
+      "default": "0.0",
+      "kind": "POSITIONAL_OR_KEYWORD",
+      "name": "noise_floor"
+    },
+    {
+      "default": "0.0",
+      "kind": "POSITIONAL_OR_KEYWORD",
+      "name": "critic_blur_sigma"
+    },
+    {
+      "default": "0.3",
+      "kind": "POSITIONAL_OR_KEYWORD",
+      "name": "d_dropout"
+    },
+    {
+      "default": "1.0",
+      "kind": "POSITIONAL_OR_KEYWORD",
+      "name": "latent_scale"
+    },
+    {
+      "default": "20.0",
+      "kind": "POSITIONAL_OR_KEYWORD",
+      "name": "ket_penalty_weight"
+    },
+    {
+      "default": "5.0",
+      "kind": "POSITIONAL_OR_KEYWORD",
+      "name": "g_grad_clip"
+    },
+    {
+      "default": "40",
+      "kind": "POSITIONAL_OR_KEYWORD",
+      "name": "grid_size"
+    },
+    {
+      "default": "3.0",
+      "kind": "POSITIONAL_OR_KEYWORD",
+      "name": "x_range"
+    },
+    {
+      "default": "None",
+      "kind": "POSITIONAL_OR_KEYWORD",
+      "name": "log_dir"
+    },
+    {
+      "default": "20",
+      "kind": "POSITIONAL_OR_KEYWORD",
+      "name": "plot_every"
+    },
+    {
+      "default": "20",
+      "kind": "POSITIONAL_OR_KEYWORD",
+      "name": "val_every"
+    },
+    {
+      "default": "None",
+      "kind": "POSITIONAL_OR_KEYWORD",
+      "name": "seed"
+    },
+    {
+      "default": "False",
+      "kind": "POSITIONAL_OR_KEYWORD",
+      "name": "deterministic"
+    }
+  ],
+  "validate": [
+    {
+      "default": "<required>",
+      "kind": "POSITIONAL_OR_KEYWORD",
+      "name": "generator"
+    },
+    {
+      "default": "<required>",
+      "kind": "POSITIONAL_OR_KEYWORD",
+      "name": "canonical_target"
+    },
+    {
+      "default": "<required>",
+      "kind": "POSITIONAL_OR_KEYWORD",
+      "name": "val_set"
+    },
+    {
+      "default": "<required>",
+      "kind": "POSITIONAL_OR_KEYWORD",
+      "name": "xvec"
+    },
+    {
+      "default": "<required>",
+      "kind": "POSITIONAL_OR_KEYWORD",
+      "name": "yvec"
+    },
+    {
+      "default": "None",
+      "kind": "POSITIONAL_OR_KEYWORD",
+      "name": "ed_ctx"
+    },
+    {
+      "default": "10",
+      "kind": "POSITIONAL_OR_KEYWORD",
+      "name": "n_samples"
+    }
+  ]
+}
