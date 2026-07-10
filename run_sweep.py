@@ -59,6 +59,9 @@ SWEEP_PARAMS = {
     "ket_penalty_weight":("--ket-penalty-weight", float, "kpen",  0.0,  500.0),
     "g_grad_clip":       ("--g-grad-clip",       float, "gclip", 0.0,  100.0),
     "grid_size":         ("--grid-size",         int,   "gs",    10,   100),
+    "seed":              ("--seed",              int,   "seed",  0,    999999),
+    "batch_size":        ("--batch-size",        int,   "bs",    1,    128),
+
 }
 
 MAX_EXPERIMENTS_WARN = 20

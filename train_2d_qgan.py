@@ -36,6 +36,17 @@ if not hasattr(scipy.integrate, 'simps'):
 import os
 import sys
 import argparse
+import json
+import random
+import secrets
+
+# Determinism env vars are read at TensorFlow *import* time, but argparse runs
+# in main() long after the import below. Scan sys.argv here so that opt-in
+# --deterministic runs take effect. Default (flag absent) leaves env untouched.
+if '--deterministic' in sys.argv:
+    os.environ.setdefault('TF_DETERMINISTIC_OPS', '1')
+    os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
+
 import numpy as np
 import tensorflow as tf
 import strawberryfields as sf
@@ -1162,6 +1173,8 @@ def train_2d_qgan(
     log_dir=None,
     plot_every=20,
     val_every=20,
+    seed=None,              # Resolved to a concrete int and recorded; None => entropy-based
+    deterministic=False,    # Opt into stronger (slower) same-machine determinism
 ):
     """
     Train 2D CV-QGAN with pre-generated dataset.
@@ -1179,6 +1192,29 @@ def train_2d_qgan(
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         log_dir = f"./logs/qgan_2d_{family_name}_{timestamp}"
     os.makedirs(log_dir, exist_ok=True)
+
+    # Seed EVERYTHING before any dataset generation, weight init, or z sampling.
+    seed = resolve_seed(seed)
+    seed_everything(seed)
+    if deterministic:
+        try:
+            tf.config.experimental.enable_op_determinism()  # TF 2.8+
+        except Exception:
+            pass
+        tf.config.threading.set_intra_op_parallelism_threads(1)
+        tf.config.threading.set_inter_op_parallelism_threads(1)
+
+    # Determinism provenance block (printed on every entry path, right after seeding).
+    print("-" * 70)
+    print("Determinism / reproducibility")
+    print(f"  Seed: {seed}")
+    print(f"  TF: {tf.__version__} | NumPy: {np.__version__} | SF: {sf.__version__}")
+    print(f"  --deterministic: {deterministic} | "
+          f"TF_DETERMINISTIC_OPS={os.environ.get('TF_DETERMINISTIC_OPS')} | "
+          f"TF_ENABLE_ONEDNN_OPTS={os.environ.get('TF_ENABLE_ONEDNN_OPTS')}")
+    print("  Note: seeding gives same-machine reproducibility; cross-machine "
+          "(CPU ISA / BLAS / oneDNN / lib versions) can still drift.")
+    print("-" * 70)
 
     n_ancilla = n_total_modes - 2
 
@@ -1210,6 +1246,7 @@ def train_2d_qgan(
     print(f"Ket-norm penalty weight: {ket_penalty_weight}")
     print(f"Latent scale: {latent_scale}")
     print(f"G gradient clip: {g_grad_clip if g_grad_clip > 0 else 'disabled'}")
+    print(f"Seed: {seed}")
     print(f"Output: {log_dir}")
     print("=" * 70)
 
@@ -1621,7 +1658,7 @@ def train_2d_qgan(
 
     # Save training history
     plot_training_history(history, f"{log_dir}/training_history.png")
-    np.savez(f"{log_dir}/history.npz", **history)
+    np.savez(f"{log_dir}/history.npz", **history, seed=np.int64(seed))
 
     print(f"\nResults saved to: {log_dir}")
 
@@ -1769,6 +1806,29 @@ def plot_training_history(history, save_path):
 # Main
 # =============================================================================
 
+def resolve_seed(seed):
+    """Return a concrete integer seed.
+
+    If ``seed`` is None, draw an entropy-based 32-bit seed so unseeded runs still
+    vary — but the resolved integer is always returned so it can be recorded.
+    Idempotent: passing an int returns it unchanged.
+    """
+    return int(seed) if seed is not None else secrets.randbits(32)
+
+
+def seed_everything(seed):
+    """Seed all sources of randomness used by this module.
+
+    Covers Python stdlib ``random``, NumPy global RNG (dataset generation, batch
+    index draws), and TensorFlow global RNG (weight init, latent z, instance
+    noise, GP interpolation). Strawberry Fields' TF backend draws from the TF
+    global state, so it is covered here too; it exposes no dedicated seed knob.
+    """
+    random.seed(seed)
+    np.random.seed(seed)
+    tf.random.set_seed(seed)
+
+
 def _format_val(v):
     """Format a value for directory naming (strip trailing zeros from floats)."""
     if isinstance(v, float):
@@ -1806,6 +1866,7 @@ def build_hp_suffix(args, parser):
         ('ket_penalty_weight', 'kpen'),
         ('g_grad_clip',       'gclip'),
         ('grid_size',         'gs'),
+        ('seed',              'seed'),
     ]
 
     parts = []
@@ -1883,6 +1944,14 @@ def main():
                        help='Plot frequency')
     parser.add_argument('--val-every', type=int, default=20,
                        help='Validation frequency')
+    parser.add_argument('--seed', type=int, default=None,
+                       help='Random seed for reproducibility. Default: an '
+                            'entropy-based seed is drawn and recorded, so '
+                            'unseeded runs still vary but stay reproducible.')
+    parser.add_argument('--deterministic', action='store_true',
+                       help='Opt into stronger (slower) same-machine determinism: '
+                            'TF op determinism + single-threaded intra/inter-op + '
+                            'TF_DETERMINISTIC_OPS/oneDNN env (off by default).')
 
     args = parser.parse_args()
 
@@ -1895,12 +1964,32 @@ def main():
     if n_total_modes < 2:
         parser.error("--n-modes must be at least 2 (need 2 output modes)")
 
+    # Resolve the seed up front so it is recorded everywhere (folder tag,
+    # run_config.json, console, history.npz) — never leave it unknown.
+    args.seed = resolve_seed(args.seed)
+
     # Build log directory name with non-default hyperparameters
     # If --n-ancilla was used, reflect it in args.n_modes for suffix building
     args.n_modes = n_total_modes
     hp_suffix = build_hp_suffix(args, parser)
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     log_dir = f"./logs/qgan_2d_{args.family}_{timestamp}{hp_suffix}"
+
+    # Dump a durable run config (args + environment + seed) so any result can be
+    # reproduced and each A/B table row can cite its seed.
+    os.makedirs(log_dir, exist_ok=True)
+    run_config = dict(vars(args))
+    run_config.update({
+        'timestamp': timestamp,
+        'tf_version': tf.__version__,
+        'numpy_version': np.__version__,
+        'sf_version': sf.__version__,
+        'deterministic': args.deterministic,
+        'TF_DETERMINISTIC_OPS': os.environ.get('TF_DETERMINISTIC_OPS'),
+        'TF_ENABLE_ONEDNN_OPTS': os.environ.get('TF_ENABLE_ONEDNN_OPTS'),
+    })
+    with open(f"{log_dir}/run_config.json", 'w') as f:
+        json.dump(run_config, f, indent=2, sort_keys=True)
 
     train_2d_qgan(
         family_name=args.family,
@@ -1931,6 +2020,8 @@ def main():
         log_dir=log_dir,
         plot_every=args.plot_every,
         val_every=args.val_every,
+        seed=args.seed,
+        deterministic=args.deterministic,
     )
 
 
