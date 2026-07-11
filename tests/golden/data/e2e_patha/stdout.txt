@@ -1,0 +1,106 @@
+QNNCV: Applying compatibility patches...
+Applying all compatibility patches...
+Applying NumPy compatibility patches...
+  NumPy version: 2.0.2
+Applying SciPy compatibility patches...
+  SciPy version: unknown
+Applying TensorFlow compatibility patches...
+  TensorFlow version: 2.18.0
+  ✓ Applied TensorFlow compatibility patches
+Compatibility patches: 3/3 successful
+Clean training environment initialized
+Warnings suppressed, ready for quantum training
+Clean training environment initialized
+Warnings suppressed, ready for quantum training
+Clean training environment initialized
+Warnings suppressed, ready for quantum training
+Clean training environment initialized
+Warnings suppressed, ready for quantum training
+Clean training environment initialized
+Warnings suppressed, ready for quantum training
+----------------------------------------------------------------------
+Determinism / reproducibility
+  Seed: 0
+  TF: 2.18.0 | NumPy: 2.0.2 | SF: 0.23.0
+  --deterministic: True | TF_DETERMINISTIC_OPS=None | TF_ENABLE_ONEDNN_OPTS=0
+  Note: seeding gives same-machine reproducibility; cross-machine (CPU ISA / BLAS / oneDNN / lib versions) can still drift.
+----------------------------------------------------------------------
+======================================================================
+2D CV-QGAN with Pre-Generated Dataset
+======================================================================
+Family: gaussian
+Dataset: 8 train, 6 validation
+Modes: 2 total (2 output + 0 ancilla)
+Layers: 2, Cutoff: 6, Kerr: True
+Fock space: 36 states
+Grid: 40x40, Range: [-3.0, 3.0]
+Learning rates - G: 0.005, D: 0.0002
+D steps per G step: 1
+Batch size: 1
+Discriminator hidden dims: [16, 8], dropout=0.3
+Instance noise: std=0.1, anneal over 200 epochs to floor 0.0
+Critic blur sigma: 0.0 cells
+Supervised weight: 1.0 (warmup decay over 4 epochs)
+Gradient penalty: weight=5.0, warmup=50 epochs
+Ket-norm penalty weight: 20.0
+Latent scale: 1.0
+G gradient clip: 5.0
+Seed: 0
+Output: C:\Users\mende\AppData\Local\Temp\qnncv_golden_e2e_patha_hyzclvn5
+======================================================================
+
+======================================================================
+Generating 14 distributions from GaussianFamily...
+  Generated 1/14...
+Dataset generation complete: 14 distributions
+Split: 8 train, 6 validation
+Validation-set self-diversity (mean pairwise W1): 5.2673
+======================================================================
+Precomputing energy-distance context...
+
+Initializing generator...
+CVQGANGenerator initialized:
+  Total modes: 2 (2 output + 0 ancilla)
+  Layers: 2
+  Cutoff: 6
+  Fock space: 36 states
+  Use Kerr: True
+  Latent dim: 4
+  Total trainable params: 32
+  Batch size: 1
+
+Initializing discriminator...
+
+Computing initial validation...
+Initial validation: canonW1 4.2980 | nearW1 2.6420 | div 6.3515 | nearED 0.3597
+
+Generating initial distribution...
+Initial plot saved.
+
+----------------------------------------------------------------------
+Training...
+----------------------------------------------------------------------
+
+**********************************************************************
+PATH A MODE: pure supervised representability test
+  - discriminator DISABLED (no adversarial training)
+  - target FIXED to canonical family member
+  - generator objective: KL(target || generated)
+**********************************************************************
+Epoch    1 | G: 2.3215 | D: +0.0000 | W1: 5.3264 | D(r):+0.00 D(f):+0.00 | SW:1.00 noise:0.100
+  ket_norm = 0.998
+Epoch    2 | G: 1.9677 | D: +0.0000 | nearW1: 3.1644 | canonW1: 4.7358 | div: 6.5694 | nearED: 0.5009 | Best: 4.7358
+  ket_norm = 0.591  <-- LOW (raise cutoff_dim)
+Epoch    4 | G: 3.9130 | D: +0.0000 | nearW1: 2.2976 | canonW1: 3.8211 | div: 5.6502 | nearED: 0.4214 | Best: 3.8211
+
+======================================================================
+Training Complete!
+======================================================================
+Best validation (canonical W1): 3.8211
+Restoring best weights from validation...
+Final validation: canonW1 4.4025 | nearW1 2.9372 | div 6.8315 | nearED 0.4591
+
+Generating final samples with different latent vectors...
+
+Results saved to: C:\Users\mende\AppData\Local\Temp\qnncv_golden_e2e_patha_hyzclvn5
+CHILD DONE

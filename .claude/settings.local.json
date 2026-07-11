@@ -1,7 +1,10 @@
 {
   "permissions": {
     "allow": [
-      "Bash(python:*)"
+      "Bash(python:*)",
+      "Bash(PYTHONIOENCODING=utf-8 /c/Users/mende/.conda/envs/qnncv/python.exe)",
+      "Bash(python3 -c \"import numpy as np; data = np.load\\('./logs/qgan_2d_ring_20260710_165028_glr0.005/history.npz', allow_pickle=True\\); print\\('Keys:', list\\(data.keys\\(\\)\\)\\); print\\('Shapes:'\\); [print\\(f'  {k}: {data[k].shape}'\\) for k in data.keys\\(\\)]\")",
+      "Bash(xargs cat)"
     ]
   }
 }

@@ -1,0 +1,1 @@
+qgan_2d_ring_m3_nl2_c6_ep4_dlr0.0005_gp10_seed0

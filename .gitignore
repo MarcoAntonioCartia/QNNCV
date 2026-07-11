@@ -68,6 +68,7 @@ logs/
 checkpoints/
 *.npy
 !data/**/*.npy
+!tests/golden/data/**/*.npy
 
 # ----- Results (regeneratable) -----
 src/examples/results/
