@@ -44,9 +44,13 @@ xvec = np.linspace(-3, 3, 40)
 # --- 1 & 2. batched == sequential ---
 for n_modes in (2, 3):
     print(f'=== Equivalence check, {n_modes} modes ===')
-    g_seq = mod.CVQGANGenerator(n_modes=n_modes, n_layers=2, cutoff_dim=5)
+    # latent_scale=1.0 (and the former signature defaults added below) are
+    # passed explicitly since the default unification so this script's
+    # behavior is unchanged.
+    g_seq = mod.CVQGANGenerator(n_modes=n_modes, n_layers=2, cutoff_dim=5,
+                                latent_scale=1.0)
     g_bat = mod.CVQGANGenerator(n_modes=n_modes, n_layers=2, cutoff_dim=5,
-                                batch_size=4)
+                                latent_scale=1.0, batch_size=4)
     g_bat.weights.assign(g_seq.weights)
 
     z = tf.random.normal([4, g_seq.latent_dim])
@@ -133,7 +137,7 @@ common = dict(family_name='gaussian', n_train=8, n_val=6, n_total_modes=2,
               n_layers=2, cutoff_dim=6, epochs=4, val_every=2, plot_every=999)
 gen, hist = mod.train_2d_qgan(
     g_lr=0.005, d_lr=0.005, n_critic=2, d_dropout=0.0,
-    supervised_weight=0.0, batch_size=4,
+    supervised_weight=0.0, batch_size=4, latent_scale=1.0,
     noise_floor=0.03, critic_blur_sigma=0.7,
     log_dir=os.path.join(OUT, 'qnncv_verify_batchgan'), **common)
 
@@ -167,6 +171,8 @@ class Tee:
 with redirect_stdout(Tee()):
     gen2, hist2 = mod.train_2d_qgan(
         supervised_weight=1.0, supervised_warmup=4,
+        d_lr=0.0002, n_critic=1, batch_size=1, d_dropout=0.3,
+        latent_scale=1.0,
         noise_floor=0.05, critic_blur_sigma=1.0,   # must be inert here
         log_dir=os.path.join(OUT, 'qnncv_verify_batchpatha'), **common)
 out = buf.getvalue()
