@@ -5,8 +5,11 @@
 Extracted 1:1 from train_2d_qgan.py (behavior-preserving refactor).
 
 NOTE: this module is imported by its full path
-(src.models.discriminators.qgan2d_discriminator); the legacy package
-__init__.py is deliberately untouched.
+(src.models.discriminators.qgan2d_discriminator). The legacy package
+inits were reviewed in the post-milestone cleanup: src/models/__init__.py
+is import-free; src/models/discriminators/__init__.py still re-exports
+the legacy 1D discriminators (load-bearing for legacy entry points) and
+deliberately does not export this class.
 """
 
 import tensorflow as tf
