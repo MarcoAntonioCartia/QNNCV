@@ -354,18 +354,23 @@ class PureSupervisedTrainer(_BaseTrainer2D):
 # =============================================================================
 
 def train_2d_qgan(
-    family_name='ring',
+    # Keyword-only. Params without a default here are the ones whose old
+    # signature default diverged from the CLI default: the argparse defaults
+    # in build_parser() are the single source of truth, so callers must be
+    # explicit (the CLI's main() always passes them).
+    *,
+    family_name,            # required (CLI --family is required too)
     n_train=400,
     n_val=100,
     n_total_modes=2,        # Total qumodes (2 output + ancilla)
     n_layers=6,
-    cutoff_dim=8,
+    cutoff_dim,             # required (old sig default 8 diverged from CLI 12)
     use_kerr=True,
     epochs=500,
     g_lr=0.005,
-    d_lr=0.0002,            # Critic LR; raise toward g_lr for a strong WGAN critic
-    n_critic=1,             # Critic steps per G step (WGAN-GP standard: 5)
-    batch_size=1,           # Samples per step via SF TF batching (1 = legacy sequential)
+    d_lr,                   # required (old 0.0002 diverged from CLI 0.005)
+    n_critic,               # required (old 1 diverged from CLI 5)
+    batch_size,             # required (old 1 diverged from CLI 8); SF TF batching, 1 = legacy sequential
     supervised_weight=0.0,  # Start with 30% supervised to give G a head start
     supervised_warmup=200,  # Slow decay from supervised to adversarial
     gp_weight=5.0,          # Gradient penalty weight (lambda)
@@ -374,8 +379,8 @@ def train_2d_qgan(
     noise_anneal=200,       # Epochs to anneal instance noise to the floor
     noise_floor=0.0,        # Instance noise floor after anneal (0 = legacy, anneal to zero)
     critic_blur_sigma=0.0,  # Gaussian blur (grid cells) on critic inputs (0 = off)
-    d_dropout=0.3,          # Dropout rate in discriminator
-    latent_scale=1.0,
+    d_dropout,              # required (old 0.3 diverged from CLI 0.0)
+    latent_scale,           # required (old 1.0 diverged from CLI 0.3)
     ket_penalty_weight=20.0,  # Weight on (1 - ket_norm)^2 penalty in G's loss
     g_grad_clip=5.0,          # Max norm for G gradient clipping (<=0 disables)
     grid_size=40,

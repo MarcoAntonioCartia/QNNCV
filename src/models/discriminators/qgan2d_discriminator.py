@@ -23,7 +23,10 @@ class Discriminator2D(tf.keras.Model):
     due to the 1600-dim input (40x40 grid).
     """
 
-    def __init__(self, hidden_dims=[16, 8], init_scale=0.05, dropout_rate=0.3):
+    # Keyword-only; dropout_rate has no default because its old signature
+    # default (0.3) diverged from the CLI --d-dropout default (0.0);
+    # build_parser() is the single source of truth.
+    def __init__(self, *, hidden_dims=[16, 8], init_scale=0.05, dropout_rate):
         super().__init__()
 
         initializer = tf.keras.initializers.RandomNormal(stddev=init_scale)
