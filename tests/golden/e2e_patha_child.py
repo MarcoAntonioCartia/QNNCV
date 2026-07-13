@@ -1,8 +1,8 @@
 """
 Child runner for the Path A end-to-end golden (NOT a test itself).
 
-Loads the root train_2d_qgan.py via importlib (mirroring
-scripts/verify_determinism.py), runs the tiny pure-supervised config
+Loads the root train_2d_qgan.py via importlib (golden tests deliberately
+stay on the shim surface), runs the tiny pure-supervised config
 in-process so it can hold the returned generator, then saves the
 fixed-z density next to the run outputs.
 
@@ -33,6 +33,9 @@ generator, history = mod.train_2d_qgan(
     family_name='gaussian', n_train=8, n_val=6, n_total_modes=2,
     n_layers=2, cutoff_dim=6, epochs=4, val_every=2, plot_every=999,
     supervised_weight=1.0, supervised_warmup=4,
+    # former signature defaults, passed explicitly since the default
+    # unification; the e2e_patha goldens were generated under these values
+    d_lr=0.0002, n_critic=1, batch_size=1, d_dropout=0.3, latent_scale=1.0,
     log_dir=out_dir,
 )
 

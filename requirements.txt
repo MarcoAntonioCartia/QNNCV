@@ -1,5 +1,7 @@
-# QNNCV - Quantum Neural Networks for Continuous Variables
-# Core dependencies for local development and Google Colab compatibility
+# QNNCV — dependencies as actually installed in the conda env 'qnncv'
+# (Windows, Python 3.11.14). Recorded 2026-07-13 from `pip list` of that
+# env; no installs or upgrades were performed. These exact versions are
+# the ones all golden tests and baseline results were produced with.
 
 # Core scientific computing
 numpy==2.0.2
@@ -7,37 +9,31 @@ scipy==1.15.3
 tensorflow==2.18.0
 
 # Quantum computing
-strawberryfields>=0.20.0
+# NOTE: SF 0.23.0 imports scipy.integrate.simps (removed in SciPy 1.14+);
+# the entry points alias simps=simpson before importing SF.
+StrawberryFields==0.23.0
 
 # Data visualization and analysis
 matplotlib==3.10.0
 pandas==2.2.2
-seaborn==0.13.0
+seaborn==0.13.2
 
 # Machine learning utilities
 scikit-learn==1.6.1
 
 # Progress bars and utilities
-tqdm==4.66.0
+tqdm==4.67.1
 
 # System utilities
-psutil==6.0.0
+psutil==7.0.0
 
 # Configuration and data handling
-pyyaml>=6.0
+PyYAML==6.0.3
 
-# Optional: Jupyter notebook support (for tutorials)
-jupyter>=1.0.0
-ipykernel>=6.0.0
+# Notebook support (installed in the env; optional for training)
+jupyter==1.1.1
+ipykernel==6.31.0
 
-# Optional: GPU memory management
-# Note: Uncomment if using GPU
-# tensorflow-gpu==2.18.0
-
-# Development and testing (optional)
-pytest>=7.0.0
-pytest-cov>=4.0.0
-
-# Documentation (optional)
-sphinx>=7.0.0
-sphinx-rtd-theme>=1.0.0
+# NOTE: pytest/sphinx are NOT installed in the qnncv env — the golden
+# suites (tests/golden/) are plain-assert scripts run via run_all.py and
+# need no test framework.

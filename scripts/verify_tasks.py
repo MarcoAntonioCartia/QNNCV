@@ -18,24 +18,25 @@ import os
 import sys
 import tempfile
 from contextlib import redirect_stdout
-import importlib.util
+
+import _bootstrap  # noqa: F401  (sys.path + scipy simps alias, before src)
 import numpy as np
 
-REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-OUT = tempfile.gettempdir()
+from src.training.qgan_2d import train_2d_qgan
 
-spec = importlib.util.spec_from_file_location(
-    't2q', os.path.join(REPO, 'train_2d_qgan.py'))
-mod = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(mod)
+OUT = tempfile.gettempdir()
 
 common = dict(family_name='gaussian', n_train=8, n_val=6, n_total_modes=2,
               n_layers=2, cutoff_dim=6, epochs=4, val_every=2, plot_every=999)
 
 # --- 1. GAN mode, strong critic knobs ---
+# batch_size=1 / latent_scale=1.0 (and the Path-A values below) are the former
+# signature defaults, passed explicitly since the default unification so this
+# script's behavior is unchanged.
 print('=== GAN-mode run (n_critic=5, d_dropout=0, d_lr=g_lr) ===')
-gen, hist = mod.train_2d_qgan(
+gen, hist = train_2d_qgan(
     g_lr=0.005, d_lr=0.005, n_critic=5, d_dropout=0.0,
+    batch_size=1, latent_scale=1.0,
     supervised_weight=0.0, log_dir=os.path.join(OUT, 'qnncv_verify_gan'),
     **common)
 
@@ -75,8 +76,10 @@ class Tee:
 
 
 with redirect_stdout(Tee()):
-    gen2, hist2 = mod.train_2d_qgan(
+    gen2, hist2 = train_2d_qgan(
         supervised_weight=1.0, supervised_warmup=4,
+        d_lr=0.0002, n_critic=1, batch_size=1, d_dropout=0.3,
+        latent_scale=1.0,
         log_dir=os.path.join(OUT, 'qnncv_verify_patha'), **common)
 out = buf.getvalue()
 

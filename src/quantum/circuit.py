@@ -95,15 +95,21 @@ class CVQGANGenerator:
 
     def __init__(
         self,
+        # Keyword-only. cutoff_dim/latent_scale have no default because their
+        # old signature defaults (10 / 1.0) diverged from the CLI defaults
+        # (12 / 0.3); build_parser() is the single source of truth.
+        *,
         n_modes: int = 2,
         n_output_modes: int = 2,    # Modes to measure (always 2 for 2D output)
         n_layers: int = 6,
-        cutoff_dim: int = 10,
+        cutoff_dim: int,
         use_kerr: bool = True,
-        latent_scale: float = 1.0,  # Scale for latent vector encoding
+        latent_scale: float,        # Scale for latent vector encoding
         active_sd: float = 0.1,     # Init std for active params (squeeze, displacement, kerr)
         passive_sd: float = 0.1,    # Init std for passive params (interferometer)
-        batch_size=None,            # SF TF backend batching (None/1 = unbatched)
+        batch_size=None,            # SF TF backend batching (None/1 = unbatched);
+                                    # deliberately NOT the CLI --batch-size (that is
+                                    # the training batch; None here means no batched engine)
         encoding=None,              # SEAM 1: EncodingSpec (None = input_displacement)
     ):
         self.n_modes = n_modes

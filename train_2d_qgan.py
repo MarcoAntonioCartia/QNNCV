@@ -37,8 +37,6 @@ import os
 import sys
 import argparse
 import json
-import random
-import secrets
 
 # Refactor strangler: the training code is being extracted into src/ (see
 # tests/golden/). Hard `from src...` imports below need the repo root on
@@ -55,15 +53,12 @@ if '--deterministic' in sys.argv:
     os.environ.setdefault('TF_DETERMINISTIC_OPS', '1')
     os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
 
+# numpy/tensorflow/strawberryfields stay imported here: their __version__s
+# are recorded into run_config.json by main() (golden-pinned provenance).
 import numpy as np
 import tensorflow as tf
 import strawberryfields as sf
-from strawberryfields import ops
-import matplotlib.pyplot as plt
 from datetime import datetime
-from scipy.stats import wasserstein_distance
-from scipy.special import hermite
-from math import factorial, sqrt, pi
 
 # Warning suppression (if available)
 try:
@@ -79,85 +74,30 @@ warnings.filterwarnings('ignore')
 
 
 # =============================================================================
-# Hermite Basis for Fock -> Position transformation
+# Re-exports (shim surface)
 # =============================================================================
+# The golden tests (tests/golden/) load this file via importlib and reach the
+# extracted code through these names — keep each until nothing loads it via
+# the shim (grep tests/ and scripts/ before removing). main() itself uses
+# train_2d_qgan and resolve_seed.
 
 from src.quantum.hermite import compute_hermite_basis, recommend_cutoff
-
-
-# =============================================================================
-# CV-QGAN Generator with Latent Input
-# =============================================================================
-
-from src.quantum.circuit import CVQGANGenerator, EncodingSpec
-
-
-# =============================================================================
-# Discriminator
-# =============================================================================
-
-from src.models.discriminators.qgan2d_discriminator import Discriminator2D, CRITIC_REGISTRY
-
-
-# =============================================================================
-# Distribution Families (for training data)
-# =============================================================================
-
-from src.families.base import DistributionFamily
-from src.families.gaussian import GaussianFamily
-from src.families.ring import RingFamily
-from src.families.correlated import CorrelatedGaussianFamily
-from src.families.four_gaussians import FourGaussiansFamily
-from src.families.vibronic import VibronicFamily
+from src.quantum.circuit import CVQGANGenerator
+from src.models.discriminators.qgan2d_discriminator import Discriminator2D
 from src.families.registry import get_family
-
-
-# =============================================================================
-# Metrics
-# =============================================================================
-
 from src.metrics.wasserstein import compute_wasserstein_2d
 from src.metrics.energy import build_energy_distance_context, energy_distances
-
-
-# =============================================================================
-# Dataset Generation (NEW)
-# =============================================================================
-
 from src.data.dataset import generate_dataset
-
-
-# =============================================================================
-# Validation Function (NEW)
-# =============================================================================
-
 from src.metrics.validation import validate
-
-
 from src.critic_input.pipeline import (to_critic_input, build_blur_kernel,
                                         critic_blur, compute_gradient_penalty)
-
-
-# =============================================================================
-# Training Loop
-# =============================================================================
-
-from src.training.qgan_2d import (train_2d_qgan, WGANGPTrainer,
-                                   PureSupervisedTrainer)
-
-
-# =============================================================================
-# Visualization
-# =============================================================================
-
-from src.viz.plots import plot_comparison, plot_training_history
+from src.training.qgan_2d import (train_2d_qgan, resolve_seed,
+                                   seed_everything)
 
 
 # =============================================================================
 # Main
 # =============================================================================
-
-from src.training.qgan_2d import resolve_seed, seed_everything
 
 
 def _format_val(v):

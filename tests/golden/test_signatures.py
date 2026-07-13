@@ -2,9 +2,13 @@
 Signature-freeze golden: public callables must keep their exact parameter
 lists and defaults through every extraction phase.
 
-Both default sets matter: train_2d_qgan's SIGNATURE defaults deliberately
-diverge from the CLI defaults (e.g. latent_scale 1.0 vs --latent-scale 0.3,
-d_lr 0.0002 vs 0.005); scripts/verify_*.py rely on the signature defaults.
+Defaults are unified with the CLI: params whose old signature default
+diverged from the CLI default (train_2d_qgan cutoff_dim/d_lr/n_critic/
+batch_size/d_dropout/latent_scale, CVQGANGenerator cutoff_dim/latent_scale,
+Discriminator2D dropout_rate) are now REQUIRED keyword-only parameters, so
+the argparse defaults in build_parser() are the single source of truth.
+test_default_sync.py enforces that any remaining shared default agrees
+with the CLI.
 
 Allowlist: parameters that a seam phase is permitted to APPEND (must have a
 default so all existing call sites are unaffected).

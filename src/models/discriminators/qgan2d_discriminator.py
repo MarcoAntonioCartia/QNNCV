@@ -5,8 +5,11 @@
 Extracted 1:1 from train_2d_qgan.py (behavior-preserving refactor).
 
 NOTE: this module is imported by its full path
-(src.models.discriminators.qgan2d_discriminator); the legacy package
-__init__.py is deliberately untouched.
+(src.models.discriminators.qgan2d_discriminator). The legacy package
+inits were reviewed in the post-milestone cleanup: src/models/__init__.py
+is import-free; src/models/discriminators/__init__.py still re-exports
+the legacy 1D discriminators (load-bearing for legacy entry points) and
+deliberately does not export this class.
 """
 
 import tensorflow as tf
@@ -23,7 +26,10 @@ class Discriminator2D(tf.keras.Model):
     due to the 1600-dim input (40x40 grid).
     """
 
-    def __init__(self, hidden_dims=[16, 8], init_scale=0.05, dropout_rate=0.3):
+    # Keyword-only; dropout_rate has no default because its old signature
+    # default (0.3) diverged from the CLI --d-dropout default (0.0);
+    # build_parser() is the single source of truth.
+    def __init__(self, *, hidden_dims=[16, 8], init_scale=0.05, dropout_rate):
         super().__init__()
 
         initializer = tf.keras.initializers.RandomNormal(stddev=init_scale)

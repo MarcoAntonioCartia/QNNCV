@@ -29,6 +29,9 @@ TRAIN_KWARGS = dict(
     seed=0, family_name='gaussian', n_train=8, n_val=6, n_total_modes=2,
     n_layers=2, cutoff_dim=6, epochs=EPOCHS, val_every=2, plot_every=999,
     batch_size=4, n_critic=N_CRITIC, d_dropout=0.0, critic_blur_sigma=0.7,
+    # former signature defaults, passed explicitly since the default
+    # unification; blur_once.npz was generated under these values
+    d_lr=0.0002, latent_scale=1.0,
 )
 
 

@@ -45,8 +45,11 @@ def compute():
         ket_b_np = fixed_ket((BATCH,) + (CUTOFF,) * m, seed=70 + m)
 
         # --- sequential engine ---
+        # latent_scale=1.0: former signature default, passed explicitly since
+        # the default unification; readout.npz was generated under it
         seed_all(0)
-        g = mod.CVQGANGenerator(n_modes=m, n_layers=1, cutoff_dim=CUTOFF)
+        g = mod.CVQGANGenerator(n_modes=m, n_layers=1, cutoff_dim=CUTOFF,
+                                latent_scale=1.0)
         g._run_circuit = lambda z, _k=ket_np: FakeState(tf.constant(_k))
         prob, ket_norm = g.generate_distribution_2d(
             tf.zeros([g.latent_dim]), xvec, xvec, return_ket_norm=True)
@@ -56,7 +59,7 @@ def compute():
         # --- batched engine ---
         seed_all(0)
         gb = mod.CVQGANGenerator(n_modes=m, n_layers=1, cutoff_dim=CUTOFF,
-                                 batch_size=BATCH)
+                                 latent_scale=1.0, batch_size=BATCH)
         gb._run_circuit = lambda z, _k=ket_b_np: FakeState(tf.constant(_k))
         probs_b, norms_b = gb.generate_batch(
             tf.zeros([BATCH, gb.latent_dim]), xvec, xvec,

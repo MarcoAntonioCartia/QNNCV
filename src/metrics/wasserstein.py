@@ -41,5 +41,12 @@ def compute_wasserstein_2d(p, q):
         w_x = wasserstein_distance(range(len(p_x)), range(len(q_x)), p_x, q_x)
         w_y = wasserstein_distance(range(len(p_y)), range(len(q_y)), p_y, q_y)
         return (w_x + w_y) / 2
-    except:
+    except ValueError as e:
+        # scipy's _validate_distribution rejects degenerate weights; the
+        # guards above (finiteness, positive mass, 1e-10 clip + renorm)
+        # make this near-unreachable, but keep the inf fallback — callers
+        # (validation.py, qgan_2d.py) filter with np.isfinite.
+        print(f"Warning: compute_wasserstein_2d: wasserstein_distance "
+              f"raised ValueError ({e}); p.shape={p.shape}, "
+              f"q.shape={q.shape}; returning inf")
         return float('inf')

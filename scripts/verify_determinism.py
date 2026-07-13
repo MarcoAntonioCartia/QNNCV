@@ -36,6 +36,9 @@ TRAIN_KWARGS = dict(
     seed=0, family_name='gaussian', n_train=8, n_val=6, n_total_modes=2,
     n_layers=2, cutoff_dim=6, epochs=4, val_every=2, plot_every=999,
     batch_size=4, n_critic=2, d_dropout=0.0,
+    # former signature defaults, passed explicitly since the default
+    # unification so this script's behavior is unchanged
+    d_lr=0.0002, latent_scale=1.0,
 )
 
 # Arrays whose values are driven by the seeded RNGs; these must reproduce.
@@ -50,13 +53,18 @@ CHILD_ENV.update(PYTHONIOENCODING='utf-8', TF_CPP_MIN_LOG_LEVEL='3',
 
 
 def run_train_subprocess(out_dir):
-    """Invoke train_2d_qgan(**TRAIN_KWARGS, log_dir=out_dir) in a fresh process."""
+    """Invoke train_2d_qgan(**TRAIN_KWARGS, log_dir=out_dir) in a fresh process.
+
+    Imports src directly (cwd=REPO puts the repo root on the child's
+    sys.path); the simps alias must come first because SF 0.23.0 imports
+    scipy.integrate.simps, removed in SciPy 1.14+.
+    """
     code = (
-        "import importlib.util\n"
-        f"spec = importlib.util.spec_from_file_location('t2q', {TRAIN!r})\n"
-        "mod = importlib.util.module_from_spec(spec)\n"
-        "spec.loader.exec_module(mod)\n"
-        f"mod.train_2d_qgan(log_dir={out_dir!r}, **{TRAIN_KWARGS!r})\n"
+        "import scipy.integrate\n"
+        "if not hasattr(scipy.integrate, 'simps'):\n"
+        "    scipy.integrate.simps = scipy.integrate.simpson\n"
+        "from src.training.qgan_2d import train_2d_qgan\n"
+        f"train_2d_qgan(log_dir={out_dir!r}, **{TRAIN_KWARGS!r})\n"
     )
     r = subprocess.run([sys.executable, '-W', 'ignore', '-c', code],
                        cwd=REPO, env=CHILD_ENV,

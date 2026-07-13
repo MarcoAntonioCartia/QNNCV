@@ -1,136 +1,118 @@
-# QNNCV - Continuous Variable Quantum Neural Networks
+# QNNCV — 2D Continuous-Variable Quantum GAN
 
-Implementation of CV-QNNs using Strawberry Fields for learning probability distributions with quantum circuits.
+A continuous-variable quantum GAN (WGAN-GP) that learns 2D probability
+densities with a CV quantum circuit generator (Strawberry Fields TF
+backend) and a deliberately weak classical critic. Latent vectors are
+encoded via displacement gates; the Fock-space ket is read out into a
+40×40 position density through a Hermite-function basis, with optional
+ancilla modes traced out.
 
-## Quick Start
+The repository also contains an older 1D Killoran-style CV-QNN codebase
+(`src/models/generators`, `src/training/trainer.py`, `qnncv.py`, …). It is
+legacy: kept importable but no longer part of the active pipeline.
 
-```bash
-# Install dependencies
-pip install -r requirements.txt
+## Environment
 
-# Train Killoran CV-QNN (recommended)
-python qnncv.py killoran --n-peaks 3 --epochs 300
+Everything below is the environment all baselines and golden tests were
+produced on. Cross-machine bit-identity is *not* expected (see
+`tests/golden/README.md`).
 
-# Or use direct entry points
-python train_killoran_qgan.py --n-peaks 4 --epochs 300 --n-layers 8
+| Component | Version |
+|---|---|
+| OS | Windows 11 (PowerShell) |
+| Python | 3.11.14 (conda env `qnncv`) |
+| TensorFlow | 2.18.0 |
+| NumPy | 2.0.2 |
+| SciPy | 1.15.3 |
+| Strawberry Fields | 0.23.0 |
+
+```powershell
+conda activate qnncv           # C:\Users\<user>\.conda\envs\qnncv
+pip install -r requirements.txt   # exact pins recorded from this env
 ```
 
-## Training Modes
+Note: SF 0.23.0 uses `scipy.integrate.simps`, removed in SciPy 1.14+. The
+entry point (`train_2d_qgan.py`), `scripts/_bootstrap.py`, and
+`src/__init__.py` each alias `simps = simpson` before SF is imported — keep
+that ordering if you add new entry points.
 
-| Mode | Entry Point | Description |
-|------|-------------|-------------|
-| Killoran | `qnncv.py killoran` | CV-QNN with Kerr gates for N-modal distributions |
-| Distribution | `qnncv.py distribution` | Hermite transform for Gaussian targets |
-| Sample | `qnncv.py sample` | Sample-based QGAN (legacy) |
-
-## Key Results: Single-Qumode Expressivity
-
-A single qumode CV-QNN with Kerr gates can learn multi-modal distributions:
-
-| N-peaks | Layers | Cutoff | Best W₁ | Success |
-|---------|--------|--------|---------|---------|
-| 1       | 6      | 8      | 0.144   | ✅ |
-| 2       | 6      | 7      | 0.019   | ✅ |
-| 3       | 7      | 9      | 0.064   | ✅ |
-| 4       | 8      | 8      | 0.046   | ✅ |
-| 5       | 10     | 10     | 0.092   | ✅ |
-
-**Critical finding:** Kerr gate is essential. Without it, the circuit can only produce Gaussian (single-peak) outputs.
-
-## Architecture
-
-Based on [Killoran et al. (2018)](https://arxiv.org/abs/1806.06871):
+## Layout
 
 ```
-Layer L := Φ ◦ D ◦ U₂ ◦ S ◦ U₁
-
-┌────────┐   ┌─────────┐   ┌────────┐   ┌──────────┐   ┌──────┐
-│Rotate  │ → │ Squeeze │ → │Rotate  │ → │ Displace │ → │ Kerr │
-│  R₁    │   │  S(r,φ) │   │  R₂    │   │  D(r,φ)  │   │ K(κ) │
-└────────┘   └─────────┘   └────────┘   └──────────┘   └──────┘
-                                                          ↑
-                                                   NON-GAUSSIAN
+train_2d_qgan.py       CLI entry point + prologue (simps alias, --deterministic
+                       env scan BEFORE the TF import) + thin re-export shim
+                       that the golden tests load via importlib
+run_sweep.py           family x seed sweep driver (invokes the CLI, resumable)
+src/
+  quantum/             hermite.py (Fock->position basis), circuit.py
+                       (CVQGANGenerator: SF program, batching, readout)
+  training/qgan_2d.py  training loop, WGANGP/PureSupervised trainers, seeding
+  models/discriminators/qgan2d_discriminator.py   Discriminator2D (critic)
+  metrics/             wasserstein.py, energy.py, validation.py
+  families/            gaussian, ring, correlated, four_gaussians, vibronic
+                       (+ registry.get_family)
+  data/dataset.py      pre-generated train/val dataset
+  critic_input/        peak normalization, blur, gradient penalty
+  viz/plots.py         comparison plots + training dashboard
+  models/, utils/, training/ (other files)   legacy 1D stack
+scripts/               verify_batching / verify_tasks / verify_determinism
+                       (+ _bootstrap.py: sys.path + simps alias)
+tests/golden/          golden regression suites — see tests/golden/README.md
+logs/                  training runs (one folder per run; baselines live here)
 ```
 
-- **R₁, R₂**: Rotation gates (interferometer for single mode)
-- **S**: Squeeze gate (state compression)
-- **D**: Displacement gate (state translation)
-- **K**: Kerr gate (nonlinear activation) — **Essential for multi-modal**
+## Running
 
-## Project Structure
+```powershell
+# Single run (defaults in build_parser() are the single source of truth)
+python train_2d_qgan.py --family ring --n-modes 3 --d-lr 0.0005 --gp-weight 10 --seed 0
 
-```
-QNNCV/
-├── qnncv.py                  # Unified entry point
-├── train_killoran_qgan.py    # Direct Killoran training
-├── src/
-│   ├── models/
-│   │   ├── generators/       # Quantum generators
-│   │   └── discriminators/   # Classical discriminators
-│   ├── training/             # Training loops
-│   └── utils/                # Utilities & monitoring
-├── docs/                     # Documentation
-└── logs/                     # Training outputs
+# Sweep (family x seeds)
+python run_sweep.py --family ring --seeds 30
 ```
 
-## Command Reference
+Every run writes `run_config.json` (all args + versions + seed + env
+provenance), `history.npz`, `best_weights.npy` and plots into
+`./logs/qgan_2d_<family>_<timestamp><hp-suffix>/`, where the suffix encodes
+non-default hyperparameters (e.g. `_m3_dlr0.0005_gp10_seed4`).
 
-### Killoran Mode (Recommended)
-```bash
-# Basic 2-modal
-python qnncv.py killoran --n-peaks 2 --epochs 300
+## Baselines
 
-# 4-modal with deeper circuit
-python qnncv.py killoran --n-peaks 4 --n-layers 8 --cutoff-dim 10 --epochs 400
+- **Reference point:** all baseline numbers correspond to the refactor
+  milestone commit `6ab6591` (phase 0–9 behavior-preserving extraction;
+  fully merged into `main` via PR #19). The post-milestone `cleanup` branch
+  is verified behavior-identical by the golden suites.
+- **Production ring configuration (frozen):** CLI defaults plus
+  `--n-modes 3 --d-lr 0.0005 --gp-weight 10`; 30 seeds per family. Run
+  folders in `logs/` follow `qgan_2d_<family>_<ts>_m3_dlr0.0005_gp10_seed<n>`.
+- **Regression anchor:** the tiny frozen ring config pinned end-to-end by
+  `tests/golden/test_e2e_gan_cli.py` (its `CLI_ARGS`, plus the golden
+  `tests/golden/data/e2e_gan/run_config.json`).
+- Report seed-averaged distributions, not single runs.
 
-# Ablation: without Kerr gate (will fail on multi-modal)
-python qnncv.py killoran --n-peaks 3 --no-kerr --epochs 200
+## Verification
 
-# Custom peak placement
-python qnncv.py killoran --n-peaks 3 --x-min -3 --x-max 3 --peak-std 0.4
+```powershell
+python tests\golden\run_all.py        # all golden suites, fresh subprocess each
+python scripts\verify_batching.py     # batched==sequential, gradients, blur
+python scripts\verify_tasks.py        # GAN-mode critic health, Path A inertness
+python scripts\verify_determinism.py  # same-seed reproducibility + seed round-trip
 ```
 
-### Distribution Mode
-```bash
-# Learn Gaussian N(2.0, 0.5²)
-python qnncv.py distribution --target-mean 2.0 --target-std 0.5 --epochs 200
-```
+Use the `qnncv` python for all of these. On consoles that pipe output,
+set `PYTHONUTF8=1` (legacy compatibility prints contain ✓/✗ glyphs that
+crash cp1252 pipes).
 
-## Output Files
+## Known issues / upcoming decisions
 
-Training creates `./logs/<experiment_name>/`:
-- `final_comparison.png` - Distribution comparison
-- `training_dashboard.png` - Full metrics dashboard
-- `weight_evolution.png` - Parameter evolution
-- `wigner_epoch_*.png` - Quantum state snapshots
-- `history.json` - All metrics
-- `best_weights.npy` - Best checkpoint
-
-## Documentation
-
-- [Architecture Details](docs/ARCHITECTURE.md)
-- [Key Learnings](docs/KEY_LEARNINGS.md)
-- [Training Analysis](docs/QGAN_TRAINING_ANALYSIS_20260123.md)
-
-## Dependencies
-
-- Python 3.8+
-- TensorFlow 2.x
-- Strawberry Fields
-- NumPy, SciPy, Matplotlib
-
-## Citation
-
-```bibtex
-@article{killoran2019continuous,
-  title={Continuous-variable quantum neural networks},
-  author={Killoran, Nathan and Bromley, Thomas R and Arrazola, Juan Miguel and 
-          Schuld, Maria and Quesada, Nicol{\'a}s and Lloyd, Seth},
-  journal={Physical Review Research},
-  year={2019}
-}
-```
-
-## License
-
-MIT
+- **ħ convention.** The live 2D code never sets `hbar`; Strawberry Fields'
+  default **ħ = 2** applies everywhere (engine creation in
+  `src/quantum/circuit.py` passes no `hbar`; the Hermite readout in
+  `src/quantum/hermite.py` uses σ = 1 units, consistent with ħ = 2
+  conventions; the legacy 1D generators set `hbar = 2.0` explicitly).
+  Survey target distributions assume **ħ = 1**, which differs by a √2
+  position-space scale. This is documented — not fixed — because every
+  golden and baseline was produced under ħ = 2. Decide the convention
+  BEFORE generating datasets for new families.
+- `interleaved_squeeze` encoding, MMD/energy trainers, and the noise-floor
+  sweep are out of scope of the current cleanup and remain future work.

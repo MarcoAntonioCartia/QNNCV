@@ -7,48 +7,53 @@
     },
     {
       "default": "2",
-      "kind": "POSITIONAL_OR_KEYWORD",
+      "kind": "KEYWORD_ONLY",
       "name": "n_modes"
     },
     {
       "default": "2",
-      "kind": "POSITIONAL_OR_KEYWORD",
+      "kind": "KEYWORD_ONLY",
       "name": "n_output_modes"
     },
     {
       "default": "6",
-      "kind": "POSITIONAL_OR_KEYWORD",
+      "kind": "KEYWORD_ONLY",
       "name": "n_layers"
     },
     {
-      "default": "10",
-      "kind": "POSITIONAL_OR_KEYWORD",
+      "default": "<required>",
+      "kind": "KEYWORD_ONLY",
       "name": "cutoff_dim"
     },
     {
       "default": "True",
-      "kind": "POSITIONAL_OR_KEYWORD",
+      "kind": "KEYWORD_ONLY",
       "name": "use_kerr"
     },
     {
-      "default": "1.0",
-      "kind": "POSITIONAL_OR_KEYWORD",
+      "default": "<required>",
+      "kind": "KEYWORD_ONLY",
       "name": "latent_scale"
     },
     {
       "default": "0.1",
-      "kind": "POSITIONAL_OR_KEYWORD",
+      "kind": "KEYWORD_ONLY",
       "name": "active_sd"
     },
     {
       "default": "0.1",
-      "kind": "POSITIONAL_OR_KEYWORD",
+      "kind": "KEYWORD_ONLY",
       "name": "passive_sd"
     },
     {
       "default": "None",
-      "kind": "POSITIONAL_OR_KEYWORD",
+      "kind": "KEYWORD_ONLY",
       "name": "batch_size"
+    },
+    {
+      "default": "None",
+      "kind": "KEYWORD_ONLY",
+      "name": "encoding"
     }
   ],
   "Discriminator2D.__init__": [
@@ -59,17 +64,17 @@
     },
     {
       "default": "[16, 8]",
-      "kind": "POSITIONAL_OR_KEYWORD",
+      "kind": "KEYWORD_ONLY",
       "name": "hidden_dims"
     },
     {
       "default": "0.05",
-      "kind": "POSITIONAL_OR_KEYWORD",
+      "kind": "KEYWORD_ONLY",
       "name": "init_scale"
     },
     {
-      "default": "0.3",
-      "kind": "POSITIONAL_OR_KEYWORD",
+      "default": "<required>",
+      "kind": "KEYWORD_ONLY",
       "name": "dropout_rate"
     }
   ],
@@ -173,158 +178,158 @@
   ],
   "train_2d_qgan": [
     {
-      "default": "'ring'",
-      "kind": "POSITIONAL_OR_KEYWORD",
+      "default": "<required>",
+      "kind": "KEYWORD_ONLY",
       "name": "family_name"
     },
     {
       "default": "400",
-      "kind": "POSITIONAL_OR_KEYWORD",
+      "kind": "KEYWORD_ONLY",
       "name": "n_train"
     },
     {
       "default": "100",
-      "kind": "POSITIONAL_OR_KEYWORD",
+      "kind": "KEYWORD_ONLY",
       "name": "n_val"
     },
     {
       "default": "2",
-      "kind": "POSITIONAL_OR_KEYWORD",
+      "kind": "KEYWORD_ONLY",
       "name": "n_total_modes"
     },
     {
       "default": "6",
-      "kind": "POSITIONAL_OR_KEYWORD",
+      "kind": "KEYWORD_ONLY",
       "name": "n_layers"
     },
     {
-      "default": "8",
-      "kind": "POSITIONAL_OR_KEYWORD",
+      "default": "<required>",
+      "kind": "KEYWORD_ONLY",
       "name": "cutoff_dim"
     },
     {
       "default": "True",
-      "kind": "POSITIONAL_OR_KEYWORD",
+      "kind": "KEYWORD_ONLY",
       "name": "use_kerr"
     },
     {
       "default": "500",
-      "kind": "POSITIONAL_OR_KEYWORD",
+      "kind": "KEYWORD_ONLY",
       "name": "epochs"
     },
     {
       "default": "0.005",
-      "kind": "POSITIONAL_OR_KEYWORD",
+      "kind": "KEYWORD_ONLY",
       "name": "g_lr"
     },
     {
-      "default": "0.0002",
-      "kind": "POSITIONAL_OR_KEYWORD",
+      "default": "<required>",
+      "kind": "KEYWORD_ONLY",
       "name": "d_lr"
     },
     {
-      "default": "1",
-      "kind": "POSITIONAL_OR_KEYWORD",
+      "default": "<required>",
+      "kind": "KEYWORD_ONLY",
       "name": "n_critic"
     },
     {
-      "default": "1",
-      "kind": "POSITIONAL_OR_KEYWORD",
+      "default": "<required>",
+      "kind": "KEYWORD_ONLY",
       "name": "batch_size"
     },
     {
       "default": "0.0",
-      "kind": "POSITIONAL_OR_KEYWORD",
+      "kind": "KEYWORD_ONLY",
       "name": "supervised_weight"
     },
     {
       "default": "200",
-      "kind": "POSITIONAL_OR_KEYWORD",
+      "kind": "KEYWORD_ONLY",
       "name": "supervised_warmup"
     },
     {
       "default": "5.0",
-      "kind": "POSITIONAL_OR_KEYWORD",
+      "kind": "KEYWORD_ONLY",
       "name": "gp_weight"
     },
     {
       "default": "50",
-      "kind": "POSITIONAL_OR_KEYWORD",
+      "kind": "KEYWORD_ONLY",
       "name": "gp_warmup"
     },
     {
       "default": "0.1",
-      "kind": "POSITIONAL_OR_KEYWORD",
+      "kind": "KEYWORD_ONLY",
       "name": "instance_noise"
     },
     {
       "default": "200",
-      "kind": "POSITIONAL_OR_KEYWORD",
+      "kind": "KEYWORD_ONLY",
       "name": "noise_anneal"
     },
     {
       "default": "0.0",
-      "kind": "POSITIONAL_OR_KEYWORD",
+      "kind": "KEYWORD_ONLY",
       "name": "noise_floor"
     },
     {
       "default": "0.0",
-      "kind": "POSITIONAL_OR_KEYWORD",
+      "kind": "KEYWORD_ONLY",
       "name": "critic_blur_sigma"
     },
     {
-      "default": "0.3",
-      "kind": "POSITIONAL_OR_KEYWORD",
+      "default": "<required>",
+      "kind": "KEYWORD_ONLY",
       "name": "d_dropout"
     },
     {
-      "default": "1.0",
-      "kind": "POSITIONAL_OR_KEYWORD",
+      "default": "<required>",
+      "kind": "KEYWORD_ONLY",
       "name": "latent_scale"
     },
     {
       "default": "20.0",
-      "kind": "POSITIONAL_OR_KEYWORD",
+      "kind": "KEYWORD_ONLY",
       "name": "ket_penalty_weight"
     },
     {
       "default": "5.0",
-      "kind": "POSITIONAL_OR_KEYWORD",
+      "kind": "KEYWORD_ONLY",
       "name": "g_grad_clip"
     },
     {
       "default": "40",
-      "kind": "POSITIONAL_OR_KEYWORD",
+      "kind": "KEYWORD_ONLY",
       "name": "grid_size"
     },
     {
       "default": "3.0",
-      "kind": "POSITIONAL_OR_KEYWORD",
+      "kind": "KEYWORD_ONLY",
       "name": "x_range"
     },
     {
       "default": "None",
-      "kind": "POSITIONAL_OR_KEYWORD",
+      "kind": "KEYWORD_ONLY",
       "name": "log_dir"
     },
     {
       "default": "20",
-      "kind": "POSITIONAL_OR_KEYWORD",
+      "kind": "KEYWORD_ONLY",
       "name": "plot_every"
     },
     {
       "default": "20",
-      "kind": "POSITIONAL_OR_KEYWORD",
+      "kind": "KEYWORD_ONLY",
       "name": "val_every"
     },
     {
       "default": "None",
-      "kind": "POSITIONAL_OR_KEYWORD",
+      "kind": "KEYWORD_ONLY",
       "name": "seed"
     },
     {
       "default": "False",
-      "kind": "POSITIONAL_OR_KEYWORD",
+      "kind": "KEYWORD_ONLY",
       "name": "deterministic"
     }
   ],

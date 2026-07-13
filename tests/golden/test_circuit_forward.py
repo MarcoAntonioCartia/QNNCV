@@ -33,7 +33,10 @@ def make_weights_and_z(mod, m):
     """Fresh generator weights (seeded) + fixed z batch, as numpy."""
     import numpy as np
     seed_all(0)
-    g = mod.CVQGANGenerator(n_modes=m, n_layers=LAYERS, cutoff_dim=CUTOFF)
+    # latent_scale=1.0: former signature default, passed explicitly since the
+    # default unification; circuit_forward.npz was generated under it
+    g = mod.CVQGANGenerator(n_modes=m, n_layers=LAYERS, cutoff_dim=CUTOFF,
+                            latent_scale=1.0)
     weights = g.weights.numpy()
     rs = np.random.RandomState(5 + m)
     z = rs.standard_normal((BATCH, g.latent_dim)).astype(np.float32) * 0.5
@@ -43,11 +46,12 @@ def make_weights_and_z(mod, m):
 def forward(mod, m, weights, z):
     import tensorflow as tf
     seed_all(0)
-    g_seq = mod.CVQGANGenerator(n_modes=m, n_layers=LAYERS, cutoff_dim=CUTOFF)
+    g_seq = mod.CVQGANGenerator(n_modes=m, n_layers=LAYERS, cutoff_dim=CUTOFF,
+                                latent_scale=1.0)
     g_seq.weights.assign(weights)
     seed_all(0)
     g_bat = mod.CVQGANGenerator(n_modes=m, n_layers=LAYERS, cutoff_dim=CUTOFF,
-                                batch_size=BATCH)
+                                latent_scale=1.0, batch_size=BATCH)
     g_bat.weights.assign(weights)
 
     import numpy as np
