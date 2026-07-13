@@ -1,4 +1,4 @@
-"""Verification for the critic-input peak-scaling + SF TF batching changes.
+﻿"""Verification for the critic-input peak-scaling + SF TF batching changes.
 
 Disposable -- delete after the checks pass. Training output goes to
 <system temp>/qnncv_verify_*, not ./logs.
@@ -19,7 +19,7 @@ Checks, in order:
      critic_blur_sigma=0.7 -- knobs stacked here ONLY to verify plumbing,
      not as a training experiment): D and G gradient norms non-zero
      every epoch, D outputs move, metrics finite.
-  6. Tiny Path A run (default batch_size=1, BOTH knobs nonzero): banner
+  6. Tiny Path A run (batch_size=1, BOTH knobs nonzero): banner
      prints, D never trains -- both knobs are inert in Path A.
 """
 import io
@@ -27,17 +27,17 @@ import os
 import sys
 import tempfile
 from contextlib import redirect_stdout
-import importlib.util
+
+import _bootstrap  # noqa: F401  (sys.path + scipy simps alias, before src)
 import numpy as np
 import tensorflow as tf
 
-REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-OUT = tempfile.gettempdir()
+from src.critic_input.pipeline import (to_critic_input, build_blur_kernel,
+                                       critic_blur)
+from src.quantum.circuit import CVQGANGenerator
+from src.training.qgan_2d import train_2d_qgan
 
-spec = importlib.util.spec_from_file_location(
-    't2q', os.path.join(REPO, 'train_2d_qgan.py'))
-mod = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(mod)
+OUT = tempfile.gettempdir()
 
 xvec = np.linspace(-3, 3, 40)
 
@@ -47,10 +47,10 @@ for n_modes in (2, 3):
     # latent_scale=1.0 (and the former signature defaults added below) are
     # passed explicitly since the default unification so this script's
     # behavior is unchanged.
-    g_seq = mod.CVQGANGenerator(n_modes=n_modes, n_layers=2, cutoff_dim=5,
-                                latent_scale=1.0)
-    g_bat = mod.CVQGANGenerator(n_modes=n_modes, n_layers=2, cutoff_dim=5,
-                                latent_scale=1.0, batch_size=4)
+    g_seq = CVQGANGenerator(n_modes=n_modes, n_layers=2, cutoff_dim=5,
+                            latent_scale=1.0)
+    g_bat = CVQGANGenerator(n_modes=n_modes, n_layers=2, cutoff_dim=5,
+                            latent_scale=1.0, batch_size=4)
     g_bat.weights.assign(g_seq.weights)
 
     z = tf.random.normal([4, g_seq.latent_dim])
@@ -84,7 +84,7 @@ with tf.GradientTape() as tape:
         tf.random.normal([4, g_bat.latent_dim]), xvec, xvec,
         return_ket_norm=True)
     # Mimic the G loss path: critic input scaling + ket penalty
-    loss = (tf.reduce_mean(tf.square(mod.to_critic_input(p)))
+    loss = (tf.reduce_mean(tf.square(to_critic_input(p)))
             + tf.reduce_mean(tf.square(1.0 - kn)))
 grads = tape.gradient(loss, g_bat.trainable_variables)
 assert grads[0] is not None, 'no gradient through batched circuit!'
@@ -94,38 +94,38 @@ print(f'PASS: gradient flows through batched circuit (norm {gnorm:.4f})')
 
 # --- 4. to_critic_input ---
 x = tf.constant(np.random.rand(3, 8, 8).astype('float32')) * 0.01
-y = mod.to_critic_input(x).numpy()
+y = to_critic_input(x).numpy()
 assert np.allclose(y.max(axis=(1, 2)), 1.0, atol=1e-5), 'peak != 1'
 v = tf.Variable(x)
 with tf.GradientTape() as t2:
-    out = tf.reduce_sum(tf.square(mod.to_critic_input(v)))
+    out = tf.reduce_sum(tf.square(to_critic_input(v)))
 g = t2.gradient(out, v)
 assert g is not None and float(tf.reduce_max(tf.abs(g))) > 0
 print('PASS: to_critic_input scales to peak=1 and is differentiable')
 
 # --- 4b. critic_blur / build_blur_kernel ---
-assert mod.build_blur_kernel(0.0) is None
-assert mod.build_blur_kernel(-1.0) is None
-K = mod.build_blur_kernel(0.7)
+assert build_blur_kernel(0.0) is None
+assert build_blur_kernel(-1.0) is None
+K = build_blur_kernel(0.7)
 assert abs(float(tf.reduce_sum(K)) - 1.0) < 1e-6, 'kernel not normalized'
 
 xx = tf.constant(np.random.rand(2, 40, 40).astype('float32'))
-assert mod.critic_blur(xx, None) is xx, 'sigma=0 path is not a no-op'
-xb = mod.critic_blur(xx, K)
+assert critic_blur(xx, None) is xx, 'sigma=0 path is not a no-op'
+xb = critic_blur(xx, K)
 assert xb.shape == xx.shape
-x2 = mod.critic_blur(xx[0], K)          # 2D (gx, gy) path
+x2 = critic_blur(xx[0], K)          # 2D (gx, gy) path
 assert x2.shape == xx[0].shape
 
 # Mass preserved away from borders: a uniform density stays uniform
 u = tf.ones([1, 40, 40]) / 1600.0
-ub = mod.critic_blur(u, K).numpy()
+ub = critic_blur(u, K).numpy()
 assert np.allclose(ub[0, 10:30, 10:30], 1 / 1600.0, rtol=1e-4), \
     'blur does not preserve interior mass'
 
 # Gradient flows through blur + peak-normalization
 v2 = tf.Variable(xx)
 with tf.GradientTape() as t3:
-    out2 = tf.reduce_sum(tf.square(mod.to_critic_input(mod.critic_blur(v2, K))))
+    out2 = tf.reduce_sum(tf.square(to_critic_input(critic_blur(v2, K))))
 g2 = t3.gradient(out2, v2)
 assert g2 is not None and float(tf.reduce_max(tf.abs(g2))) > 0, \
     'no gradient through critic_blur!'
@@ -135,7 +135,7 @@ print('PASS: critic_blur kernel / no-op / mass / gradient checks')
 print('=== GAN-mode run (batch_size=4, n_critic=2, d_dropout=0) ===')
 common = dict(family_name='gaussian', n_train=8, n_val=6, n_total_modes=2,
               n_layers=2, cutoff_dim=6, epochs=4, val_every=2, plot_every=999)
-gen, hist = mod.train_2d_qgan(
+gen, hist = train_2d_qgan(
     g_lr=0.005, d_lr=0.005, n_critic=2, d_dropout=0.0,
     supervised_weight=0.0, batch_size=4, latent_scale=1.0,
     noise_floor=0.03, critic_blur_sigma=0.7,
@@ -154,8 +154,8 @@ print('PASS: G grad norms:', [round(x, 4) for x in hist['g_grad_norm']])
 print('PASS: D(r) trajectory:', [round(x, 4) for x in hist['d_real_score']])
 print('PASS: D(f) trajectory:', [round(x, 4) for x in hist['d_fake_score']])
 
-# --- 6. Path A run, default batch_size=1 (legacy path) ---
-print('=== Path A run (batch_size=1 default) ===')
+# --- 6. Path A run, batch_size=1 (legacy path) ---
+print('=== Path A run (batch_size=1) ===')
 buf = io.StringIO()
 
 
@@ -169,7 +169,7 @@ class Tee:
 
 
 with redirect_stdout(Tee()):
-    gen2, hist2 = mod.train_2d_qgan(
+    gen2, hist2 = train_2d_qgan(
         supervised_weight=1.0, supervised_warmup=4,
         d_lr=0.0002, n_critic=1, batch_size=1, d_dropout=0.3,
         latent_scale=1.0,

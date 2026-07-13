@@ -1,8 +1,8 @@
 """
 Child runner for the Path A end-to-end golden (NOT a test itself).
 
-Loads the root train_2d_qgan.py via importlib (mirroring
-scripts/verify_determinism.py), runs the tiny pure-supervised config
+Loads the root train_2d_qgan.py via importlib (golden tests deliberately
+stay on the shim surface), runs the tiny pure-supervised config
 in-process so it can hold the returned generator, then saves the
 fixed-z density next to the run outputs.
 
