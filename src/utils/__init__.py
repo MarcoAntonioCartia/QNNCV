@@ -30,13 +30,15 @@ from .monitoring import (
 from .scipy_compat import _patch_scipy_simps
 
 # Import compatibility patches
+# (compatibility.enable_clean_training is deliberately NOT imported: the
+# warning_suppression import below has always shadowed it, so
+# warning_suppression.enable_clean_training is the canonical one.)
 from .compatibility import (
     apply_numpy_compatibility_patches,
     apply_scipy_compatibility_patches,
     apply_tensorflow_compatibility_patches,
     apply_all_compatibility_patches,
-    check_environment_compatibility,
-    enable_clean_training
+    check_environment_compatibility
 )
 
 # Import warning suppression utilities
