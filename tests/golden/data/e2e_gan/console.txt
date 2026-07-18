@@ -10,14 +10,6 @@ Applying TensorFlow compatibility patches...
 Compatibility patches: 3/3 successful
 Clean training environment initialized
 Warnings suppressed, ready for quantum training
-Clean training environment initialized
-Warnings suppressed, ready for quantum training
-Clean training environment initialized
-Warnings suppressed, ready for quantum training
-Clean training environment initialized
-Warnings suppressed, ready for quantum training
-Clean training environment initialized
-Warnings suppressed, ready for quantum training
 ----------------------------------------------------------------------
 Determinism / reproducibility
   Seed: 0
@@ -45,8 +37,9 @@ Gradient penalty: weight=10.0, warmup=50 epochs
 Ket-norm penalty weight: 20.0
 Latent scale: 0.3
 G gradient clip: 5.0
+Encoding: input_displacement
 Seed: 0
-Output: ./logs/qgan_2d_ring_20260710_235559_m3_nl2_c6_ep4_dlr0.0005_gp10_seed0
+Output: ./logs/qgan_2d_ring_20260718_150558_m3_nl2_c6_ep4_dlr0.0005_gp10_seed0
 ======================================================================
 
 ======================================================================
@@ -60,6 +53,7 @@ Precomputing energy-distance context...
 
 Initializing generator...
 CVQGANGenerator initialized:
+  Encoding: input_displacement
   Total modes: 3 (2 output + 1 ancilla)
   Layers: 2
   Cutoff: 6
@@ -95,4 +89,4 @@ Final validation: canonW1 2.3065 | nearW1 1.7532 | div 1.3585 | nearED 0.1102
 
 Generating final samples with different latent vectors...
 
-Results saved to: ./logs/qgan_2d_ring_20260710_235559_m3_nl2_c6_ep4_dlr0.0005_gp10_seed0
+Results saved to: ./logs/qgan_2d_ring_20260718_150558_m3_nl2_c6_ep4_dlr0.0005_gp10_seed0
