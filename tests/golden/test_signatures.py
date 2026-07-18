@@ -43,6 +43,10 @@ TARGETS = [
 # Params a seam phase may APPEND (name -> owner). Anything else extra fails.
 APPEND_ALLOWLIST = {
     'CVQGANGenerator.__init__': ['encoding'],   # SEAM 1 (Phase 6)
+    # SEAM 1 implementation (interleaved_squeeze): CLI-threaded kwargs,
+    # appended last, all defaulted.
+    'train_2d_qgan': ['encoding', 'inj_layers', 'r_max', 'init_weights',
+                      'norm_floor'],
 }
 
 

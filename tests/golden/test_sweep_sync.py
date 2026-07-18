@@ -22,6 +22,10 @@ from _harness import REPO, load_t2q, main_dispatch
 NON_SWEEPABLE = {
     '--family', '--n-train', '--n-val', '--n-ancilla', '--no-kerr',
     '--plot-every', '--val-every', '--deterministic', '--help', '-h',
+    # interleaved_squeeze encoding flags: --encoding is categorical (string)
+    # and SWEEP_PARAMS only supports numeric ranges — the A/B sweep passes it
+    # as a fixed passthrough. The rest are per-run config, not sweep axes.
+    '--encoding', '--inj-layers', '--r-max', '--init-weights', '--norm-floor',
 }
 
 
