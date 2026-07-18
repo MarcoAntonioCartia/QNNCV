@@ -28,6 +28,7 @@ draws]. Path A draws NO D-phase RNG and NO G-phase np.randint.
 import os
 import random
 import secrets
+import sys
 from datetime import datetime
 
 import numpy as np
@@ -86,7 +87,7 @@ class _BaseTrainer2D:
                  batch_size, n_critic, gp_weight, gp_warmup,
                  instance_noise, noise_anneal, noise_floor,
                  supervised_weight, supervised_warmup,
-                 ket_penalty_weight, g_grad_clip):
+                 ket_penalty_weight, g_grad_clip, norm_floor=0.99):
         self.generator = generator
         self.discriminator = discriminator
         self.g_optimizer = g_optimizer
@@ -107,6 +108,7 @@ class _BaseTrainer2D:
         self.supervised_warmup = supervised_warmup
         self.ket_penalty_weight = ket_penalty_weight
         self.g_grad_clip = g_grad_clip
+        self.norm_floor = norm_floor
         self.degenerate_count = 0
 
     def schedules(self, epoch):
@@ -213,6 +215,18 @@ class _BaseTrainer2D:
         else:
             g_grad_norm = 0.0
 
+        # Per-sample ket-norm monitoring: z-dependent squeezing makes the
+        # Fock-truncation error z-dependent, so a batch MEAN can hide one bad
+        # sample. Diagnostic only — the penalty above stays batch-mean.
+        kn_np = ket_norm_tf.numpy().reshape(-1)
+        worst = int(np.argmin(kn_np))
+        below = int(np.sum(kn_np < self.norm_floor))
+        if below:
+            print(f"WARNING epoch {epoch}: ket_norm < {self.norm_floor} for "
+                  f"{below}/{kn_np.size} samples (min {kn_np.min():.4f}); "
+                  f"worst z = {np.round(z.numpy()[worst], 3).tolist()}",
+                  file=sys.stderr)
+
         return {
             'g_loss': g_loss,
             'supervised_loss': supervised_loss,
@@ -221,6 +235,10 @@ class _BaseTrainer2D:
             'gen_prob': gen_prob,
             'ket_norm_tf': ket_norm_tf,
             'g_grad_norm': g_grad_norm,
+            'ket_norm_min': float(kn_np.min()),
+            'ket_norm_max': float(kn_np.max()),
+            'ket_norm_warn': below,
+            'worst_z': z.numpy()[worst].copy(),
         }
 
 
@@ -627,7 +645,13 @@ def train_2d_qgan(
         noise_floor=noise_floor,
         supervised_weight=supervised_weight, supervised_warmup=supervised_warmup,
         ket_penalty_weight=ket_penalty_weight, g_grad_clip=g_grad_clip,
+        norm_floor=norm_floor,
     )
+
+    # Per-sample ket-norm monitor — separate file next to history.npz
+    # (history.npz keys are frozen by the E2E goldens' strict key match).
+    norm_mon = {'ket_norm_min': [], 'ket_norm_mean': [], 'ket_norm_max': [],
+                'warn_count': [], 'worst_z': []}
 
     for epoch in range(1, epochs + 1):
 
@@ -662,6 +686,11 @@ def train_2d_qgan(
         # Print a warning at val_every cadence so logs don't get spammy.
         ket_norm = float(tf.reduce_mean(step['ket_norm_tf']))
         history['ket_norm'].append(ket_norm)
+        norm_mon['ket_norm_min'].append(step['ket_norm_min'])
+        norm_mon['ket_norm_mean'].append(ket_norm)
+        norm_mon['ket_norm_max'].append(step['ket_norm_max'])
+        norm_mon['warn_count'].append(step['ket_norm_warn'])
+        norm_mon['worst_z'].append(step['worst_z'])
         if epoch % val_every == 0:
             flag = "  <-- LOW (raise cutoff_dim)" if ket_norm < 0.9 else ""
             print(f"  ket_norm = {ket_norm:.3f}{flag}")
@@ -777,6 +806,13 @@ def train_2d_qgan(
     # Save training history
     plot_training_history(history, f"{log_dir}/training_history.png")
     np.savez(f"{log_dir}/history.npz", **history, seed=np.int64(seed))
+    np.savez(f"{log_dir}/norm_monitor.npz",
+             ket_norm_min=np.array(norm_mon['ket_norm_min']),
+             ket_norm_mean=np.array(norm_mon['ket_norm_mean']),
+             ket_norm_max=np.array(norm_mon['ket_norm_max']),
+             warn_count=np.array(norm_mon['warn_count'], dtype=np.int64),
+             worst_z=np.array(norm_mon['worst_z']),
+             norm_floor=np.float64(norm_floor))
 
     print(f"\nResults saved to: {log_dir}")
 
