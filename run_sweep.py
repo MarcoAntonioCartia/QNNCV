@@ -407,7 +407,7 @@ def main():
 
     # Sweep control
     parser.add_argument("--family", type=str, default="ring",
-                        choices=["gaussian", "ring", "correlated", "four_gaussians"],
+                        choices=["gaussian", "ring", "correlated", "four_gaussians", 'vibronic'],
                         help="Distribution family (default: ring)")
     parser.add_argument("--dry-run", action="store_true",
                         help="Print commands without executing")
