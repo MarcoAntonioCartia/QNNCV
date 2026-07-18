@@ -82,7 +82,7 @@ warnings.filterwarnings('ignore')
 # train_2d_qgan and resolve_seed.
 
 from src.quantum.hermite import compute_hermite_basis, recommend_cutoff
-from src.quantum.circuit import CVQGANGenerator
+from src.quantum.circuit import CVQGANGenerator, EncodingSpec
 from src.models.discriminators.qgan2d_discriminator import Discriminator2D
 from src.families.registry import get_family
 from src.metrics.wasserstein import compute_wasserstein_2d
@@ -137,8 +137,19 @@ def build_hp_suffix(args, parser):
         ('ket_penalty_weight', 'kpen'),
         ('g_grad_clip',       'gclip'),
         ('grid_size',         'gs'),
+        ('encoding',          'enc'),
+        ('inj_layers',        'inj'),
+        ('r_max',             'rmax'),
+        ('norm_floor',        'normf'),
         ('seed',              'seed'),
     ]
+
+    # Long categorical values get short folder-name codes ('encIS');
+    # init_weights is deliberately NOT in HP_MAP (a path would wreck the
+    # folder name — provenance lives in run_config.json).
+    VALUE_ABBREV = {
+        'encoding': {'input_displacement': 'ID', 'interleaved_squeeze': 'IS'},
+    }
 
     parts = []
     for dest, abbrev in HP_MAP:
@@ -149,7 +160,10 @@ def build_hp_suffix(args, parser):
                 if actual:          # flag was set (e.g. --no-kerr)
                     parts.append(abbrev)
             else:
-                parts.append(f"{abbrev}{_format_val(actual)}")
+                sval = VALUE_ABBREV.get(dest, {}).get(actual,
+                                                      _format_val(actual))
+                # comma-separated lists (e.g. --inj-layers "0,2") -> "0-2"
+                parts.append(f"{abbrev}{sval.replace(',', '-')}")
     return ('_' + '_'.join(parts)) if parts else ''
 
 
@@ -229,6 +243,23 @@ def build_parser():
                        help='Opt into stronger (slower) same-machine determinism: '
                             'TF op determinism + single-threaded intra/inter-op + '
                             'TF_DETERMINISTIC_OPS/oneDNN env (off by default).')
+    parser.add_argument('--encoding', type=str, default='input_displacement',
+                       choices=['input_displacement', 'interleaved_squeeze'],
+                       help='How z enters the circuit: front displacement only '
+                            '(legacy) or additionally modulating each layer\'s '
+                            'squeeze magnitude via r = w_r + w_s*tanh(z[2m])')
+    parser.add_argument('--inj-layers', type=str, default=None,
+                       help='interleaved_squeeze only: comma-separated layer '
+                            'indices to inject into (e.g. "0,2"); default all')
+    parser.add_argument('--r-max', type=float, default=None,
+                       help='interleaved_squeeze only: hard clip |r| <= r_max '
+                            'on effective squeeze magnitudes (default off)')
+    parser.add_argument('--init-weights', type=str, default=None,
+                       help='Warm start from a best_weights.npy (legacy flat '
+                            'array or interleaved v2 format)')
+    parser.add_argument('--norm-floor', type=float, default=0.99,
+                       help='Warn when any sample\'s truncated-ket norm drops '
+                            'below this threshold')
 
     return parser
 
@@ -304,6 +335,11 @@ def main():
         val_every=args.val_every,
         seed=args.seed,
         deterministic=args.deterministic,
+        encoding=args.encoding,
+        inj_layers=args.inj_layers,
+        r_max=args.r_max,
+        init_weights=args.init_weights,
+        norm_floor=args.norm_floor,
     )
 
 

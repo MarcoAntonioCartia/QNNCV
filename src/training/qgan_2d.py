@@ -36,7 +36,8 @@ import strawberryfields as sf
 import matplotlib.pyplot as plt
 
 from src.quantum.hermite import recommend_cutoff
-from src.quantum.circuit import CVQGANGenerator
+from src.quantum.circuit import CVQGANGenerator, EncodingSpec
+from src.quantum import weights_io
 from src.models.discriminators.qgan2d_discriminator import Discriminator2D
 from src.families.registry import get_family
 from src.data.dataset import generate_dataset
@@ -197,13 +198,18 @@ class _BaseTrainer2D:
                 epoch, adversarial_loss, supervised_loss, ket_penalty)
 
         g_grads = tape.gradient(g_loss, self.generator.trainable_variables)
-        if g_grads[0] is not None:
+        # Filter (grad, var) PAIRS so a None grad never misaligns the zip
+        # (matters once the generator exposes more than one variable).
+        pairs = [(g, v) for g, v in
+                 zip(g_grads, self.generator.trainable_variables)
+                 if g is not None]
+        if pairs:
             if self.g_grad_clip > 0:
-                g_grads = [tf.clip_by_norm(g, self.g_grad_clip) for g in g_grads if g is not None]
+                gs = [tf.clip_by_norm(g, self.g_grad_clip) for g, _ in pairs]
             else:
-                g_grads = [g for g in g_grads if g is not None]
-            self.g_optimizer.apply_gradients(zip(g_grads, self.generator.trainable_variables))
-            g_grad_norm = float(tf.linalg.global_norm(g_grads))
+                gs = [g for g, _ in pairs]
+            self.g_optimizer.apply_gradients(zip(gs, [v for _, v in pairs]))
+            g_grad_norm = float(tf.linalg.global_norm(gs))
         else:
             g_grad_norm = 0.0
 
@@ -390,6 +396,11 @@ def train_2d_qgan(
     val_every=20,
     seed=None,              # Resolved to a concrete int and recorded; None => entropy-based
     deterministic=False,    # Opt into stronger (slower) same-machine determinism
+    encoding='input_displacement',  # SEAM 1: 'input_displacement' | 'interleaved_squeeze'
+    inj_layers=None,        # interleaved only: layers to inject ("0,2" or sequence; None = all)
+    r_max=None,             # interleaved only: hard clip |r| <= r_max on squeeze magnitudes
+    init_weights=None,      # Warm start: path to a best_weights.npy (v1 or v2 format)
+    norm_floor=0.99,        # Per-sample ket-norm warning threshold
 ):
     """
     Train 2D CV-QGAN with pre-generated dataset.
@@ -461,6 +472,9 @@ def train_2d_qgan(
     print(f"Ket-norm penalty weight: {ket_penalty_weight}")
     print(f"Latent scale: {latent_scale}")
     print(f"G gradient clip: {g_grad_clip if g_grad_clip > 0 else 'disabled'}")
+    print(f"Encoding: {encoding}"
+          + (f" (inj_layers={inj_layers}, r_max={r_max})"
+             if encoding == 'interleaved_squeeze' else ""))
     print(f"Seed: {seed}")
     print(f"Output: {log_dir}")
     print("=" * 70)
@@ -498,6 +512,15 @@ def train_2d_qgan(
 
     # Initialize generator
     print("\nInitializing generator...")
+    # SEAM 1: build the encoding strategy. Passing an explicit
+    # EncodingSpec('input_displacement') is identical to the generator's
+    # None default, so the legacy path is untouched.
+    if isinstance(inj_layers, str):
+        inj_layers = tuple(int(s) for s in inj_layers.split(',') if s.strip())
+    if encoding == 'input_displacement':
+        enc_spec = EncodingSpec(encoding)
+    else:
+        enc_spec = EncodingSpec(encoding, inj_layers=inj_layers, r_max=r_max)
     generator = CVQGANGenerator(
         n_modes=n_total_modes,
         n_output_modes=2,
@@ -506,7 +529,15 @@ def train_2d_qgan(
         use_kerr=use_kerr,
         latent_scale=latent_scale,
         batch_size=batch_size,
+        encoding=enc_spec,
     )
+
+    # Warm start (both modes; a legacy v1 file into an interleaved model
+    # leaves w_s at zero = frozen-baseline start).
+    if init_weights:
+        print(f"Warm start from {init_weights}")
+        weights_io.apply_weights(generator, weights_io.load_weights(init_weights),
+                                 source=init_weights)
 
     # Initialize discriminator
     print("\nInitializing discriminator...")
@@ -535,6 +566,7 @@ def train_2d_qgan(
 
     best_val_metric = float('inf')
     best_weights = None
+    best_w_s = None
 
     # Initial validation
     print("\nComputing initial validation...")
@@ -652,7 +684,11 @@ def train_2d_qgan(
                              else val_metrics['nearest_w1'])
             if select_metric < best_val_metric:
                 best_val_metric = select_metric
+                # Snapshot weights AND w_s at the same epoch — never pair
+                # best-epoch weights with w_s from another epoch.
                 best_weights = generator.weights.numpy().copy()
+                best_w_s = (generator.w_s.numpy().copy()
+                            if generator.w_s is not None else None)
 
             print(f"Epoch {epoch:4d} | G: {float(step['g_loss']):.4f} | "
                   f"D: {d_stats['d_loss_avg']:+.4f} | "
@@ -698,9 +734,14 @@ def train_2d_qgan(
     if best_weights is not None:
         print("Restoring best weights from validation...")
         generator.weights.assign(best_weights)
+        if best_w_s is not None:
+            generator.w_s.assign(best_w_s)
         # Persist for post-hoc re-scoring (e.g. with metrics added later);
-        # history.npz alone cannot reconstruct the generator.
-        np.save(f"{log_dir}/best_weights.npy", best_weights)
+        # history.npz alone cannot reconstruct the generator. v1 raw array
+        # for input_displacement (byte-identical to the legacy np.save),
+        # v2 dict with w_s for interleaved_squeeze.
+        weights_io.save_weights(f"{log_dir}/best_weights.npy",
+                                best_weights, w_s=best_w_s)
 
     # Final validation
     final_val = validate(generator, canonical_target, val_set, xvec, yvec, ed_ctx)
