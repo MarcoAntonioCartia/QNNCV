@@ -5,8 +5,9 @@ Symbolic CV-QNN circuit and generator
 Extracted 1:1 from train_2d_qgan.py (behavior-preserving refactor), plus
 SEAM 1: the latent-encoding site is an EncodingSpec strategy. Only
 'input_displacement' (the original front-Dgate encoding) is implemented;
-it reproduces the previous inline code gate-for-gate (identical parameter
-names z_i/w_i, gate types and order -> identical sf.Program, golden-tested).
+it reproduces the previous inline code gate-for-gate (same gate types and
+order -> identical sf.Program up to parameter names, golden-tested; the
+names carry a per-instance prefix since the sympy Symbol-cache fix).
 """
 
 # Compatibility patch: SF still calls scipy.integrate.simps, removed in
@@ -16,12 +17,22 @@ import scipy.integrate
 if not hasattr(scipy.integrate, 'simps'):
     scipy.integrate.simps = scipy.integrate.simpson
 
+import itertools
+
 import numpy as np
 import tensorflow as tf
 import strawberryfields as sf
 from strawberryfields import ops
 
 from src.quantum.hermite import compute_hermite_basis
+
+# Per-instance prefix for symbolic parameter names. strawberryfields'
+# FreeParameter subclasses sympy.Symbol, and sympy caches Symbols by name, so
+# two programs that both call params("z_0") share one object and the values
+# bound in one program leak into the other (seen as "Parameter can be either
+# a scalar or a vector of length B" once two generators with different batch
+# sizes live in one process). Names never enter the numerics.
+_GENERATOR_UID = itertools.count()
 
 
 class EncodingSpec:
@@ -309,11 +320,15 @@ class CVQGANGenerator:
         # Only the front-encoding components become symbolic params (2 per
         # mode, exactly as before); dedicated squeeze-channel components are
         # consumed in the args-dict binding and never enter the program.
-        self.latent_params = [self.prog.params(f"z_{i}")
+        # Names carry a per-instance prefix (see _GENERATOR_UID); every
+        # binding goes through param.name, so nothing else depends on them.
+        uid = next(_GENERATOR_UID)
+        self.latent_params = [self.prog.params(f"g{uid}_z_{i}")
                               for i in range(self.encoding.n_front_latents(self.n_modes))]
 
         # Create symbolic parameters for QNN weights
-        self.weight_params = [self.prog.params(f"w_{i}") for i in range(self.total_params)]
+        self.weight_params = [self.prog.params(f"g{uid}_w_{i}")
+                              for i in range(self.total_params)]
 
         with self.prog.context as q:
             # ENCODING LAYER (SEAM 1): delegated to the encoding strategy;
