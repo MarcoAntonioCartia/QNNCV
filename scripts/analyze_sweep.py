@@ -729,6 +729,10 @@ def build_parser():
     ap.add_argument('--no-write', action='store_true', help='console output only, write nothing')
     ap.add_argument('--no-plots', action='store_true', help='skip the png figures')
     ap.add_argument('--family', nargs='*', default=None, help='only these families (default: all)')
+    ap.add_argument('--since', default=None, metavar='YYYYMMDD',
+                    help='only runs whose folder timestamp is on/after this date (folders without a '
+                         'timestamp are dropped); separates batches that share a tag, e.g. a 500-epoch '
+                         'arm rerun months after the first one')
     ap.add_argument('--n-seeds', type=int, default=None,
                     help='expected seeds per group for the missing-seed report (default: max seed seen + 1)')
     ap.add_argument('--select', choices=sorted(SELECT_KEY), default='nearest_w1',
@@ -760,6 +764,11 @@ def main(argv=None):
         runs = [r for r in runs if r['family'] in set(args.family)]
         if not runs:
             print(f"ERROR: no runs for families {args.family}")
+            return 2
+    if args.since:
+        runs = [r for r in runs if (r['timestamp'] or '') >= args.since]
+        if not runs:
+            print(f"ERROR: no runs with a folder timestamp on/after {args.since}")
             return 2
     dup_notes = mark_duplicates(runs)
     entries = summarize_groups(runs, args.n_seeds, args.include_incomplete)
