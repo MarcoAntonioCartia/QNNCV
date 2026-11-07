@@ -63,6 +63,8 @@ def build_parser():
                           'unless --train-squeeze-scale); must match the '
                           'checkpoint when loading a fixed-scale v2 file')
     cfg.add_argument('--train-squeeze-scale', action='store_true')
+    cfg.add_argument('--inj-latent', type=str, default='shared',
+                     choices=['shared', 'dedicated'])
     cfg.add_argument('--n-modes', type=int, default=2)
     cfg.add_argument('--n-layers', type=int, default=6)
     cfg.add_argument('--cutoff-dim', type=int, default=12)
@@ -105,7 +107,8 @@ def load_generator(args):
             r_max=cfg.get('r_max'), inj_layers=inj,
             squeeze_scale=cfg.get('squeeze_scale', 0.0),
             train_squeeze_scale=cfg.get('train_squeeze_scale',
-                                        legacy_trainable))
+                                        legacy_trainable),
+            inj_latent=cfg.get('inj_latent', 'shared'))
         weights_path = os.path.join(args.run_dir, 'best_weights.npy')
     else:
         inj = args.inj_layers
@@ -118,7 +121,8 @@ def load_generator(args):
             latent_scale=args.latent_scale,
             r_max=args.r_max, inj_layers=inj,
             squeeze_scale=args.squeeze_scale,
-            train_squeeze_scale=args.train_squeeze_scale)
+            train_squeeze_scale=args.train_squeeze_scale,
+            inj_latent=args.inj_latent)
         weights_path = args.weights
 
     if encoding == 'input_displacement':
@@ -127,8 +131,10 @@ def load_generator(args):
         enc = EncodingSpec(encoding, inj_layers=gen_kwargs['inj_layers'],
                            r_max=gen_kwargs['r_max'],
                            squeeze_scale=gen_kwargs['squeeze_scale'],
-                           train_squeeze_scale=gen_kwargs['train_squeeze_scale'])
-    for k in ('inj_layers', 'r_max', 'squeeze_scale', 'train_squeeze_scale'):
+                           train_squeeze_scale=gen_kwargs['train_squeeze_scale'],
+                           inj_latent=gen_kwargs['inj_latent'])
+    for k in ('inj_layers', 'r_max', 'squeeze_scale', 'train_squeeze_scale',
+              'inj_latent'):
         gen_kwargs.pop(k)
 
     tf.random.set_seed(0)  # deterministic init; overwritten unless --smoke

@@ -421,6 +421,7 @@ def train_2d_qgan(
     norm_floor=0.99,        # Per-sample ket-norm warning threshold
     squeeze_scale=0.0,      # interleaved only: z-squeeze gain w_s (0 = channel off)
     train_squeeze_scale=False,  # interleaved only: make w_s trainable (init at squeeze_scale)
+    inj_latent='shared',    # interleaved only: 'shared' (z[2m]) | 'dedicated' (extra z components)
 ):
     """
     Train 2D CV-QGAN with pre-generated dataset.
@@ -495,7 +496,8 @@ def train_2d_qgan(
     print(f"Encoding: {encoding}"
           + (f" (inj_layers={inj_layers}, r_max={r_max}, "
              f"squeeze_scale={squeeze_scale}, "
-             f"train_squeeze_scale={train_squeeze_scale})"
+             f"train_squeeze_scale={train_squeeze_scale}, "
+             f"inj_latent={inj_latent})"
              if encoding == 'interleaved_squeeze' else ""))
     if (encoding == 'interleaved_squeeze' and not train_squeeze_scale
             and float(squeeze_scale) == 0.0):
@@ -550,7 +552,8 @@ def train_2d_qgan(
     else:
         enc_spec = EncodingSpec(encoding, inj_layers=inj_layers, r_max=r_max,
                                 squeeze_scale=squeeze_scale,
-                                train_squeeze_scale=train_squeeze_scale)
+                                train_squeeze_scale=train_squeeze_scale,
+                                inj_latent=inj_latent)
     generator = CVQGANGenerator(
         n_modes=n_total_modes,
         n_output_modes=2,
@@ -784,7 +787,8 @@ def train_2d_qgan(
         weights_io.save_weights(
             f"{log_dir}/best_weights.npy", best_weights, w_s=best_w_s,
             meta=({'squeeze_scale': float(squeeze_scale),
-                   'train_squeeze_scale': bool(train_squeeze_scale)}
+                   'train_squeeze_scale': bool(train_squeeze_scale),
+                   'inj_latent': inj_latent}
                   if best_w_s is not None else None))
 
     # Final validation

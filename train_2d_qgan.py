@@ -142,6 +142,7 @@ def build_hp_suffix(args, parser):
         ('r_max',             'rmax'),
         ('squeeze_scale',     'ss'),
         ('train_squeeze_scale', 'sstrain'),
+        ('inj_latent',        'zl'),
         ('norm_floor',        'normf'),
         ('seed',              'seed'),
     ]
@@ -151,6 +152,7 @@ def build_hp_suffix(args, parser):
     # folder name — provenance lives in run_config.json).
     VALUE_ABBREV = {
         'encoding': {'input_displacement': 'ID', 'interleaved_squeeze': 'IS'},
+        'inj_latent': {'shared': 'sh', 'dedicated': 'ded'},
     }
 
     parts = []
@@ -272,6 +274,14 @@ def build_parser():
                             'initialized at --squeeze-scale (the original '
                             'learned-gain design is --train-squeeze-scale '
                             'with --squeeze-scale 0)')
+    parser.add_argument('--inj-latent', type=str, default='shared',
+                       choices=['shared', 'dedicated'],
+                       help='interleaved_squeeze only: which latent component '
+                            'the squeeze channel reads. shared = z[2m] (also '
+                            'drives the front displacement; latent_dim '
+                            '2*n_modes); dedicated = extra components read '
+                            'only by the squeeze channel (latent_dim '
+                            '3*n_modes), decoupling size from position')
 
     return parser
 
@@ -354,6 +364,7 @@ def main():
         norm_floor=args.norm_floor,
         squeeze_scale=args.squeeze_scale,
         train_squeeze_scale=args.train_squeeze_scale,
+        inj_latent=args.inj_latent,
     )
 
 

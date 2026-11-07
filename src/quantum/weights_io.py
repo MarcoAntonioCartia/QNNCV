@@ -107,3 +107,12 @@ def apply_weights(generator, loaded, source='<weights file>'):
                     f"--squeeze-scale, or --train-squeeze-scale to load "
                     f"them as a trainable gain")
             generator.w_s.assign(w_s)
+
+    # Variant notice (allowed warm start, never an error): the gain shape is
+    # the same for both inj_latent variants, but the latent the channel
+    # reads differs, so a cross-variant load is a warm start, not a resume.
+    meta_inj = (loaded.get('meta') or {}).get('inj_latent')
+    gen_inj = getattr(getattr(generator, 'encoding', None), 'inj_latent', None)
+    if meta_inj is not None and gen_inj is not None and meta_inj != gen_inj:
+        print(f"  Note: {source} was trained with inj_latent={meta_inj!r}; "
+              f"this generator uses {gen_inj!r} (warm start across variants)")

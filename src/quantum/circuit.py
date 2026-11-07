@@ -48,15 +48,28 @@ class EncodingSpec:
         (interleaved only; None = no clip). squeeze_scale: value of the
         gain (interleaved only; default 0.0). train_squeeze_scale: whether
         the gain is trainable (interleaved only; default False).
+    inj_latent (interleaved only): which latent component the squeeze
+        channel of mode m reads. 'shared' (default) = z[2m], the component
+        that also sets mode m's front-displacement magnitude, so ring size
+        and position are driven together (latent_dim = 2*n_modes).
+        'dedicated' = n_modes extra components z[2*n_modes + m] read ONLY
+        by the squeeze channel, so size and position decouple
+        (latent_dim = 3*n_modes). The front encoding always uses the first
+        2*n_modes components; only those become symbolic circuit params.
     """
 
     KINDS = ('input_displacement', 'interleaved_squeeze')
+    INJ_LATENTS = ('shared', 'dedicated')
 
     def __init__(self, kind='input_displacement', *, inj_layers=None,
-                 r_max=None, squeeze_scale=0.0, train_squeeze_scale=False):
+                 r_max=None, squeeze_scale=0.0, train_squeeze_scale=False,
+                 inj_latent='shared'):
         if kind not in self.KINDS:
             raise ValueError(f"Unknown encoding kind: {kind!r}. "
                              f"Available: {list(self.KINDS)}")
+        if inj_latent not in self.INJ_LATENTS:
+            raise ValueError(f"Unknown inj_latent: {inj_latent!r}. "
+                             f"Available: {list(self.INJ_LATENTS)}")
         if kind == 'input_displacement':
             if inj_layers is not None or r_max is not None:
                 raise ValueError(
@@ -65,12 +78,16 @@ class EncodingSpec:
                 raise ValueError(
                     "squeeze_scale/train_squeeze_scale only apply to "
                     "'interleaved_squeeze'")
+            if inj_latent != 'shared':
+                raise ValueError(
+                    "inj_latent only applies to 'interleaved_squeeze'")
         self.kind = kind
         self.inj_layers = (None if inj_layers is None
                            else tuple(sorted(int(l) for l in inj_layers)))
         self.r_max = None if r_max is None else float(r_max)
         self.squeeze_scale = float(squeeze_scale)
         self.train_squeeze_scale = bool(train_squeeze_scale)
+        self.inj_latent = inj_latent
 
     def resolve_inj_layers(self, n_layers):
         """Concrete tuple of injected layer indices (all layers if None)."""
@@ -86,16 +103,30 @@ class EncodingSpec:
                 f"inj_layers {bad} out of range [0, {n_layers})")
         return self.inj_layers
 
-    def z_index_for_mode(self, mode):
+    def z_index_for_mode(self, mode, n_modes=None):
         """Latent component driving mode `mode`'s squeeze modulation.
 
-        z[2m] is the same component that drives mode m's front-displacement
-        magnitude. Single edit point for future injection ablations.
+        'shared': z[2m], the component that also drives mode m's
+        front-displacement magnitude. 'dedicated': z[2*n_modes + m], an
+        extra component nothing else reads (n_modes required).
         """
+        if self.inj_latent == 'dedicated':
+            if n_modes is None:
+                raise ValueError("z_index_for_mode needs n_modes for "
+                                 "inj_latent='dedicated'")
+            return 2 * n_modes + mode
         return 2 * mode
 
+    def n_front_latents(self, n_modes):
+        """Latent components consumed by the front encoding (magnitude +
+        phase per mode) = the symbolic z params of the circuit program."""
+        return 2 * n_modes
+
     def latent_dim(self, n_modes):
-        # Latent dimension: magnitude + phase for each mode
+        """Dimension of the sampled latent vector: the front components
+        plus, for 'dedicated', one squeeze-channel component per mode."""
+        if self.kind == 'interleaved_squeeze' and self.inj_latent == 'dedicated':
+            return 3 * n_modes
         return 2 * n_modes
 
     def apply(self, q, latent_params, latent_scale, n_modes):
@@ -275,7 +306,11 @@ class CVQGANGenerator:
         self.prog = sf.Program(self.n_modes)
 
         # Create symbolic parameters for latent input
-        self.latent_params = [self.prog.params(f"z_{i}") for i in range(self.latent_dim)]
+        # Only the front-encoding components become symbolic params (2 per
+        # mode, exactly as before); dedicated squeeze-channel components are
+        # consumed in the args-dict binding and never enter the program.
+        self.latent_params = [self.prog.params(f"z_{i}")
+                              for i in range(self.encoding.n_front_latents(self.n_modes))]
 
         # Create symbolic parameters for QNN weights
         self.weight_params = [self.prog.params(f"w_{i}") for i in range(self.total_params)]
@@ -357,6 +392,13 @@ class CVQGANGenerator:
         # Build parameter mapping
         mapping = {}
         batched_z = (len(z.shape) == 2)
+        width = int(z.shape[-1])
+        if width != self.latent_dim:
+            raise ValueError(
+                f"latent vector has {width} components; this generator "
+                f"expects latent_dim={self.latent_dim} (encoding "
+                f"{self.encoding.kind}, inj_latent="
+                f"{self.encoding.inj_latent})")
 
         # Map latent vector(s): one (batch_size,) tensor per parameter when batched
         for i, param in enumerate(self.latent_params):
@@ -377,7 +419,7 @@ class CVQGANGenerator:
                 for m in range(self.n_modes):
                     # Consumption order: Sgate(w[idx], w[idx+1]) per mode
                     idx = base + 2 * m
-                    zi = self.encoding.z_index_for_mode(m)
+                    zi = self.encoding.z_index_for_mode(m, self.n_modes)
                     zc = z[:, zi] if batched_z else z[zi]
                     r = self.weights[idx] + self.w_s[l, m] * tf.tanh(zc)
                     if self.encoding.r_max is not None:
@@ -543,6 +585,7 @@ class CVQGANGenerator:
             'encoding': self.encoding.kind,
             'squeeze_scale': self.encoding.squeeze_scale,
             'train_squeeze_scale': self.encoding.train_squeeze_scale,
+            'inj_latent': self.encoding.inj_latent,
             'n_modes': self.n_modes,
             'n_output_modes': self.n_output_modes,
             'n_ancilla': self.n_ancilla,

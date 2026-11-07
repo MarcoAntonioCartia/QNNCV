@@ -34,6 +34,8 @@ NON_SWEEPABLE = {
     # passthrough per arm, like --encoding; --squeeze-scale itself IS a
     # sweep axis (numeric) and lives in SWEEP_PARAMS.
     '--train-squeeze-scale',
+    # categorical (shared | dedicated): passthrough per arm
+    '--inj-latent',
 }
 
 
