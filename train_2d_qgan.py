@@ -37,6 +37,7 @@ import os
 import sys
 import argparse
 import json
+import time
 
 # Refactor strangler: the training code is being extracted into src/ (see
 # tests/golden/). Hard `from src...` imports below need the repo root on
@@ -143,13 +144,15 @@ def build_hp_suffix(args, parser):
         ('squeeze_scale',     'ss'),
         ('train_squeeze_scale', 'sstrain'),
         ('inj_latent',        'zl'),
+        ('init_weights',      'warm'),   # bare marker: the path stays in run_config.json
         ('norm_floor',        'normf'),
         ('seed',              'seed'),
     ]
 
-    # Long categorical values get short folder-name codes ('encIS');
-    # init_weights is deliberately NOT in HP_MAP (a path would wreck the
-    # folder name — provenance lives in run_config.json).
+    # Long categorical values get short folder-name codes ('encIS').
+    # init_weights contributes only the bare marker 'warm' (a path would
+    # wreck the folder name — provenance lives in run_config.json); without
+    # it a cold and a warm-started arm of one seed share a folder name.
     VALUE_ABBREV = {
         'encoding': {'input_displacement': 'ID', 'interleaved_squeeze': 'IS'},
         'inj_latent': {'shared': 'sh', 'dedicated': 'ded'},
@@ -163,6 +166,8 @@ def build_hp_suffix(args, parser):
             if isinstance(actual, bool):
                 if actual:          # flag was set (e.g. --no-kerr)
                     parts.append(abbrev)
+            elif dest == 'init_weights':
+                parts.append(abbrev)    # 'warm', never the path
             else:
                 sval = VALUE_ABBREV.get(dest, {}).get(actual,
                                                       _format_val(actual))
@@ -307,12 +312,21 @@ def main():
     # If --n-ancilla was used, reflect it in args.n_modes for suffix building
     args.n_modes = n_total_modes
     hp_suffix = build_hp_suffix(args, parser)
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    log_dir = f"./logs/qgan_2d_{args.family}_{timestamp}{hp_suffix}"
+    # Folder names are stamped to the second. Two runs with the same tag
+    # started in the same second (two arms of one seed launched together)
+    # would otherwise share a folder and overwrite each other's history and
+    # weights. Claim the folder atomically; on a clash wait and re-stamp.
+    while True:
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        log_dir = f"./logs/qgan_2d_{args.family}_{timestamp}{hp_suffix}"
+        try:
+            os.makedirs(log_dir, exist_ok=False)
+            break
+        except FileExistsError:
+            time.sleep(1.0)
 
     # Dump a durable run config (args + environment + seed) so any result can be
     # reproduced and each A/B table row can cite its seed.
-    os.makedirs(log_dir, exist_ok=True)
     run_config = dict(vars(args))
     run_config.update({
         'timestamp': timestamp,

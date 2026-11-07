@@ -227,7 +227,9 @@ def load_run(path, select_key):
         r['seed'] = seed_from_name
     r['warm'] = bool(c.get('init_weights'))
     r['encoding'] = c.get('encoding') or 'input_displacement'
-    r['group'] = tag + ('_warm' if r['warm'] else '')
+    # Folders made after the 'warm' marker was added already carry it in
+    # the tag; older warm-started folders get it appended here.
+    r['group'] = tag if 'warm' in tag.split('_') else tag + ('_warm' if r['warm'] else '')
     r['epochs_planned'] = c.get('epochs')
     r['val_every'] = int(c.get('val_every') or 20)
 
