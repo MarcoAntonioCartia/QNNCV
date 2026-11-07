@@ -419,6 +419,8 @@ def train_2d_qgan(
     r_max=None,             # interleaved only: hard clip |r| <= r_max on squeeze magnitudes
     init_weights=None,      # Warm start: path to a best_weights.npy (v1 or v2 format)
     norm_floor=0.99,        # Per-sample ket-norm warning threshold
+    squeeze_scale=0.0,      # interleaved only: z-squeeze gain w_s (0 = channel off)
+    train_squeeze_scale=False,  # interleaved only: make w_s trainable (init at squeeze_scale)
 ):
     """
     Train 2D CV-QGAN with pre-generated dataset.
@@ -491,8 +493,16 @@ def train_2d_qgan(
     print(f"Latent scale: {latent_scale}")
     print(f"G gradient clip: {g_grad_clip if g_grad_clip > 0 else 'disabled'}")
     print(f"Encoding: {encoding}"
-          + (f" (inj_layers={inj_layers}, r_max={r_max})"
+          + (f" (inj_layers={inj_layers}, r_max={r_max}, "
+             f"squeeze_scale={squeeze_scale}, "
+             f"train_squeeze_scale={train_squeeze_scale})"
              if encoding == 'interleaved_squeeze' else ""))
+    if (encoding == 'interleaved_squeeze' and not train_squeeze_scale
+            and float(squeeze_scale) == 0.0):
+        print("NOTE: squeeze_scale=0 with a fixed gain: the z-squeeze channel "
+              "is OFF — this run is numerically the input_displacement "
+              "baseline (control arm). Use --squeeze-scale S for a fixed "
+              "gain or --train-squeeze-scale for a learned one.")
     print(f"Seed: {seed}")
     print(f"Output: {log_dir}")
     print("=" * 70)
@@ -538,7 +548,9 @@ def train_2d_qgan(
     if encoding == 'input_displacement':
         enc_spec = EncodingSpec(encoding)
     else:
-        enc_spec = EncodingSpec(encoding, inj_layers=inj_layers, r_max=r_max)
+        enc_spec = EncodingSpec(encoding, inj_layers=inj_layers, r_max=r_max,
+                                squeeze_scale=squeeze_scale,
+                                train_squeeze_scale=train_squeeze_scale)
     generator = CVQGANGenerator(
         n_modes=n_total_modes,
         n_output_modes=2,
@@ -769,8 +781,11 @@ def train_2d_qgan(
         # history.npz alone cannot reconstruct the generator. v1 raw array
         # for input_displacement (byte-identical to the legacy np.save),
         # v2 dict with w_s for interleaved_squeeze.
-        weights_io.save_weights(f"{log_dir}/best_weights.npy",
-                                best_weights, w_s=best_w_s)
+        weights_io.save_weights(
+            f"{log_dir}/best_weights.npy", best_weights, w_s=best_w_s,
+            meta=({'squeeze_scale': float(squeeze_scale),
+                   'train_squeeze_scale': bool(train_squeeze_scale)}
+                  if best_w_s is not None else None))
 
     # Final validation
     final_val = validate(generator, canonical_target, val_set, xvec, yvec, ed_ctx)

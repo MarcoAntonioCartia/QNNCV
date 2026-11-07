@@ -7,6 +7,9 @@ Structural suite for src/quantum/weights_io.py (no golden data):
 - v2 (interleaved): dict round-trips weights and w_s exactly.
 - v1 file -> interleaved generator: weights assigned, w_s stays zero.
 - v2 file -> input_displacement generator: ValueError.
+- v2 file -> FIXED-scale interleaved generator: loads only when the file's
+  w_s equals the configured scale, else ValueError (a fixed scale is never
+  silently overwritten by a checkpoint).
 - Shape mismatches: ValueError.
 """
 
@@ -37,7 +40,11 @@ def test():
 
     tmp = scratch_dir('weights_io')
     g_id = build(mod)
-    g_is = build(mod, encoding=EncodingSpec('interleaved_squeeze'))
+    # Learned-gain design (trainable w_s, init 0): the interleaved generator
+    # a v2 checkpoint can always be loaded into. The default (fixed scale 0)
+    # is exercised separately below.
+    g_is = build(mod, encoding=EncodingSpec('interleaved_squeeze',
+                                            train_squeeze_scale=True))
     w = g_id.weights.numpy()
     ws = np.random.RandomState(3).standard_normal(
         (LAYERS, MODES)).astype(np.float32) * 0.1
@@ -75,6 +82,26 @@ def test():
     weights_io.apply_weights(g_is, weights_io.load_weights(v2), source=v2)
     assert_exact(g_is.w_s.numpy(), ws, label='v2->interleaved w_s')
     print("  ok: v2 -> interleaved assigns w_s")
+
+    # --- v2 -> FIXED-scale generator: w_s must match the configured scale --
+    g_fix = build(mod, encoding=EncodingSpec('interleaved_squeeze',
+                                             squeeze_scale=0.25))
+    try:
+        weights_io.apply_weights(g_fix, weights_io.load_weights(v2), source=v2)
+        raise AssertionError("v2 with foreign w_s loaded into a FIXED-scale "
+                             "generator must raise")
+    except ValueError as e:
+        assert 'FIXED squeeze scale' in str(e), str(e)
+    v2_fix = os.path.join(tmp, 'v2_fixed_weights.npy')
+    weights_io.save_weights(v2_fix, w, w_s=g_fix.w_s.numpy())
+    g_fix.weights.assign(np.zeros_like(w))
+    weights_io.apply_weights(g_fix, weights_io.load_weights(v2_fix),
+                             source=v2_fix)
+    assert_exact(g_fix.weights.numpy(), w, label='v2(fixed)->fixed weights')
+    assert float(np.max(np.abs(g_fix.w_s.numpy() - 0.25))) == 0.0, (
+        "fixed scale changed by a matching v2 load")
+    print("  ok: v2 -> fixed-scale generator (matching w_s loads, foreign "
+          "w_s raises)")
 
     # --- v2 -> input_displacement generator: hard error --------------------
     try:

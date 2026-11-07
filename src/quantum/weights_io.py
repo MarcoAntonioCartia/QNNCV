@@ -15,10 +15,14 @@ v2 (interleaved_squeeze): a pickled dict (0-d object array) carrying the
          'inj_layers', 'r_max'}
 
 Compatibility contract:
-- v1 file -> interleaved generator: weights assigned, w_s left at zero
-  (warm start from the frozen baseline); a notice is printed.
+- v1 file -> interleaved generator: weights assigned, w_s left at its
+  configured init (squeeze_scale; zero = warm start from the frozen
+  baseline); a notice is printed.
 - v2 file -> input_displacement generator: ValueError (the w_s amplitudes
   would be silently dropped).
+- v2 file -> interleaved generator with a FIXED (non-trainable) w_s: the
+  file's w_s must equal the configured fixed scale, else ValueError (a
+  fixed scale must never be silently overwritten by a checkpoint).
 """
 
 import numpy as np
@@ -82,13 +86,24 @@ def apply_weights(generator, loaded, source='<weights file>'):
     generator.weights.assign(weights)
 
     if generator.w_s is not None:
+        fixed = not bool(getattr(generator.w_s, 'trainable', True))
         if w_s is None:
+            ws_max = float(np.max(np.abs(generator.w_s.numpy())))
             print(f"  Warm start: {source} is a legacy flat-weights file; "
-                  f"w_s initialized to 0 (frozen-baseline start)")
+                  f"w_s stays at its configured init "
+                  f"(max |w_s| = {ws_max:.3g}, "
+                  f"{'fixed' if fixed else 'trainable'})"
+                  + (" (frozen-baseline start)" if ws_max == 0.0 else ""))
         else:
             ws_shape = tuple(generator.w_s.shape)
             if tuple(w_s.shape) != ws_shape:
                 raise ValueError(
                     f"{source}: w_s shape {tuple(w_s.shape)} does not match "
                     f"the generator's {ws_shape}")
+            if fixed and not np.allclose(w_s, generator.w_s.numpy()):
+                raise ValueError(
+                    f"{source} carries w_s values that differ from this "
+                    f"generator's FIXED squeeze scale; pass the matching "
+                    f"--squeeze-scale, or --train-squeeze-scale to load "
+                    f"them as a trainable gain")
             generator.w_s.assign(w_s)

@@ -32,21 +32,28 @@ class EncodingSpec:
           at the circuit front, Dgate(z[2m] * latent_scale, z[2m+1]) per mode.
       'interleaved_squeeze' — the front displacement PLUS mid-circuit
           z-injection: in each injected layer the squeeze magnitude becomes
-          r = w_r[l,m] + w_s[l,m] * tanh(z[2m]), where w_s is a trainable
-          (n_layers, n_modes) variable initialized to zero. At w_s == 0 the
-          model is exactly the input_displacement baseline. The symbolic
-          program is unchanged; the injection lives in the args-dict binding
-          (CVQGANGenerator._run_circuit).
+          r = w_r[l,m] + w_s[l,m] * tanh(z[2m]), where w_s is an
+          (n_layers, n_modes) gain filled with `squeeze_scale`. The gain is
+          FIXED (non-trainable) unless `train_squeeze_scale` is True, in
+          which case it is a trainable variable initialized at
+          `squeeze_scale`. At w_s == 0 the model is exactly the
+          input_displacement baseline, so the defaults (scale 0, fixed)
+          make 'interleaved_squeeze' a numerically identical control arm;
+          the original learned-gain design is train_squeeze_scale=True with
+          squeeze_scale=0. The symbolic program is unchanged; the injection
+          lives in the args-dict binding (CVQGANGenerator._run_circuit).
 
     inj_layers: iterable of layer indices to inject into (interleaved only;
         None = all layers). r_max: optional hard clip |r| <= r_max
-        (interleaved only; None = no clip).
+        (interleaved only; None = no clip). squeeze_scale: value of the
+        gain (interleaved only; default 0.0). train_squeeze_scale: whether
+        the gain is trainable (interleaved only; default False).
     """
 
     KINDS = ('input_displacement', 'interleaved_squeeze')
 
     def __init__(self, kind='input_displacement', *, inj_layers=None,
-                 r_max=None):
+                 r_max=None, squeeze_scale=0.0, train_squeeze_scale=False):
         if kind not in self.KINDS:
             raise ValueError(f"Unknown encoding kind: {kind!r}. "
                              f"Available: {list(self.KINDS)}")
@@ -54,10 +61,16 @@ class EncodingSpec:
             if inj_layers is not None or r_max is not None:
                 raise ValueError(
                     "inj_layers/r_max only apply to 'interleaved_squeeze'")
+            if float(squeeze_scale) != 0.0 or bool(train_squeeze_scale):
+                raise ValueError(
+                    "squeeze_scale/train_squeeze_scale only apply to "
+                    "'interleaved_squeeze'")
         self.kind = kind
         self.inj_layers = (None if inj_layers is None
                            else tuple(sorted(int(l) for l in inj_layers)))
         self.r_max = None if r_max is None else float(r_max)
+        self.squeeze_scale = float(squeeze_scale)
+        self.train_squeeze_scale = bool(train_squeeze_scale)
 
     def resolve_inj_layers(self, n_layers):
         """Concrete tuple of injected layer indices (all layers if None)."""
@@ -182,14 +195,21 @@ class CVQGANGenerator:
         # Initialize weights
         self.weights = self._init_weights(active_sd, passive_sd)
 
-        # interleaved_squeeze: trainable modulation amplitudes, init 0 so the
-        # model at init is exactly the input_displacement baseline. tf.zeros
-        # is RNG-free — the random stream is identical in both modes.
+        # interleaved_squeeze: the z-squeeze gain w_s, filled with the
+        # encoding's squeeze_scale (0 => exactly the input_displacement
+        # baseline). A non-trainable tf.Variable when the scale is fixed, so
+        # .assign()/.numpy() (warm starts, checkpoints) work in both modes
+        # while trainable_variables excludes it. tf.fill is RNG-free — the
+        # random stream is identical in every mode.
         self.w_s = None
         if self.encoding.kind == 'interleaved_squeeze':
             self._inj_layers = self.encoding.resolve_inj_layers(n_layers)
-            self.w_s = tf.Variable(tf.zeros([n_layers, n_modes]),
-                                   trainable=True, name='qnn_ws')
+            init_ws = tf.fill([n_layers, n_modes],
+                              tf.constant(self.encoding.squeeze_scale,
+                                          dtype=tf.float32))
+            self.w_s = tf.Variable(init_ws,
+                                   trainable=self.encoding.train_squeeze_scale,
+                                   name='qnn_ws')
 
         # Create SF program and engine
         self.prog = sf.Program(n_modes)
@@ -512,13 +532,17 @@ class CVQGANGenerator:
 
     @property
     def trainable_variables(self):
-        if self.w_s is not None:
+        # A fixed squeeze scale is a non-trainable Variable: excluded here,
+        # so the optimizer and gradient tape never see it.
+        if self.w_s is not None and self.w_s.trainable:
             return [self.weights, self.w_s]
         return [self.weights]
 
     def get_config(self):
         return {
             'encoding': self.encoding.kind,
+            'squeeze_scale': self.encoding.squeeze_scale,
+            'train_squeeze_scale': self.encoding.train_squeeze_scale,
             'n_modes': self.n_modes,
             'n_output_modes': self.n_output_modes,
             'n_ancilla': self.n_ancilla,

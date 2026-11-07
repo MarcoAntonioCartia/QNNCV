@@ -84,8 +84,11 @@ def test():
         assert_close(n_is.numpy(), n_id.numpy(), label=f'equiv ketnorm {tag}')
         print(f"  ok: w_s=0 equivalence ({tag})")
 
-    # --- (2) gradient liveness at w_s == 0 ---------------------------------
-    g_is = build(mod, encoding=EncodingSpec('interleaved_squeeze'),
+    # --- (2) gradient liveness at w_s == 0 (trainable gain) ----------------
+    # The gain is fixed by default; the learned-gain design is opted into
+    # with train_squeeze_scale=True (init at squeeze_scale, here 0).
+    g_is = build(mod, encoding=EncodingSpec('interleaved_squeeze',
+                                            train_squeeze_scale=True),
                  batch_size=BATCH)
     g_is.weights.assign(weights)
     with tf.GradientTape() as tape:

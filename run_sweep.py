@@ -71,6 +71,7 @@ SWEEP_PARAMS = {
     "grid_size":         ("--grid-size",         int,   "gs",    10,   100),
     "seed":              ("--seed",              int,   "seed",  0,    999999),
     "batch_size":        ("--batch-size",        int,   "bs",    1,    128),
+    "squeeze_scale":     ("--squeeze-scale",     float, "ss",    0.0,  2.0),
 
 }
 

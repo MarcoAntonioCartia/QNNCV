@@ -46,7 +46,7 @@ APPEND_ALLOWLIST = {
     # SEAM 1 implementation (interleaved_squeeze): CLI-threaded kwargs,
     # appended last, all defaulted.
     'train_2d_qgan': ['encoding', 'inj_layers', 'r_max', 'init_weights',
-                      'norm_floor'],
+                      'norm_floor', 'squeeze_scale', 'train_squeeze_scale'],
 }
 
 

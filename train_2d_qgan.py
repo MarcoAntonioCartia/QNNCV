@@ -140,6 +140,8 @@ def build_hp_suffix(args, parser):
         ('encoding',          'enc'),
         ('inj_layers',        'inj'),
         ('r_max',             'rmax'),
+        ('squeeze_scale',     'ss'),
+        ('train_squeeze_scale', 'sstrain'),
         ('norm_floor',        'normf'),
         ('seed',              'seed'),
     ]
@@ -260,6 +262,16 @@ def build_parser():
     parser.add_argument('--norm-floor', type=float, default=0.99,
                        help='Warn when any sample\'s truncated-ket norm drops '
                             'below this threshold')
+    parser.add_argument('--squeeze-scale', type=float, default=0.0,
+                       help='interleaved_squeeze only: value of the z-squeeze '
+                            'gain w_s in r = w_r + w_s*tanh(z[2m]); FIXED '
+                            '(non-trainable) unless --train-squeeze-scale. '
+                            '0 (default) = channel off')
+    parser.add_argument('--train-squeeze-scale', action='store_true',
+                       help='interleaved_squeeze only: make w_s trainable, '
+                            'initialized at --squeeze-scale (the original '
+                            'learned-gain design is --train-squeeze-scale '
+                            'with --squeeze-scale 0)')
 
     return parser
 
@@ -340,6 +352,8 @@ def main():
         r_max=args.r_max,
         init_weights=args.init_weights,
         norm_floor=args.norm_floor,
+        squeeze_scale=args.squeeze_scale,
+        train_squeeze_scale=args.train_squeeze_scale,
     )
 
 

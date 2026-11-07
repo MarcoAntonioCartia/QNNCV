@@ -60,6 +60,8 @@ TRAIN_MAP = {
     'r_max': 'r_max',
     'init_weights': 'init_weights',
     'norm_floor': 'norm_floor',
+    'squeeze_scale': 'squeeze_scale',
+    'train_squeeze_scale': 'train_squeeze_scale',
 }
 # CLI dests with no train_2d_qgan counterpart
 TRAIN_EXCLUDED_DESTS = {
