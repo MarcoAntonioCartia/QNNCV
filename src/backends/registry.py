@@ -31,11 +31,19 @@ def toy_factories(batch_size=4):
         'cv': lambda: CVGeneratorBackend(
             n_modes=2, n_layers=2, cutoff_dim=6, latent_scale=1.0,
             batch_size=batch_size),
-        'cv/interleaved': lambda: CVGeneratorBackend(
+        # learned gain (--train-squeeze-scale): w_s trainable, 36 params
+        'cv/interleaved-trainable': lambda: CVGeneratorBackend(
             n_modes=2, n_layers=2, cutoff_dim=6, latent_scale=1.0,
             batch_size=batch_size,
             encoding=EncodingSpec('interleaved_squeeze', squeeze_scale=0.2,
                                   train_squeeze_scale=True)),
+        # CLI default since 50d80b5: FIXED gain (32 params) + the dedicated
+        # latent of ef1301e (latent_dim 3*n_modes)
+        'cv/interleaved-fixed-dedicated': lambda: CVGeneratorBackend(
+            n_modes=2, n_layers=2, cutoff_dim=6, latent_scale=1.0,
+            batch_size=batch_size,
+            encoding=EncodingSpec('interleaved_squeeze', squeeze_scale=0.2,
+                                  inj_latent='dedicated')),
     }
     critics = {
         'dense_2d': lambda: DenseCriticBackend(dropout_rate=0.0),
