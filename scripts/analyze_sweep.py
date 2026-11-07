@@ -86,6 +86,27 @@ STAT_METRICS = OrderedDict([
 ])
 STATS = ('n', 'median', 'q25', 'q75', 'min', 'max', 'mean')
 
+# Re-scored metrics from scripts/rescore.py (analysis/rescore/rescore.csv,
+# one row per run folder, 200 fixed-seed z draws): attached as rs_<col>.
+RESCORE_COLS = OrderedDict([
+    ('fid_w1',          're-scored fidelity: mean nearest-member W1 of the fakes (grid cells)'),
+    ('cov_w1',          're-scored coverage: mean over val members of the nearest fake W1 (grid cells)'),
+    ('chamfer_w1',      're-scored fidelity + coverage, W1'),
+    ('fid_ed',          're-scored fidelity in energy distance (x/y units)'),
+    ('cov_ed',          're-scored coverage in energy distance (x/y units)'),
+    ('chamfer_ed',      're-scored fidelity + coverage, energy distance'),
+    ('canon_w1_mean',   're-scored canonical W1'),
+    ('diversity_w1',    're-scored diversity (mean pairwise W1 of the fakes)'),
+    ('val_self_div_w1', 'validation-set self-diversity reference (mean pairwise W1)'),
+    ('mmd2',            're-scored MMD^2 between fake and val sets'),
+    ('mmd_p',           'permutation p-value of the two-sample MMD test'),
+    ('ket_norm_min',    're-scored per-sample ket-norm minimum'),
+    ('ket_norm_mean',   're-scored per-sample ket-norm mean'),
+])
+RESCORE_DEFAULT = os.path.join('analysis', 'rescore', 'rescore.csv')
+for _col, _desc in RESCORE_COLS.items():
+    STAT_METRICS['rs_' + _col] = _desc
+
 # Fixed-order categorical palette and chart chrome (validated reference
 # palette, light surface). Colour follows the group, never its rank.
 PALETTE = ['#2a78d6', '#eb6834', '#1baf7a', '#eda100',
@@ -229,6 +250,8 @@ def load_run(path, select_key):
     r.update(epochs_done=None, n_val=0, best_idx=None, best_epoch=NAN,
              ket_last=NAN, ket_min=NAN, nm_min=NAN, nm_warn=None,
              wall_s_per_epoch=NAN, duplicate_of=None, identical=None)
+    for col in RESCORE_COLS:
+        r['rs_' + col] = NAN
 
     if hist is not None:
         per_epoch = hist.get('g_loss', hist.get('wasserstein'))
@@ -283,6 +306,29 @@ def load_run(path, select_key):
             r['note'] = (r['note'] + '; ' if r['note'] else '') + \
                 f'unreadable norm_monitor.npz ({e.__class__.__name__})'
     return r
+
+
+def attach_rescore(runs, path):
+    """Join scripts/rescore.py's csv (one row per run folder, column `run`)
+    onto the runs as rs_<col>; returns (n_matched, n_rows, missing_cols)."""
+    with open(path, newline='', encoding='utf-8') as f:
+        rows = list(csv.DictReader(f))
+    by_run = {row.get('run', ''): row for row in rows}
+    present = set(rows[0].keys()) if rows else set()
+    missing = [c for c in RESCORE_COLS if c not in present]
+    matched = 0
+    for r in runs:
+        row = by_run.get(r['name'])
+        if row is None:
+            continue
+        matched += 1
+        for col in RESCORE_COLS:
+            v = row.get(col, '')
+            try:
+                r['rs_' + col] = float(v)
+            except (TypeError, ValueError):
+                r['rs_' + col] = NAN
+    return matched, len(rows), missing
 
 
 def mark_duplicates(runs):
@@ -394,8 +440,9 @@ def console_table(entries, show_empty=False):
 RUN_FIELDS = (['name', 'group', 'family', 'encoding', 'seed', 'warm', 'timestamp', 'status',
                'epochs_planned', 'epochs_done', 'val_every', 'n_val', 'best_idx', 'best_epoch']
               + ['best_' + k for k in VAL_KEYS] + ['last_' + k for k in VAL_KEYS]
-              + ['ket_last', 'ket_min', 'nm_min', 'nm_warn', 'wall_s_per_epoch',
-                 'duplicate_of', 'identical', 'note', 'dir'])
+              + ['ket_last', 'ket_min', 'nm_min', 'nm_warn', 'wall_s_per_epoch']
+              + ['rs_' + c for c in RESCORE_COLS]
+              + ['duplicate_of', 'identical', 'note', 'dir'])
 
 
 def write_runs_csv(path, runs):
@@ -633,7 +680,11 @@ def resolve_group(query, group_names):
 
 
 COMPARE_METRICS = [('best_nearW1', 'lower'), ('best_div', None), ('best_nearED', 'lower'),
-                   ('best_canonW1', 'lower'), ('best_epoch', None), ('nm_min', None)]
+                   ('best_canonW1', 'lower'), ('best_epoch', None), ('nm_min', None),
+                   # re-scored (200 samples) — present only when rescore.csv was joined
+                   ('rs_fid_w1', 'lower'), ('rs_cov_w1', 'lower'), ('rs_chamfer_w1', 'lower'),
+                   ('rs_fid_ed', 'lower'), ('rs_cov_ed', 'lower'), ('rs_chamfer_ed', 'lower'),
+                   ('rs_diversity_w1', None), ('rs_mmd2', 'lower'), ('rs_mmd_p', None)]
 
 
 def compare_groups(ga, gb, entries, out_dir):
@@ -729,6 +780,9 @@ def build_parser():
     ap.add_argument('--no-write', action='store_true', help='console output only, write nothing')
     ap.add_argument('--no-plots', action='store_true', help='skip the png figures')
     ap.add_argument('--family', nargs='*', default=None, help='only these families (default: all)')
+    ap.add_argument('--rescore', default=None, metavar='CSV',
+                    help=f'join scripts/rescore.py output (default: {RESCORE_DEFAULT} when it exists; '
+                         f'"none" to skip); adds rs_<col> metrics to the tables and --compare')
     ap.add_argument('--since', default=None, metavar='YYYYMMDD',
                     help='only runs whose folder timestamp is on/after this date (folders without a '
                          'timestamp are dropped); separates batches that share a tag, e.g. a 500-epoch '
@@ -770,6 +824,16 @@ def main(argv=None):
         if not runs:
             print(f"ERROR: no runs with a folder timestamp on/after {args.since}")
             return 2
+    rescore_path = args.rescore
+    if rescore_path is None and os.path.exists(RESCORE_DEFAULT):
+        rescore_path = RESCORE_DEFAULT
+    if rescore_path and rescore_path.lower() != 'none':
+        if not os.path.exists(rescore_path):
+            print(f"ERROR: --rescore file not found: {rescore_path}")
+            return 2
+        matched, n_rows, missing = attach_rescore(runs, rescore_path)
+        print(f"re-score joined from {rescore_path}: {matched} of {len(runs)} runs matched "
+              f"({n_rows} rows in the file)" + (f"; columns missing: {missing}" if missing else ''))
     dup_notes = mark_duplicates(runs)
     entries = summarize_groups(runs, args.n_seeds, args.include_incomplete)
 
