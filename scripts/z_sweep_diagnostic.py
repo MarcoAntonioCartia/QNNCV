@@ -58,6 +58,11 @@ def build_parser():
                      choices=['input_displacement', 'interleaved_squeeze'])
     cfg.add_argument('--inj-layers', type=str, default=None)
     cfg.add_argument('--r-max', type=float, default=None)
+    cfg.add_argument('--squeeze-scale', type=float, default=0.0,
+                     help='interleaved only: value of the gain w_s (fixed '
+                          'unless --train-squeeze-scale); must match the '
+                          'checkpoint when loading a fixed-scale v2 file')
+    cfg.add_argument('--train-squeeze-scale', action='store_true')
     cfg.add_argument('--n-modes', type=int, default=2)
     cfg.add_argument('--n-layers', type=int, default=6)
     cfg.add_argument('--cutoff-dim', type=int, default=12)
@@ -89,11 +94,18 @@ def load_generator(args):
         inj = cfg.get('inj_layers')
         if isinstance(inj, str):
             inj = tuple(int(s) for s in inj.split(',') if s.strip())
+        # Gain mode: runs from before the fixed-scale design have neither key
+        # and were the trainable (learned-gain) design by definition.
+        legacy_trainable = (encoding == 'interleaved_squeeze'
+                            and 'squeeze_scale' not in cfg)
         gen_kwargs = dict(
             n_modes=cfg['n_modes'], n_layers=cfg['n_layers'],
             cutoff_dim=cfg['cutoff_dim'], use_kerr=not cfg.get('no_kerr'),
             latent_scale=cfg['latent_scale'],
-            r_max=cfg.get('r_max'), inj_layers=inj)
+            r_max=cfg.get('r_max'), inj_layers=inj,
+            squeeze_scale=cfg.get('squeeze_scale', 0.0),
+            train_squeeze_scale=cfg.get('train_squeeze_scale',
+                                        legacy_trainable))
         weights_path = os.path.join(args.run_dir, 'best_weights.npy')
     else:
         inj = args.inj_layers
@@ -104,16 +116,20 @@ def load_generator(args):
             n_modes=args.n_modes, n_layers=args.n_layers,
             cutoff_dim=args.cutoff_dim, use_kerr=not args.no_kerr,
             latent_scale=args.latent_scale,
-            r_max=args.r_max, inj_layers=inj)
+            r_max=args.r_max, inj_layers=inj,
+            squeeze_scale=args.squeeze_scale,
+            train_squeeze_scale=args.train_squeeze_scale)
         weights_path = args.weights
 
     if encoding == 'input_displacement':
         enc = EncodingSpec(encoding)
     else:
         enc = EncodingSpec(encoding, inj_layers=gen_kwargs['inj_layers'],
-                           r_max=gen_kwargs['r_max'])
-    gen_kwargs.pop('inj_layers')
-    gen_kwargs.pop('r_max')
+                           r_max=gen_kwargs['r_max'],
+                           squeeze_scale=gen_kwargs['squeeze_scale'],
+                           train_squeeze_scale=gen_kwargs['train_squeeze_scale'])
+    for k in ('inj_layers', 'r_max', 'squeeze_scale', 'train_squeeze_scale'):
+        gen_kwargs.pop(k)
 
     tf.random.set_seed(0)  # deterministic init; overwritten unless --smoke
     generator = CVQGANGenerator(n_output_modes=2, encoding=enc, **gen_kwargs)
