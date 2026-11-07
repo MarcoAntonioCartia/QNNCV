@@ -11,6 +11,12 @@ Range syntax (MATLAB-style):  start stop step
 
 Multiple ranges produce the cartesian product of all combinations.
 
+Passthrough: any other train_2d_qgan.py flag (categorical or boolean, e.g.
+--encoding interleaved_squeeze, --train-squeeze-scale, --r-max 0.5,
+--val-every 10) is forwarded unchanged to every experiment. Sweepable
+(numeric) params must use the sweep syntax so the run-folder label stays
+complete.
+
 Usage:
     python run_sweep.py --family ring --g-lr 0.001 0.01 0.003
     python run_sweep.py --family ring --g-lr 0.001 0.01 0.003 --n-layers 4 8 2
@@ -18,11 +24,15 @@ Usage:
     python run_sweep.py --dry-run --family ring --g-lr 0.001 0.01 0.001
     python run_sweep.py --parallel 4 --family ring --n-layers 4 10 2
     python run_sweep.py --silent --family ring --g-lr 0.001 0.005 0.001
+    # fixed-scale z-squeeze arm, scale swept, encoding passed through:
+    python run_sweep.py --family ring --seed 0 4 1 --squeeze-scale 0.1 0.4 0.1 \
+        --encoding interleaved_squeeze --r-max 0.5
 """
 
 import argparse
 import itertools
 import os
+import re
 import signal
 import subprocess
 import sys
@@ -134,8 +144,14 @@ def format_val(v):
 # Experiment generation
 # ─────────────────────────────────────────────────────────────────────────────
 
-def generate_experiments(args):
-    """Build experiment list from swept parameters (cartesian product)."""
+def generate_experiments(args, passthrough=()):
+    """Build experiment list from swept parameters (cartesian product).
+
+    `passthrough` holds any extra train_2d_qgan.py flags given on the
+    command line (categorical/boolean ones such as --encoding
+    interleaved_squeeze or --train-squeeze-scale); they are appended
+    unchanged to every experiment and do not enter the sweep label.
+    """
     swept = {}  # param_name -> list of values
     fixed = {}  # param_name -> single value
 
@@ -149,8 +165,9 @@ def generate_experiments(args):
         else:
             swept[param_name] = values
 
-    if not swept and not fixed:
-        print("  ERROR: No hyperparameters specified. Provide at least one to sweep or fix.")
+    if not swept and not fixed and not passthrough:
+        print("  ERROR: No hyperparameters specified. Provide at least one to sweep or fix,")
+        print("         or a passthrough flag for train_2d_qgan.py (e.g. --encoding interleaved_squeeze).")
         print("  Example: python run_sweep.py --family ring --g-lr 0.001 0.01 0.003")
         sys.exit(1)
 
@@ -181,7 +198,7 @@ def generate_experiments(args):
             label_parts.append(f"{abbrev}{format_val(val)}")
 
         label = "_".join(label_parts) if label_parts else "baseline"
-        experiments.append((label, cli_flags))
+        experiments.append((label, cli_flags + list(passthrough)))
 
     return experiments, swept
 
@@ -219,19 +236,41 @@ def find_log_dir(label, family, start_time):
     if not candidates:
         return None
 
-    # Match by HP suffix in dir name
-    if label == "baseline":
-        for c in candidates:
-            rest = c.name[len(prefix):]
-            if len(rest) == 15:
-                return c
-    else:
-        # Check if all label parts appear in the dir name
-        for c in candidates:
-            if all(part in c.name for part in label.split("_")):
-                return c
+    # Match by HP tags, compared as WHOLE tokens. The run folder only carries
+    # non-default values (train_2d_qgan.build_hp_suffix), so a label part
+    # for a fixed override equal to the CLI default (e.g. m2, ss0) has no
+    # token to match, and substring tests are wrong ('ss0' is a prefix of
+    # 'ss0.4'). Rule: a candidate is excluded when it carries a token with
+    # the same abbreviation as a label part but a different value (another
+    # experiment of this sweep); among the rest the one matching the most
+    # label parts wins, fewest unexplained tags then earliest run on ties.
+    def split_tag(tok):
+        m = re.match(r"^([A-Za-z]+)(.*)$", tok)
+        return (m.group(1), m.group(2)) if m else (tok, "")
 
-    return max(candidates, key=lambda p: p.stat().st_mtime) if candidates else None
+    def same(a, b):
+        try:
+            return float(a) == float(b)
+        except ValueError:
+            return a == b
+
+    wanted = {} if label == "baseline" else dict(
+        split_tag(part) for part in label.split("_"))
+    scored = []
+    for c in candidates:
+        rest = c.name[len(prefix) + 15:]
+        tokens = dict(split_tag(t) for t in rest.split("_") if t)
+        if any(abbr in tokens and not same(tokens[abbr], val)
+               for abbr, val in wanted.items()):
+            continue
+        matched = sum(1 for abbr, val in wanted.items()
+                      if abbr in tokens and same(tokens[abbr], val))
+        unexplained = sum(1 for abbr in tokens if abbr not in wanted)
+        scored.append((matched, -unexplained, -c.stat().st_mtime, c))
+    if not scored:
+        return None
+    scored.sort(key=lambda t: (t[0], t[1], t[2]), reverse=True)
+    return scored[0][3]
 
 
 def extract_best_w1(log_dir):
@@ -426,15 +465,29 @@ def main():
             help=f"[{vmin}, {vmax}] — single value or START STOP STEP",
         )
 
-    args = parser.parse_args()
+    # Passthrough: any other train_2d_qgan.py flag (categorical or boolean,
+    # e.g. --encoding interleaved_squeeze, --train-squeeze-scale, --r-max 0.5)
+    # is forwarded unchanged to EVERY experiment. Sweepable (numeric) params
+    # must use the sweep syntax so the folder label stays complete.
+    args, passthrough = parser.parse_known_args()
+    sweep_flags = {flag for flag, *_ in SWEEP_PARAMS.values()}
+    bad = [tok for tok in passthrough if tok in sweep_flags]
+    if bad:
+        parser.error(f"{bad} are sweepable params: pass them with the sweep "
+                     f"syntax (single value or START STOP STEP), not as "
+                     f"passthrough")
+    if passthrough and not passthrough[0].startswith("--"):
+        parser.error(f"unrecognized arguments: {' '.join(passthrough)}")
 
     # Generate experiments from ranges
-    experiments, swept = generate_experiments(args)
+    experiments, swept = generate_experiments(args, passthrough)
     n_total = len(experiments)
 
     # Show sweep summary
     print(f"\nSweep configuration:")
     print(f"  Family: {args.family}")
+    if passthrough:
+        print(f"  Passthrough (every run): {' '.join(passthrough)}")
     for name, values in swept.items():
         abbrev = SWEEP_PARAMS[name][2]
         print(f"  {name}: {len(values)} values  {[format_val(v) for v in values]}")
