@@ -16,6 +16,7 @@
   "gp_weight": 10.0,
   "grid_size": 40,
   "init_weights": null,
+  "inj_latent": "shared",
   "inj_layers": null,
   "instance_noise": 0.1,
   "ket_penalty_weight": 20.0,
@@ -39,7 +40,7 @@
   "supervised_warmup": 200,
   "supervised_weight": 0.0,
   "tf_version": "2.18.0",
-  "timestamp": "20261107_175452",
+  "timestamp": "20261107_214054",
   "train_squeeze_scale": false,
   "val_every": 2
 }
