@@ -35,9 +35,11 @@
   "r_max": null,
   "seed": 0,
   "sf_version": "0.23.0",
+  "squeeze_scale": 0.0,
   "supervised_warmup": 200,
   "supervised_weight": 0.0,
   "tf_version": "2.18.0",
-  "timestamp": "20260718_150558",
+  "timestamp": "20261107_175452",
+  "train_squeeze_scale": false,
   "val_every": 2
 }

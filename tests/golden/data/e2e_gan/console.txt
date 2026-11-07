@@ -39,7 +39,7 @@ Latent scale: 0.3
 G gradient clip: 5.0
 Encoding: input_displacement
 Seed: 0
-Output: ./logs/qgan_2d_ring_20260718_150558_m3_nl2_c6_ep4_dlr0.0005_gp10_seed0
+Output: ./logs/qgan_2d_ring_20261107_175452_m3_nl2_c6_ep4_dlr0.0005_gp10_seed0
 ======================================================================
 
 ======================================================================
@@ -89,4 +89,4 @@ Final validation: canonW1 2.3065 | nearW1 1.7532 | div 1.3585 | nearED 0.1102
 
 Generating final samples with different latent vectors...
 
-Results saved to: ./logs/qgan_2d_ring_20260718_150558_m3_nl2_c6_ep4_dlr0.0005_gp10_seed0
+Results saved to: ./logs/qgan_2d_ring_20261107_175452_m3_nl2_c6_ep4_dlr0.0005_gp10_seed0
