@@ -1,9 +1,11 @@
 # Interleaved-squeeze encoding: A/B experiment protocol
 
-Status: **revised 7 Nov 2026 — fixed-scale design added; the sweep below is
-NOT yet launched.** A first cold pass of the original learned-gain design
-was run on 18 Jul 2026 (ring, seeds 0–4, 100 and 200 epochs); its result is
-recorded under "Findings so far" and motivates the revision.
+Status: **revised 7 Nov 2026 — fixed-scale design added and run the same
+evening (Arms A and B at scales 0.05/0.1/0.2), then the dedicated-latent
+variant (Arm B′ at 0.1/0.2); results under "Findings so far". Arms C/D
+(learned gain) NOT yet run at the 300-epoch budget.** A first cold pass of
+the original learned-gain design was run on 18 Jul 2026 (ring, seeds 0–4,
+100 and 200 epochs); it motivated the fixed-scale revision.
 Baseline milestone: tag `v0.2-baseline` (main @ `ae1bc29`); the 30-seed
 baseline sweep is attributed to it.
 
@@ -55,6 +57,7 @@ on so the critic can grade it; the learned gain stays as an ablation.
 | Seeds             | 0–4 first pass; 0–9 confirmation; 0–29 only if the effect is real |
 | Arm A (control)   | `--encoding input_displacement` — or `--encoding interleaved_squeeze` with the defaults (scale 0, fixed), which is numerically identical and shares the folder tag `encIS` |
 | Arm B (primary)   | `--encoding interleaved_squeeze --squeeze-scale s --r-max 0.5`, s ∈ {0.1, 0.2, 0.3, 0.4} (range 0.1–0.4 step 0.1): from "comparable to" to "dominating" the baseline's learned squeeze magnitudes (median \|w_r\| = 0.145, IQR 0.075–0.219 over the 30-seed ring sweep) |
+| Arm B′ (decoupled) | Arm B plus `--inj-latent dedicated`: the squeeze channel of mode m reads its own latent component z[2·n_modes + m] instead of the door's z[2m], so size and position are separate dials (latent_dim 9 for 3 modes; still 186 trainable parameters). Motivated by the z-sweep on Arm B, where radius and centroid moved together |
 | Arm C (ablation)  | `--encoding interleaved_squeeze --train-squeeze-scale` (learned gain, cold start at 0): does the model open the channel by itself? |
 | Arm D (ablation)  | Arm C warm-started from the matching baseline seed: `--init-weights logs/<baseline-ring-seedN>/best_weights.npy` (v1 file loads with w_s = 0). The sharpest critic the learned gain can get |
 
@@ -79,6 +82,11 @@ python run_sweep.py --family ring --silent --seed 0 4 1 --squeeze-scale 0.1 0.4 
 # Arm A at the same budget (seeds 0-4, 300 epochs)
 python run_sweep.py --family ring --silent --seed 0 4 1 \
     --n-modes 3 --d-lr 0.0005 --gp-weight 10 --epochs 300
+
+# Arm B': decoupled (dedicated latent components), scales 0.1 and 0.2
+python run_sweep.py --family ring --silent --seed 0 4 1 --squeeze-scale 0.1 0.2 0.1 \
+    --n-modes 3 --d-lr 0.0005 --gp-weight 10 --epochs 300 \
+    --encoding interleaved_squeeze --inj-latent dedicated
 
 # Arm C: learned gain, cold
 python run_sweep.py --family ring --silent --seed 0 4 1 \
@@ -139,6 +147,11 @@ a *failure* of that scale, not a success.
 4. **Single-ring chirality lobing does NOT improve** in any arm — that
    failure is mode-count/readout physics, not encoding placement.
 
+Outcome (7 Nov 2026, 300 epochs, 5 seeds): 1 not supported (shared or
+dedicated); 2 holds for truncation, and nearW1 is worst at s = 0.2 in both
+variants; 3 and the chirality claim not yet tested at this budget (Arms C/D
+pending).
+
 ## Findings so far (18 Jul 2026 cold pass, learned gain, from `scripts/analyze_sweep.py`)
 
 | arm (ring, seeds 0–4)         | best nearW1 median | diversity | nearED | learned \|w_s\| (median) |
@@ -154,6 +167,45 @@ a *failure* of that scale, not a success.
   ket-norm min 0.70–0.89, 124–601 warnings per run, `--r-max` off).
 - The gain modulated the squeezes by ≈ 10 % of their size: the channel never
   opened, so the hypothesis was not tested. Hence the fixed-scale design.
+
+### 7 Nov 2026 evening: fixed scale, shared and dedicated latent (ring, 300 epochs, seeds 0–4, no r_max)
+
+| arm                          | best nearW1 median [IQR] | vs baseline per seed (nearW1) | nearED | per-sample ket-norm min (median) | best epoch (median) |
+|------------------------------|-------------------------:|-------------------------------|-------:|---------------------------------:|--------------------:|
+| A baseline                   | **0.673** [0.635, 0.704] | —                             | 0.020  | 0.856                            | 160                 |
+| B shared, s = 0.05           | 0.750 [0.638, 0.756]     | worse 3/5 (within noise)      | 0.018  | 0.854                            | 200                 |
+| B shared, s = 0.1            | 0.715 [0.695, 0.788]     | worse 4/5, median Δ +0.04     | 0.018  | 0.802                            | 200                 |
+| B shared, s = 0.2            | 0.831 [0.810, 0.851]     | worse 4/5, median Δ +0.15     | 0.020  | 0.758                            | 240                 |
+| B′ dedicated, s = 0.1        | 0.779 [0.708, 0.814]     | worse 4/5, median Δ +0.11     | 0.021  | 0.853                            | 240                 |
+| B′ dedicated, s = 0.2        | 0.786 [0.779, 0.847]     | worse 5/5, median Δ +0.14     | 0.020  | 0.789                            | 200                 |
+
+Paired tables: `analysis/sweep/compare_*.md` (from `scripts/analyze_sweep.py`).
+Validation noise for one checkpoint, re-validated with fresh z at the 10
+samples the trainer uses: nearW1 sd ≈ 0.08 (0.04 at 40 samples); the
+best-checkpoint value is optimistic by ≈ 0.03 (minimum of 15 noisy readings).
+
+- **No tested variant beats the baseline.** Prediction 1 is not supported at
+  any scale, shared or dedicated. nearED is flat (0.018–0.021) everywhere.
+- Truncation grows with the scale in both variants (prediction 2 holds);
+  the treatment arms reach their best checkpoint later than the baseline.
+- z-sweep diagnostic (`analysis/zsweep/`, seed-0 checkpoints): in the
+  baseline the radius depends only on |z| (Spearman vs |t| ≈ −1: size is a
+  side effect of displacement). Shared s = 0.2 makes the radius monotone in
+  the door component (Spearman −0.89, range 0.78–1.26) while the same
+  component shifts the centroid by 0.70. Dedicated s = 0.2 separates the
+  dials exactly as designed: the dedicated components move the radius
+  monotonically (Spearman −1.00, 1.07–1.43) with centroid shift ≤ 0.03,
+  while the door components keep moving position without resizing. **The
+  mechanism is right and the fidelity still drops**, so the coupling was not
+  the whole explanation.
+- Open readings, not conclusions: (i) budget — 4 of 10 dedicated runs peak
+  at epoch 240–300 and may still be improving; (ii) the forced variation is
+  a harder matching problem for the critic within 300 generator steps;
+  (iii) the ket penalty fights the extra squeezing (ket-norm minima 0.73–0.89
+  at s = 0.2). The validation metric (10 samples, marginal W1) is also
+  noisier than the effects at s ≤ 0.1.
+- Baseline at 300 epochs ≈ the July 500-epoch runs (≈ 0.70): the 100-epoch
+  ring sweep was under-trained relative to the other families.
 
 ## Ablations noted for LATER (out of scope here)
 
