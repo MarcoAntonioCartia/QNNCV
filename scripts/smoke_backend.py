@@ -88,8 +88,11 @@ def main():
     probs = g.generate_batch(tf.random.normal([args.batch, g.latent_dim]), fam.xvec, fam.yvec)[0].numpy()
     w1 = [compute_wasserstein_2d(target.numpy(), probs[b]) for b in range(args.batch)]
     print(f"KL start {first:.4f} -> end {last:.4f}  ({time.time() - t0:.1f}s, "
-          f"{(time.time() - t0) / args.steps:.3f} s/step); canonical W1 of "
-          f"{args.batch} samples: {np.round(w1, 3).tolist()}")
+          f"{(time.time() - t0) / args.steps:.3f} s/step); SUPERVISED/CANONICAL W1 "
+          f"of {args.batch} samples: {np.round(w1, 3).tolist()}")
+    print("NOTE: this is the Path-A objective (one fixed target, supervised KL). "
+          "It is NOT comparable to the GAN sweep's nearest-member W1 over the "
+          "family; never put the two in one table without naming the axis.")
     ok = last < first
     print("SMOKE", "OK" if ok else "FAILED (loss did not decrease)")
     return 0 if ok else 1
