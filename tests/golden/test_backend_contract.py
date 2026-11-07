@@ -36,14 +36,17 @@ def check_generator(name, factory):
     import tensorflow as tf
     seed_all(0)
     g = factory()
-    xvec = np.linspace(-3.0, 3.0, GRID)
+    # a backend may only produce certain grid sizes (DV: powers of two)
+    G = getattr(g, 'grid_sizes', None)
+    G = GRID if not G else G[0]
+    xvec = np.linspace(-3.0, 3.0, G)
     z = tf.constant(np.random.RandomState(7).standard_normal(
         (BATCH, g.latent_dim)).astype(np.float32) * 0.5)
 
     # (1) shapes, dtype, regularizer
     probs, aux = g.generate_batch(z, xvec, xvec)
     p = probs.numpy()
-    assert p.shape == (BATCH, GRID, GRID), f"{name}: shape {p.shape}"
+    assert p.shape == (BATCH, G, G), f"{name}: shape {p.shape}"
     assert p.dtype == np.float32, f"{name}: dtype {p.dtype}"
     assert np.isfinite(p).all() and (p >= 0).all(), f"{name}: bad values"
     reg = float(g.regularizer(aux))
@@ -125,7 +128,10 @@ def test():
     for name, factory in critics.items():
         check_critic(name, factory)
 
-    # CV adapter exactness against the raw generator
+    # CV adapter exactness against the raw generator. Runs BEFORE the heavy
+    # point-wise block on purpose: Strawberry Fields' FreeParameter is a
+    # sympy Symbol cached by name, so programs that share parameter names
+    # leak bound values after many runs (see circuit.py's unique names).
     xvec = np.linspace(-3.0, 3.0, GRID)
     seed_all(0)
     raw = mod.CVQGANGenerator(n_modes=2, n_layers=2, cutoff_dim=6,
@@ -138,11 +144,33 @@ def test():
     p_ad, k_ad = adapted.generate_batch(z, xvec, xvec)
     assert_exact(p_ad.numpy(), p_raw.numpy(), label='cv adapter probs')
     assert_exact(k_ad.numpy(), k_raw.numpy(), label='cv adapter ket norms')
-    # the regularizer is the trainer's ket penalty formula
     assert_exact(float(adapted.regularizer(k_ad)),
                  float(tf.reduce_mean(tf.square(1.0 - k_raw))),
                  label='cv regularizer == ket penalty')
     print("  ok: cv adapter bit-identical to CVQGANGenerator; regularizer == ket penalty")
+
+    # point-wise critics: the sampled score is the exact full-grid sum in
+    # expectation and equals it exactly when the point set is the full grid
+    from src.backends.pointwise import PointwiseCritic
+    xvec = np.linspace(-3.0, 3.0, GRID)
+    x = tf.constant(np.random.RandomState(5).rand(BATCH, GRID, GRID, 1).astype(np.float32))
+    for name, factory in critics.items():
+        seed_all(0)
+        c = factory()
+        if not isinstance(c, PointwiseCritic):
+            continue
+        d_all = c.evaluate(tf.constant(c.coords)).numpy()            # (G^2,)
+        exact = (x.numpy().reshape(BATCH, -1) @ d_all)[:, None]
+        full = c(x, points=np.arange(c.n_cells)).numpy()
+        assert_close(full, exact, label=f'{name}: full-grid score == sum P*D', rtol=1e-4, atol=1e-4)
+        # unbiasedness: the mean of 128 sampled scores is within 4 standard
+        # errors of the exact sum (the estimator is a plain Monte-Carlo sum)
+        draws = np.stack([c(x).numpy() for _ in range(128)], axis=0)   # (128, B, 1)
+        se = draws.std(axis=0, ddof=1) / np.sqrt(draws.shape[0]) + 1e-9
+        zscore = np.abs(draws.mean(axis=0) - exact) / se
+        assert zscore.max() < 4.0, f"{name}: sampled-score mean is {zscore.max():.1f} SE from exact"
+        print(f"  ok: pointwise  {name:16s} full-grid exact; sampled mean within "
+              f"{zscore.max():.1f} SE of exact")
 
 
 def generate(force=False):
