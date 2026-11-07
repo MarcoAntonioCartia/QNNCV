@@ -9,11 +9,12 @@ contract suite (tests/golden/test_backend_contract.py) picks it up through
 """
 
 from src.backends.cv import CVGeneratorBackend
+from src.backends.classical import ClassicalCoordGenerator
 from src.backends.classical_critic import DenseCriticBackend
 
 GENERATOR_REGISTRY = {
     'cv': CVGeneratorBackend,
-    # 'classical': ...  (Phase 1a)
+    'classical': ClassicalCoordGenerator,   # Phase 1a (coordinate network)
     # 'dv': ...         (Phase 1b)
 }
 
@@ -44,6 +45,10 @@ def toy_factories(batch_size=4):
             batch_size=batch_size,
             encoding=EncodingSpec('interleaved_squeeze', squeeze_scale=0.2,
                                   inj_latent='dedicated')),
+        # parameter-matched to the CV frozen config (190 vs 186) and the
+        # radial-feature ablation
+        'classical': lambda: ClassicalCoordGenerator.parameter_matched(),
+        'classical/xyr': lambda: ClassicalCoordGenerator(features='xyr'),
     }
     critics = {
         'dense_2d': lambda: DenseCriticBackend(dropout_rate=0.0),
