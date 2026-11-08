@@ -207,6 +207,55 @@ best-checkpoint value is optimistic by ≈ 0.03 (minimum of 15 noisy readings).
 - Baseline at 300 epochs ≈ the July 500-epoch runs (≈ 0.70): the 100-epoch
   ring sweep was under-trained relative to the other families.
 
+### 8 Nov 2026 follow-ups and the control that re-reads them (ring, seeds 0–4, 300 epochs unless stated, no r_max unless stated)
+
+| arm                                                        | best nearW1 median | vs baseline 0.673 (6-component latent stream) | vs CONTROL 0.814 (9-component stream) |
+|------------------------------------------------------------|-------------------:|------------------------------------------------|----------------------------------------|
+| A baseline rerun at 500 epochs                             | 0.673              | identical first 300 epochs; only seed 3 improved (0.746 → 0.678) | — |
+| B′ dedicated s = 0.1 at 500 epochs                         | 0.779              | worse 4/5 (= its 300-epoch value; budget is not the explanation) | — |
+| C learned gain, dedicated, cold (`--train-squeeze-scale`)  | 0.789 (median \|w_s\| 0.016, max 0.087) | worse 5/5, median Δ +0.09 | better 3/5, median Δ −0.04 |
+| D learned gain, dedicated, warm start (generator only; critic fresh) | 0.720 (median \|w_s\| 0.025, max 0.247) | worse 4/5, median Δ +0.06 | better 5/5, median Δ −0.05 (inherits the baseline batch's weights) |
+| B′ s = 0.2 + `--r-max 0.5`                                 | 0.813              | worse 4/5                                      | ≈ (−0.015) |
+| B′ s = 0.2 at cutoff 14                                    | 0.801              | worse 5/5                                      | ≈ (−0.014); ket-norm min 0.846 vs 0.789 |
+| **CONTROL: `--inj-latent dedicated --squeeze-scale 0`** (the exact baseline model; only the latent stream is 9-dimensional) | **0.814** [0.794, 0.832] | **worse 5/5, median Δ +0.14** | — |
+
+Reading:
+
+- **The control is the baseline.** With the gain fixed at 0 the circuit is
+  `r = w_r` exactly; the only difference from Arm A is that a 9-component
+  latent consumes the random stream differently, so the same seed gives
+  different dice. That alone moved the 5-seed median from 0.673 to 0.814 —
+  the same 0.14 by which *every* dedicated arm trailed the baseline. The
+  7 Nov baseline batch (0.673) and July's (0.699) are therefore lucky 5-seed
+  draws relative to the 9-component arms, not a stronger model.
+- **Resolution of a 5-seed A/B at this budget ≈ 0.1–0.15 in the median.**
+  Realization (trajectory) noise, not the ±0.08 validation noise, is the
+  dominant term. None of tonight's arm effects reaches it in either
+  direction: against the control, fixed 0.1 is −0.065, learned −0.04,
+  0.2 −0.02, r_max/cutoff-14 ≈ 0 — all within noise. The shared-latent
+  verdicts of the evening (+0.04 at 0.1, +0.15 at 0.2) share the baseline's
+  dice but a model change perturbs the trajectory just as a dice change
+  does, so they carry the same resolution; only s = 0.2 (4/5 worse, +0.15)
+  sits at the edge of it.
+- **What survives as robust:** the mechanism works (z-sweep); the learned
+  gain stays shut in both wirings, cold (|w_s| ≈ 0.016) and warm-started
+  (0.025); truncation grows with the scale; `--r-max 0.5` and cutoff 14 do
+  not change the outcome; no arm beats the baseline; no arm is shown worse
+  than its proper control.
+- **Protocol consequences:** (1) compare an arm only against a control
+  with the same latent dimension (the dedicated baseline is now that
+  control for every `--inj-latent dedicated` arm); (2) effects ≤ 0.05 need
+  ≥ 20 seeds, or a paired-restart design, before any claim; (3) the
+  re-score (200 samples, coverage) removes validation noise but not this
+  realization noise.
+- Prediction 3 outcome: confirmed — C does not open the channel, D opens
+  it slightly more (0.025 vs 0.016, up to 0.25 on a few gates) and is not
+  better for it.
+- Bookkeeping: the first Arm C/D launch collided on folder names (seeds 0,
+  2, 4 shared a folder); those folders live in `logs/_collided_step3_20261107/`
+  and are excluded from every number above; the rerun used the atomic
+  folder claim and the `warm` tag marker (commit `abd0397`).
+
 ## Ablations noted for LATER (out of scope here)
 
 - Dedicated inserted encoding squeezers between layers (Quandela-literal;
