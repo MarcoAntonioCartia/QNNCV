@@ -96,6 +96,27 @@ TF-2.18 compatibility is confirmed.
 3. Edge finding: the survey families (cat fringe, Fock egg-crate, cubic
    phase, ħ = 1 formulas) where CV is expected to win or lose.
 
+### Statistical design (from the 7–8 Nov interleaved runs)
+
+- **Realization noise is large.** The exact baseline model run with a
+  9-component latent stream instead of 6 (nothing else changed) moved the
+  5-seed median nearest-member W1 from 0.673 to 0.814 at 300 epochs — the
+  same size as every "effect" the interleaved arms showed. A different RNG
+  consumption is a different experiment.
+- **Rule 1 — matched controls.** Every arm is compared against a control
+  with the same latent dimension and RNG consumption (same `latent_dim`,
+  same sampling order), or against a per-backend control; CV, DV and
+  classical generators either share `latent_dim` or each carries its own
+  control arm.
+- **Rule 2 — seed counts.** Five seeds at 300 epochs resolve differences of
+  about 0.10–0.15 in nearest-member W1. An effect of 0.05 needs 20 or more
+  seeds, or a paired-restart design (same seed, same data, arms differing
+  only in the knob) with the re-scored metrics (`scripts/rescore.py`,
+  200 samples, ±0.02 per run instead of ±0.08).
+- **Rule 3 — report the stick with the number.** Every table states the
+  validation sample count, the seed count, the budget and whether the
+  value is the trainer's best-checkpoint reading or the re-score.
+
 ## Fences
 
 - Never retrain the July/November baselines; re-render CV checkpoints
