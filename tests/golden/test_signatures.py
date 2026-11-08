@@ -51,7 +51,7 @@ APPEND_ALLOWLIST = {
                       # benchmark backends (Phase 2 plumbing), all defaulted
                       'generator', 'critic', 'critic_points', 'critic_layers',
                       'gen_hidden', 'dv_qubits', 'dv_layers',
-                      'dv_reupload', 'dv_encoding'],
+                      'dv_reupload', 'dv_encoding', 'gen_activation', 'gen_fourier'],
 }
 
 

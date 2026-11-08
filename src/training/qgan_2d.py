@@ -432,6 +432,8 @@ def train_2d_qgan(
     critic_points=64,       # point-wise critics: grid points sampled per critic call (0 = all)
     critic_layers=6,        # point-wise quantum critics: circuit layers
     gen_hidden='9,9',       # classical generator: hidden sizes of the coordinate net
+    gen_activation='tanh',  # classical generator: 'tanh' | 'sine' (SIREN)
+    gen_fourier=0,          # classical generator: random Fourier features of the point (0 = off)
     dv_qubits=10,           # dv generator: qubits (2k -> 2^k x 2^k grid)
     dv_layers=9,            # dv generator: layers
     dv_reupload=False,      # dv generator: re-encode z before every layer (data re-uploading)
@@ -595,7 +597,8 @@ def train_2d_qgan(
         generator = GeneratorShim(build_generator({
             'generator': generator, 'n_modes': n_total_modes,
             'latent_dim': enc_spec.latent_dim(n_total_modes),
-            'gen_hidden': gen_hidden, 'dv_qubits': dv_qubits,
+            'gen_hidden': gen_hidden, 'gen_activation': gen_activation,
+            'gen_fourier': gen_fourier, 'seed': seed, 'dv_qubits': dv_qubits,
             'dv_layers': dv_layers, 'dv_reupload': dv_reupload,
             'dv_encoding': dv_encoding, 'latent_scale': latent_scale}))
         print(f"Generator backend: {generator.describe()}")

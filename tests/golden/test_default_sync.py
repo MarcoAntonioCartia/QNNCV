@@ -68,6 +68,8 @@ TRAIN_MAP = {
     'critic_points': 'critic_points',
     'critic_layers': 'critic_layers',
     'gen_hidden': 'gen_hidden',
+    'gen_activation': 'gen_activation',
+    'gen_fourier': 'gen_fourier',
     'dv_qubits': 'dv_qubits',
     'dv_layers': 'dv_layers',
     'dv_reupload': 'dv_reupload',

@@ -60,6 +60,9 @@ def toy_factories(batch_size=4):
         # radial-feature ablation
         'classical': lambda: ClassicalCoordGenerator.parameter_matched(),
         'classical/xyr': lambda: ClassicalCoordGenerator(features='xyr'),
+        # the two spectral-bias upgrades, parameter-matched as well
+        'classical/siren': lambda: ClassicalCoordGenerator.parameter_matched(activation='sine'),
+        'classical/fourier8': lambda: ClassicalCoordGenerator.parameter_matched(fourier=8),
     }
     if DVGeneratorBackend is not None:
         # 8 qubits -> 16x16 toy grid (the backend's grid_sizes tells the test)

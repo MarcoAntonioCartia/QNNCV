@@ -149,6 +149,8 @@ def build_hp_suffix(args, parser):
         ('critic_points',     'cp'),
         ('critic_layers',     'clay'),
         ('gen_hidden',        'gh'),
+        ('gen_activation',    'gact'),
+        ('gen_fourier',       'gff'),
         ('dv_qubits',         'nq'),
         ('dv_layers',         'dvl'),
         ('dv_reupload',       'dvru'),
@@ -320,6 +322,14 @@ def build_parser():
     parser.add_argument('--gen-hidden', type=str, default='9,9',
                        help='classical generator: hidden sizes, e.g. "9,9" '
                             '(181 params) or "64,64"')
+    parser.add_argument('--gen-activation', type=str, default='tanh',
+                       choices=['tanh', 'sine'],
+                       help='classical generator: hidden activation; sine = SIREN '
+                            '(w0 = 30, SIREN initialisation)')
+    parser.add_argument('--gen-fourier', type=int, default=0,
+                       help='classical generator: number of random Fourier features '
+                            'of the grid point (0 = off; 8 -> use --gen-hidden 6,6 '
+                            'for 199 params, the closest match to 186)')
     parser.add_argument('--dv-qubits', type=int, default=10,
                        help='dv generator: qubits, 2k for a 2^k x 2^k grid')
     parser.add_argument('--dv-layers', type=int, default=9,
@@ -428,6 +438,8 @@ def main():
         critic_points=args.critic_points,
         critic_layers=args.critic_layers,
         gen_hidden=args.gen_hidden,
+        gen_activation=args.gen_activation,
+        gen_fourier=args.gen_fourier,
         dv_qubits=args.dv_qubits,
         dv_layers=args.dv_layers,
         dv_reupload=args.dv_reupload,

@@ -98,8 +98,8 @@ def parse_hidden(spec):
 
 def build_generator(cfg):
     """Build the generator named by a run_config-like dict (keys: generator,
-    gen_hidden, dv_qubits, dv_layers, dv_reupload, dv_encoding, latent_scale,
-    n_modes). Returns a
+    gen_hidden, gen_activation, gen_fourier, dv_qubits, dv_layers, dv_reupload,
+    dv_encoding, latent_scale, n_modes, seed). Returns a
     GeneratorBackend; the CV backend is built by the trainer itself."""
     from src.backends import registry
     name = cfg.get('generator', 'cv')
@@ -113,7 +113,10 @@ def build_generator(cfg):
     if name == 'classical':
         from src.backends.classical import ClassicalCoordGenerator
         return ClassicalCoordGenerator(latent_dim=latent_dim,
-                                       hidden_dims=parse_hidden(cfg.get('gen_hidden', '9,9')))
+                                       hidden_dims=parse_hidden(cfg.get('gen_hidden', '9,9')),
+                                       activation=str(cfg.get('gen_activation', 'tanh')),
+                                       fourier=int(cfg.get('gen_fourier', 0)),
+                                       seed=int(cfg.get('seed', 0)))
     if name == 'dv':
         return registry.GENERATOR_REGISTRY['dv'](
             n_qubits=int(cfg.get('dv_qubits', 10)), n_layers=int(cfg.get('dv_layers', 9)),
