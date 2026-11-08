@@ -1,6 +1,6 @@
 # Benchmark framework plan: CV vs DV vs classical, pieces first, plumbing last
 
-Status: draft, 7 Nov 2026. Objective 2 of the thesis: compare the CV-QGAN
+Status: 8 Nov 2026 — framework built (Phases 0–2), ring baselines tuned and confirmed at 20 seeds (Phase 3, first result below). Objective 2 of the thesis: compare the CV-QGAN
 against a discrete-variable QGAN and purely classical models "para encontrar
 en cuáles casos el modelo propuesto es mejor, peor o igual".
 
@@ -115,6 +115,108 @@ coarser DV grid (16×16 = 8 qubits, CV re-rendered to match), data
 re-uploading of z between layers, fewer layers, a stronger encoding (RY+RZ)
 and its own learning rate;
 (c) then 20 seeds or paired restarts per the statistical-design rules.
+
+### Tuned baselines (8 Nov 2026): the ring, 300 epochs, `dense_2d` critic
+
+Everything below is the re-score (`scripts/rescore.py`, 200 fixed-seed
+samples per checkpoint, W1 in cells of the grid named in the column);
+tables produced by `scripts/summarize_rescore.py`; job lists under
+`analysis/matrix/`. The reliability criterion was fixed in that script
+before any ladder result was read: every seed within x2 of the validation
+self-diversity and the arm's median fidelity within x1.5 of the best arm on
+the same grid.
+
+**Search space and rule.** Each baseline was tuned on its own knobs with
+the CV arm frozen at its July configuration (never re-tuned): the
+comparison reads "CV as frozen vs baselines at best effort", the
+conservative direction. The WGAN-GP penalty weight turned out to be a
+baseline knob too (the CV's 10 makes the classical net diverge on some
+seeds; 5 does not), so each baseline runs at its own penalty and this is
+stated with every number.
+
+**Classical** (`analysis/matrix/classical_sweep{,2,3}.txt`, 85 runs, 5 seeds
+each; 32x32):
+
+| arm (181 params unless noted) | g_lr | gp | fidelity W1 med (range) | coverage | div / real |
+|---|---|---|---|---|---|
+| tanh (9, 9) — pilot settings | 0.005 | 10 | 1.56 (1.30-3.83) | 0.97 | 1.47 (2 seeds diverged) |
+| tanh | 0.005 | 5 | 1.17 (0.68-1.48) | 0.84 | 1.41 |
+| tanh | 0.02 | 5 | 0.56 (0.50-0.81) | 0.69 | 0.78 |
+| **tanh** | **0.05** | **5** | **0.52 (0.41-0.62)** | **0.58** | 0.79 |
+| tanh | 0.1 | 5 | 0.59 (0.47-0.62) | 0.61 | 0.77 |
+| tanh | 0.2 | 5 | 0.63 (0.50-0.72) | 0.74 | 0.75 |
+| tanh | 0.02 | 10 | 0.71 (0.61-2.34) | 0.82 | 0.88 (1 seed diverged) |
+| Fourier 8 features, (6, 6), 199 params | 0.02 | 5 | 0.90 (0.70-1.50) | 1.26 | 0.52 |
+| SIREN (w0 = 30, inputs scaled to [-1, 1]) | 0.005-0.02 | 5 | 2.99-3.06 | 3.2-3.7 | 0.4-1.0 (noise level) |
+
+The classical net wanted a learning rate ten times the CV's; lower rates
+(5e-4, 5e-5) sit at 2.9-3.2. The two spectral-bias cures did not help at
+this size: Fourier features cost coverage, SIREN never left noise level
+(before and after the input-scaling fix of 151c631). Baseline =
+tanh (9, 9), g_lr 0.05, gp 5.
+
+**DV** (`analysis/matrix/dv_ladder_step{1,2,3}.txt`, 72 runs, 3 seeds each;
+latent_scale 1.0 everywhere — the pilot's 0.3 fed z as +-0.3 rad angles,
+one cause of its collapse):
+
+| arm (8 qubits, 16x16, RY encoding once) | layers | params | g_lr | fidelity W1 med (range) | coverage | div / real | min / run |
+|---|---|---|---|---|---|---|---|
+| ladder step 1 | 3 | 48 | 0.005 | 1.72 (1.61-1.94) | 1.73 | 0.89 | 11 |
+| ladder step 1 | 6 | 96 | 0.005 | 1.51 (1.44-1.56) | 1.77 | 0.60 | 25 |
+| ladder step 1 | 9 | 144 | 0.005 | 1.35 (1.31-1.39) | 1.46 | 0.52 | 44 |
+| step 1, re-upload + RY/RZ, 3 / 6 / 9 layers | | 48-144 | 0.005 | 1.59 / 1.63 / 1.62 | 1.4-1.9 | 0.86 / 0.56 / 0.50 | 14-58 |
+| step 2 | 6 | 96 | 0.02 | 0.99 (0.72-1.02) | 0.84 | 0.82 | 27 |
+| **step 2** | **6** | **96** | **0.05** | **0.82 (0.78-0.85)** | **0.64** | 0.88 | 27 |
+| step 2, latent_scale 1.57 | 3 / 6 | 48 / 96 | 0.02-0.05 | 1.00-1.58 | 0.6-1.4 | 0.8-1.5 | 11-27 |
+| step 3 | 6 / 9 | 96 / 144 | 0.1 | 0.93 / 0.92 | 0.75 / 0.69 | 0.99 / 0.87 | 24 / 43 |
+| step 3 | 6 / 9 | 96 / 144 | 0.2 | 0.96 / 0.96 | 0.75 / 0.92 | 0.95 / 0.85 | 24 / 43 |
+| 6 qubits (8x8 grid), 3 / 6 / 9 layers | | 36-108 | 0.005 | 0.73 / 0.67 / 0.68 (8x8 cells) | 0.6-0.7 | 0.9-1.1 | 7 / 16 / 29 |
+
+Reading: the learning rate was the knob (1.35 -> 0.82), depth beyond 6
+layers and re-uploading were not, and the pass criterion is met by every
+8-qubit cell at g_lr >= 0.02 — but none of them comes within x1.5 of the
+CV or the classical arm re-rendered on the same grid (0.33 / 0.26 at 16x16
+with 5 seeds, below), so the DV arm fails the cross-arm criterion on both
+grids. 6 qubits is the cost floor (7 min a run, passes on its own 8x8
+grid, kept out of the thesis table: an 8x8 ring is barely a ring).
+Baseline = 8 qubits x 6 layers, RY, latent_scale 1.0, g_lr 0.05, gp 5.
+Cheapest DV cell that is "somewhat reliable" on 16x16: 8 qubits x 3 layers
+at g_lr 0.02-0.05 (0.97-0.98, 11 min a run).
+
+**Confirmation, 20 seeds each** (seeds 0-19; `analysis/matrix/confirm_*.txt`;
+CV and classical trained at 32x32 and re-rendered on 16x16 with
+`rescore.py --grid 16`, DV trained at 16x16):
+
+| arm | params | hilbert | grid | fidelity W1 med (range) | coverage W1 med (range) | div / real med (range) | min / run |
+|---|---|---|---|---|---|---|---|
+| CV frozen (3 modes, 6 layers, cutoff 12, gp 10) | 186 | 1728 | 32 | 0.64 (0.53-0.73) | 0.88 (0.74-1.14) | 0.62 (0.44-0.87) | 26 |
+| classical tanh (9, 9), g_lr 0.05, gp 5 | 181 | — | 32 | 0.52 (0.41-0.65) | 0.58 (0.42-0.84) | 0.81 (0.49-0.99) | 2 |
+| CV frozen, re-rendered | 186 | 1728 | 16 | 0.32 (0.26-0.36) | 0.44 (0.37-0.56) | 0.62 (0.44-0.87) | — |
+| classical tanh, re-rendered | 181 | — | 16 | 0.26 (0.21-0.32) | 0.29 (0.21-0.41) | 0.81 (0.49-0.99) | — |
+| DV 8 qubits x 6 layers, g_lr 0.05, gp 5 | 96 | 256 | 16 | 0.85 (0.72-1.07) | 0.66 (0.55-0.85) | 0.94 (0.70-1.26) | 27 |
+
+Every arm remains distinguishable from the real family (MMD p = 0.005 on
+every run). **Result on the ring at matched parameter count: the tuned
+classical coordinate network beats the frozen CV generator** (0.52 vs 0.64
+at 32x32, ranges barely overlapping over 20 seeds; 0.26 vs 0.32 at 16x16),
+the CV generator keeps the better coverage (0.88 vs 0.58 at 32x32: the
+classical net is sharper but misses more of the real family), and the DV
+generator trails both by a factor 2.5-3 on the common grid at a quarter of
+the Hilbert dimension and half the parameters. This is the outcome Bowles,
+Ahmed & Schuld (2024) describe and it is the honest baseline for the
+thesis: the pilot's "CV leads" read was the untuned-baseline artefact.
+What it does not say: anything about the other four families, about the
+quantum critics, or about the CV arm's own tuning headroom (never
+re-tuned here). Caveat on the criterion: with 20 seeds one seed of each
+32x32 arm falls just under the x2 diversity bound (0.44, 0.49), so the
+strict flag reads "no" for both; the bound was set for 3-5 seeds.
+
+Open follow-ups, in order: (1) the same three tuned arms on the other four
+families and on the three point-wise critics (the matrix of step 2 below);
+(2) the CV arm at the classical net's learning rate (0.05) and at gp 5, as
+a fairness check in the other direction; (3) a DV arm at 10 qubits with
+g_lr 0.05 to see whether the 32x32 DV result of the pilot was only the
+learning rate.
 
 1. Pilot: 3 generators × `dense_2d` on ring, 5 seeds, 300 epochs.
 2. Matrix: generators × critics × 5 families at one budget and one grid;
