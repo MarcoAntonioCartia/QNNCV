@@ -1,11 +1,15 @@
 # Interleaved-squeeze encoding: A/B experiment protocol
 
-Status: **revised 7 Nov 2026 — fixed-scale design added and run the same
-evening (Arms A and B at scales 0.05/0.1/0.2), then the dedicated-latent
-variant (Arm B′ at 0.1/0.2); results under "Findings so far". Arms C/D
-(learned gain) NOT yet run at the 300-epoch budget.** A first cold pass of
-the original learned-gain design was run on 18 Jul 2026 (ring, seeds 0–4,
-100 and 200 epochs); it motivated the fixed-scale revision.
+Status: **8 Nov 2026 — every pre-registered arm has run at the 300-epoch
+budget (A; B at 0.05/0.1/0.2; B′ at 0.1/0.2; C; D), plus the follow-ups
+(`--r-max 0.5`, cutoff 14, a 500-epoch A/B′ pair) and the dedicated-latent
+control. Result: the mechanism works, no arm beats the baseline, and no arm
+is shown worse than its proper control — a 5-seed A/B at this budget cannot
+resolve median effects below ≈ 0.1–0.15. Numbers under "Findings so far";
+what is robust and what is not under "Where this leaves the branch".** The
+fixed-scale design was added on 7 Nov after a first cold pass of the
+original learned-gain design (18 Jul 2026; ring, seeds 0–4, 100 and 200
+epochs) showed the gain never opening.
 Baseline milestone: tag `v0.2-baseline` (main @ `ae1bc29`); the 30-seed
 baseline sweep is attributed to it.
 
@@ -59,10 +63,18 @@ on so the critic can grade it; the learned gain stays as an ablation.
 | Arm B (primary)   | `--encoding interleaved_squeeze --squeeze-scale s --r-max 0.5`, s ∈ {0.1, 0.2, 0.3, 0.4} (range 0.1–0.4 step 0.1): from "comparable to" to "dominating" the baseline's learned squeeze magnitudes (median \|w_r\| = 0.145, IQR 0.075–0.219 over the 30-seed ring sweep) |
 | Arm B′ (decoupled) | Arm B plus `--inj-latent dedicated`: the squeeze channel of mode m reads its own latent component z[2·n_modes + m] instead of the door's z[2m], so size and position are separate dials (latent_dim 9 for 3 modes; still 186 trainable parameters). Motivated by the z-sweep on Arm B, where radius and centroid moved together |
 | Arm C (ablation)  | `--encoding interleaved_squeeze --train-squeeze-scale` (learned gain, cold start at 0): does the model open the channel by itself? |
-| Arm D (ablation)  | Arm C warm-started from the matching baseline seed: `--init-weights logs/<baseline-ring-seedN>/best_weights.npy` (v1 file loads with w_s = 0). The sharpest critic the learned gain can get |
+| Arm D (ablation)  | Arm C warm-started from the matching baseline seed: `--init-weights logs/<baseline-ring-seedN>/best_weights.npy` (v1 file loads with w_s = 0). `--init-weights` warm-starts the **generator only** — the critic starts fresh — so this is the gain starting at 0 on top of already-converged squeezes, the most favourable start it can get |
 
-Run folders are tagged `encIS`, `ss<s>` and `sstrain`; `run_config.json`
-records `encoding/inj_layers/r_max/squeeze_scale/train_squeeze_scale/
+**As run (7–8 Nov 2026), where it departs from the table above:** scales
+0.05/0.1/0.2 (0.3 and 0.4 were dropped once 0.2 was already the worst
+arm); `--r-max` off in every arm except the dedicated follow-up at 0.5
+(median per-run ket-norm minima stayed at 0.76–0.86 without it); Arms C
+and D run with `--inj-latent dedicated`; cutoff 12 except the cutoff-14
+follow-up. The commands below are the pre-registered ones.
+
+Run folders are tagged `encIS`, `ss<s>`, `sstrain`, `zlded` and `warm`
+(the last marks `--init-weights`); `run_config.json` records
+`encoding/inj_layers/r_max/squeeze_scale/train_squeeze_scale/inj_latent/
 init_weights/norm_floor` for every run. `best_weights.npy` (v2) stores
 `w_s` for every interleaved run, fixed or trained.
 
@@ -113,7 +125,10 @@ Per run (from `history.npz` / final validation, as in the baseline sweep):
 - **nearED** (nearest-member energy distance).
 
 `scripts/analyze_sweep.py` produces the per-arm tables and the paired-by-
-seed comparison (`--compare A B`, Wilcoxon p, budget-mismatch warning).
+seed comparison (`--compare A B`, Wilcoxon p, budget-mismatch warning;
+`--since YYYYMMDD` restricts to recent runs; `--rescore` joins the
+200-sample re-scores of `scripts/rescore.py` as `rs_*` columns). Outputs:
+`analysis/sweep/{runs.csv,groups.csv,summary.md,compare_*.md,*.png}`.
 
 Plus, on each best checkpoint:
 
@@ -147,10 +162,11 @@ a *failure* of that scale, not a success.
 4. **Single-ring chirality lobing does NOT improve** in any arm — that
    failure is mode-count/readout physics, not encoding placement.
 
-Outcome (7 Nov 2026, 300 epochs, 5 seeds): 1 not supported (shared or
-dedicated); 2 holds for truncation, and nearW1 is worst at s = 0.2 in both
-variants; 3 and the chirality claim not yet tested at this budget (Arms C/D
-pending).
+Outcome (7–8 Nov 2026, 300 epochs, 5 seeds): 1 not supported — shared or
+dedicated, and not at 500 epochs either; 2 holds for truncation, and nearW1
+is worst at s = 0.2 in both variants (0.3/0.4 therefore not run); 3
+confirmed — C keeps |w_s| ≈ 0.016 (median), D reaches 0.025 and is not
+better for it; 4 not assessed in these runs.
 
 ## Findings so far (18 Jul 2026 cold pass, learned gain, from `scripts/analyze_sweep.py`)
 
@@ -256,6 +272,30 @@ Reading:
   and are excluded from every number above; the rerun used the atomic
   folder claim and the `warm` tag marker (commit `abd0397`).
 
+## Where this leaves the branch (8 Nov 2026)
+
+- **Robust:** the width channel works as designed (z-sweep: radius monotone
+  in the driving component, decoupled from position with `--inj-latent
+  dedicated`); the learned gain never opens (cold 0.016, warm 0.025);
+  truncation grows with the scale; `--r-max 0.5`, cutoff 14 and a 500-epoch
+  budget change nothing; no arm beats the baseline; no arm is shown worse
+  than a control with the same latent dimension.
+- **Not resolvable here:** any effect ≤ 0.05–0.1 in median nearW1. Five
+  seeds per arm give a median that wanders by 0.1–0.15 between realizations
+  of the *same* model (the dedicated control vs Arm A). A decisive test
+  needs ≥ 20 seeds per arm at one budget (20 × 300 epochs ≈ 8 h
+  sequential, under 2 h at 6–10 in parallel on this PC) or a paired-restart
+  design; the 200-sample re-score removes validation noise but not this.
+- **Code state:** `--encoding interleaved_squeeze` ships default-off
+  (`--squeeze-scale 0`, fixed gain, shared latent ⇒ exactly the baseline,
+  pinned by `tests/golden/test_squeeze_scale.py`, `test_inj_latent.py`,
+  `test_interleaved_equiv.py`, `test_weights_io.py` and the unchanged
+  numeric e2e goldens), so it can live on `main` without moving a baseline
+  number.
+- Narrative version of the road, with the per-seed chart and the wiring
+  diagram: the Claude Doc "Interleaved Squeeze Road So Far"
+  (https://claude.ai/artifact/5KFiLASMZ5vDRQQdVJYpe9).
+
 ## Ablations noted for LATER (out of scope here)
 
 - Dedicated inserted encoding squeezers between layers (Quandela-literal;
@@ -263,19 +303,27 @@ Reading:
 - z injected into interferometer phases.
 - Per-layer subset injection (`--inj-layers`, already implemented) as a
   depth-of-injection ablation.
-- A dedicated third latent component per mode for the squeeze channel
-  (changes latent_dim, so it is NOT a clean A/B against the baseline).
+- ~~A dedicated third latent component per mode for the squeeze channel~~ —
+  done on 7 Nov as `--inj-latent dedicated` (Arm B′). It is indeed not a
+  clean A/B against the 6-component baseline: the longer latent stream
+  changes the realization, hence the dedicated-latent control arm.
 - A per-layer or per-mode fixed scale (currently one scalar fills `w_s`).
 
 ## Bookkeeping rules
 
 - Never write into the existing baseline/sweep run directories.
-- `--encoding` and `--train-squeeze-scale` are categorical/boolean and
-  cannot be `run_sweep.py` sweep axes; they are passthrough flags applied to
-  every run of a command. `--squeeze-scale` IS a sweep axis.
+- `--encoding`, `--inj-latent` and `--train-squeeze-scale` are
+  categorical/boolean and cannot be `run_sweep.py` sweep axes; they are
+  passthrough flags applied to every run of a command. `--squeeze-scale` IS
+  a sweep axis. Arms that differ only in such flags go through
+  `scripts/run_matrix.py` (one argument line per run, N at a time).
+- Run folders are claimed atomically (`os.makedirs(exist_ok=False)`, retry
+  on the next second) and `--init-weights` adds the `warm` tag, since the
+  first Arm C/D launch collided on folder names (commit `abd0397`).
 - Weight-file compatibility: v1 (raw array, baseline) loads into either
   encoding (w_s stays at its configured init + notice); v2 (interleaved
   dict) into an `input_displacement` model is a hard error by design; v2
   into a FIXED-scale model loads only if its `w_s` equals the configured
   scale (a fixed scale is never silently overwritten).
-- Analysis outputs go to `analysis/` (csv/png gitignored).
+- Analysis outputs go to `analysis/` (csv/png/log gitignored by extension;
+  the folder itself is untracked and never committed).
