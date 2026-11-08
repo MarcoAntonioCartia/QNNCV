@@ -66,7 +66,7 @@ def main():
             fh.close()
             mins = (time.time() - ts) / 60
             print(f"[{time.strftime('%H:%M:%S')}] done   {i:03d}  rc={rc}  {mins:.1f} min"
-                  f"  ({len(pending)} pending, {len(still)} running)", flush=True)
+                  f"  ({len(pending)} pending)", flush=True)
             if rc != 0:
                 failed.append(i)
         running = still
