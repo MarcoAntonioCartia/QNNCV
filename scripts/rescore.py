@@ -64,10 +64,25 @@ def group_of(name):
     return (m.group('prefix') + m.group('suffix')) if m else base
 
 
+class _ShimLoader:
+    """Non-CV backends: build from run_config, load the backend-state file."""
+
+    def __init__(self, cfg):
+        from src.backends.trainer_shim import build_generator as _bg, load_backend_state
+        self.backend = _bg(cfg)
+        self._load = load_backend_state
+
+    def load(self, path):
+        self.backend.load_state_dict(self._load(path)['state'])
+
+    def __getattr__(self, name):
+        return getattr(self.backend, name)
+
+
 def build_generator(cfg):
     backend = cfg.get('generator', 'cv')
     if backend != 'cv':
-        raise SystemExit(f"rescore: generator backend {backend!r} not supported yet")
+        return _ShimLoader(cfg)
     enc = cfg.get('encoding', 'input_displacement')
     if enc == 'input_displacement':
         spec = EncodingSpec(enc)
@@ -132,7 +147,7 @@ def rescore(run_dir, n_samples, seed, n_perm, verbose=True):
             pb = p[b].numpy()
             if np.isfinite(pb).all() and len(fakes) < n_samples:
                 fakes.append(pb)
-                kets.append(float(k[b]))
+                kets.append(float(k[b]) if k is not None else 1.0)  # no Fock space => no truncation
     fakes = np.array(fakes)
     nf, nv = len(fakes), len(val)
 

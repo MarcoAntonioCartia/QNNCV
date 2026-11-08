@@ -1,9 +1,24 @@
 # Benchmark backends (`src/backends/`)
 
-Status: Phase 0 and Phase 1 of `docs/benchmark_plan.md` built and contract-tested
-(7 Nov 2026); NOT yet wired into `train_2d_qgan.py` (Phase 2). Every backend is
-checked by `tests/golden/test_backend_contract.py`; the DV backends need the
-cloned env `qnncv-dv` (PennyLane 0.45.1, pennylane-lightning; `qnncv` untouched).
+Status: Phases 0–2 of `docs/benchmark_plan.md` done (8 Nov 2026): every backend is
+contract-tested (`tests/golden/test_backend_contract.py`) and selectable from the
+CLI — `--generator {cv,classical,dv}`, `--critic {dense_2d,coord_2d,cv_qnn_2d,
+dv_qnn_2d}`, plus `--critic-points`, `--critic-layers`, `--gen-hidden`,
+`--dv-qubits`, `--dv-layers`. The defaults are the frozen CV + dense path,
+byte-identical to before. Non-CV runs save a backend-state `best_weights.npy`
+(read by `scripts/rescore.py` and `src/backends/trainer_shim.py`), and every
+run writes `backend_info.json` (parameter and Hilbert-space sizes, device, wall
+time). The DV backends need the cloned env `qnncv-dv` (PennyLane 0.45.1,
+pennylane-lightning; `qnncv` untouched) and a power-of-two `--grid-size`.
+
+```bash
+# the classical generator against the point-wise classical critic, ring, 300 epochs
+python train_2d_qgan.py --family ring --generator classical --critic coord_2d --epochs 300 --seed 0
+# the frozen CV generator against the 96-parameter CV quantum critic
+python train_2d_qgan.py --family ring --n-modes 3 --d-lr 0.0005 --gp-weight 10 --critic cv_qnn_2d --epochs 300 --seed 0
+# the DV generator (qnncv-dv env) on a 32x32 grid against its qubit critic
+python train_2d_qgan.py --family ring --generator dv --grid-size 32 --critic dv_qnn_2d --epochs 300 --seed 0
+```
 
 ## Contract (`base.py`)
 
