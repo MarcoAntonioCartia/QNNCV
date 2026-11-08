@@ -1,0 +1,118 @@
+"""
+Weights persistence for CVQGANGenerator (best_weights.npy).
+
+Two on-disk formats, same filename:
+
+v1 (legacy, input_displacement): a raw flat float array — exactly
+    np.save(path, weights). Byte-compatible with every pre-existing
+    best_weights.npy; loads WITHOUT allow_pickle.
+
+v2 (interleaved_squeeze): a pickled dict (0-d object array) carrying the
+    flat weights, the (n_layers, n_modes) w_s modulation amplitudes, and
+    enough config metadata to sanity-check a reload:
+        {'format': 'qnncv-weights-v2', 'encoding': 'interleaved_squeeze',
+         'weights', 'w_s', 'n_modes', 'n_layers', 'cutoff_dim', 'use_kerr',
+         'inj_layers', 'r_max'}
+
+Compatibility contract:
+- v1 file -> interleaved generator: weights assigned, w_s left at its
+  configured init (squeeze_scale; zero = warm start from the frozen
+  baseline); a notice is printed.
+- v2 file -> input_displacement generator: ValueError (the w_s amplitudes
+  would be silently dropped).
+- v2 file -> interleaved generator with a FIXED (non-trainable) w_s: the
+  file's w_s must equal the configured fixed scale, else ValueError (a
+  fixed scale must never be silently overwritten by a checkpoint).
+"""
+
+import numpy as np
+
+FORMAT_V2 = 'qnncv-weights-v2'
+
+
+def save_weights(path, weights, w_s=None, meta=None):
+    """Save weights; v1 raw array when w_s is None, else v2 dict."""
+    weights = np.asarray(weights)
+    if w_s is None:
+        # Legacy path: byte-identical to np.save(path, weights).
+        np.save(path, weights)
+        return
+    payload = {
+        'format': FORMAT_V2,
+        'encoding': 'interleaved_squeeze',
+        'weights': weights,
+        'w_s': np.asarray(w_s),
+    }
+    if meta:
+        payload.update(meta)
+    np.save(path, np.array(payload, dtype=object), allow_pickle=True)
+
+
+def load_weights(path):
+    """Load either format -> {'weights', 'w_s' (or None), 'meta' (dict)}."""
+    arr = np.load(path, allow_pickle=True)
+    if arr.dtype == object:
+        payload = arr.item()
+        if not (isinstance(payload, dict)
+                and payload.get('format') == FORMAT_V2):
+            raise ValueError(
+                f"{path}: unrecognized weights payload "
+                f"(expected a {FORMAT_V2} dict)")
+        meta = {k: v for k, v in payload.items()
+                if k not in ('weights', 'w_s')}
+        return {'weights': np.asarray(payload['weights']),
+                'w_s': np.asarray(payload['w_s']),
+                'meta': meta}
+    return {'weights': arr, 'w_s': None, 'meta': {}}
+
+
+def apply_weights(generator, loaded, source='<weights file>'):
+    """Assign a load_weights() result to a generator, enforcing the
+    format/encoding compatibility contract."""
+    weights = loaded['weights']
+    w_s = loaded['w_s']
+
+    if w_s is not None and generator.w_s is None:
+        raise ValueError(
+            f"{source} was saved by an interleaved_squeeze model (contains "
+            f"w_s); this generator uses 'input_displacement'. Rerun with "
+            f"--encoding interleaved_squeeze to use it.")
+
+    expected = int(generator.weights.shape[0])
+    if weights.shape != (expected,):
+        raise ValueError(
+            f"{source}: weights shape {weights.shape} does not match the "
+            f"generator's ({expected},) — check n_modes/n_layers/kerr config")
+    generator.weights.assign(weights)
+
+    if generator.w_s is not None:
+        fixed = not bool(getattr(generator.w_s, 'trainable', True))
+        if w_s is None:
+            ws_max = float(np.max(np.abs(generator.w_s.numpy())))
+            print(f"  Warm start: {source} is a legacy flat-weights file; "
+                  f"w_s stays at its configured init "
+                  f"(max |w_s| = {ws_max:.3g}, "
+                  f"{'fixed' if fixed else 'trainable'})"
+                  + (" (frozen-baseline start)" if ws_max == 0.0 else ""))
+        else:
+            ws_shape = tuple(generator.w_s.shape)
+            if tuple(w_s.shape) != ws_shape:
+                raise ValueError(
+                    f"{source}: w_s shape {tuple(w_s.shape)} does not match "
+                    f"the generator's {ws_shape}")
+            if fixed and not np.allclose(w_s, generator.w_s.numpy()):
+                raise ValueError(
+                    f"{source} carries w_s values that differ from this "
+                    f"generator's FIXED squeeze scale; pass the matching "
+                    f"--squeeze-scale, or --train-squeeze-scale to load "
+                    f"them as a trainable gain")
+            generator.w_s.assign(w_s)
+
+    # Variant notice (allowed warm start, never an error): the gain shape is
+    # the same for both inj_latent variants, but the latent the channel
+    # reads differs, so a cross-variant load is a warm start, not a resume.
+    meta_inj = (loaded.get('meta') or {}).get('inj_latent')
+    gen_inj = getattr(getattr(generator, 'encoding', None), 'inj_latent', None)
+    if meta_inj is not None and gen_inj is not None and meta_inj != gen_inj:
+        print(f"  Note: {source} was trained with inj_latent={meta_inj!r}; "
+              f"this generator uses {gen_inj!r} (warm start across variants)")

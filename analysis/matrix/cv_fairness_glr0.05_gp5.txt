@@ -1,0 +1,23 @@
+# CV fairness check (8 Nov 2026): the frozen CV config at the classical winner's g_lr 0.05 / gp 5
+# (follow-up 2 of docs/benchmark_plan.md "Tuned baselines"); ring 32x32, 300 ep, dense_2d, seeds 0-19.
+# Differs from analysis/matrix/confirm_cv_cl.txt's CV lines only in --g-lr 0.05 (default 0.005) and --gp-weight 5 (frozen 10).
+--family ring --n-modes 3 --epochs 300 --d-lr 0.0005 --g-lr 0.05 --gp-weight 5 --grid-size 32 --seed 0
+--family ring --n-modes 3 --epochs 300 --d-lr 0.0005 --g-lr 0.05 --gp-weight 5 --grid-size 32 --seed 1
+--family ring --n-modes 3 --epochs 300 --d-lr 0.0005 --g-lr 0.05 --gp-weight 5 --grid-size 32 --seed 2
+--family ring --n-modes 3 --epochs 300 --d-lr 0.0005 --g-lr 0.05 --gp-weight 5 --grid-size 32 --seed 3
+--family ring --n-modes 3 --epochs 300 --d-lr 0.0005 --g-lr 0.05 --gp-weight 5 --grid-size 32 --seed 4
+--family ring --n-modes 3 --epochs 300 --d-lr 0.0005 --g-lr 0.05 --gp-weight 5 --grid-size 32 --seed 5
+--family ring --n-modes 3 --epochs 300 --d-lr 0.0005 --g-lr 0.05 --gp-weight 5 --grid-size 32 --seed 6
+--family ring --n-modes 3 --epochs 300 --d-lr 0.0005 --g-lr 0.05 --gp-weight 5 --grid-size 32 --seed 7
+--family ring --n-modes 3 --epochs 300 --d-lr 0.0005 --g-lr 0.05 --gp-weight 5 --grid-size 32 --seed 8
+--family ring --n-modes 3 --epochs 300 --d-lr 0.0005 --g-lr 0.05 --gp-weight 5 --grid-size 32 --seed 9
+--family ring --n-modes 3 --epochs 300 --d-lr 0.0005 --g-lr 0.05 --gp-weight 5 --grid-size 32 --seed 10
+--family ring --n-modes 3 --epochs 300 --d-lr 0.0005 --g-lr 0.05 --gp-weight 5 --grid-size 32 --seed 11
+--family ring --n-modes 3 --epochs 300 --d-lr 0.0005 --g-lr 0.05 --gp-weight 5 --grid-size 32 --seed 12
+--family ring --n-modes 3 --epochs 300 --d-lr 0.0005 --g-lr 0.05 --gp-weight 5 --grid-size 32 --seed 13
+--family ring --n-modes 3 --epochs 300 --d-lr 0.0005 --g-lr 0.05 --gp-weight 5 --grid-size 32 --seed 14
+--family ring --n-modes 3 --epochs 300 --d-lr 0.0005 --g-lr 0.05 --gp-weight 5 --grid-size 32 --seed 15
+--family ring --n-modes 3 --epochs 300 --d-lr 0.0005 --g-lr 0.05 --gp-weight 5 --grid-size 32 --seed 16
+--family ring --n-modes 3 --epochs 300 --d-lr 0.0005 --g-lr 0.05 --gp-weight 5 --grid-size 32 --seed 17
+--family ring --n-modes 3 --epochs 300 --d-lr 0.0005 --g-lr 0.05 --gp-weight 5 --grid-size 32 --seed 18
+--family ring --n-modes 3 --epochs 300 --d-lr 0.0005 --g-lr 0.05 --gp-weight 5 --grid-size 32 --seed 19

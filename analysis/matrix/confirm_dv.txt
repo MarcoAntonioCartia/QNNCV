@@ -1,0 +1,18 @@
+# Stage D confirmation: DV winner (8 qubits, 6 layers, ry, latent 1.0, g_lr 0.05, gp 5) seeds 3-19 (0-2 exist)
+--family ring --n-modes 3 --epochs 300 --d-lr 0.0005 --g-lr 0.05 --latent-scale 1.0 --grid-size 16 --generator dv --dv-qubits 8 --dv-layers 6 --seed 3
+--family ring --n-modes 3 --epochs 300 --d-lr 0.0005 --g-lr 0.05 --latent-scale 1.0 --grid-size 16 --generator dv --dv-qubits 8 --dv-layers 6 --seed 4
+--family ring --n-modes 3 --epochs 300 --d-lr 0.0005 --g-lr 0.05 --latent-scale 1.0 --grid-size 16 --generator dv --dv-qubits 8 --dv-layers 6 --seed 5
+--family ring --n-modes 3 --epochs 300 --d-lr 0.0005 --g-lr 0.05 --latent-scale 1.0 --grid-size 16 --generator dv --dv-qubits 8 --dv-layers 6 --seed 6
+--family ring --n-modes 3 --epochs 300 --d-lr 0.0005 --g-lr 0.05 --latent-scale 1.0 --grid-size 16 --generator dv --dv-qubits 8 --dv-layers 6 --seed 7
+--family ring --n-modes 3 --epochs 300 --d-lr 0.0005 --g-lr 0.05 --latent-scale 1.0 --grid-size 16 --generator dv --dv-qubits 8 --dv-layers 6 --seed 8
+--family ring --n-modes 3 --epochs 300 --d-lr 0.0005 --g-lr 0.05 --latent-scale 1.0 --grid-size 16 --generator dv --dv-qubits 8 --dv-layers 6 --seed 9
+--family ring --n-modes 3 --epochs 300 --d-lr 0.0005 --g-lr 0.05 --latent-scale 1.0 --grid-size 16 --generator dv --dv-qubits 8 --dv-layers 6 --seed 10
+--family ring --n-modes 3 --epochs 300 --d-lr 0.0005 --g-lr 0.05 --latent-scale 1.0 --grid-size 16 --generator dv --dv-qubits 8 --dv-layers 6 --seed 11
+--family ring --n-modes 3 --epochs 300 --d-lr 0.0005 --g-lr 0.05 --latent-scale 1.0 --grid-size 16 --generator dv --dv-qubits 8 --dv-layers 6 --seed 12
+--family ring --n-modes 3 --epochs 300 --d-lr 0.0005 --g-lr 0.05 --latent-scale 1.0 --grid-size 16 --generator dv --dv-qubits 8 --dv-layers 6 --seed 13
+--family ring --n-modes 3 --epochs 300 --d-lr 0.0005 --g-lr 0.05 --latent-scale 1.0 --grid-size 16 --generator dv --dv-qubits 8 --dv-layers 6 --seed 14
+--family ring --n-modes 3 --epochs 300 --d-lr 0.0005 --g-lr 0.05 --latent-scale 1.0 --grid-size 16 --generator dv --dv-qubits 8 --dv-layers 6 --seed 15
+--family ring --n-modes 3 --epochs 300 --d-lr 0.0005 --g-lr 0.05 --latent-scale 1.0 --grid-size 16 --generator dv --dv-qubits 8 --dv-layers 6 --seed 16
+--family ring --n-modes 3 --epochs 300 --d-lr 0.0005 --g-lr 0.05 --latent-scale 1.0 --grid-size 16 --generator dv --dv-qubits 8 --dv-layers 6 --seed 17
+--family ring --n-modes 3 --epochs 300 --d-lr 0.0005 --g-lr 0.05 --latent-scale 1.0 --grid-size 16 --generator dv --dv-qubits 8 --dv-layers 6 --seed 18
+--family ring --n-modes 3 --epochs 300 --d-lr 0.0005 --g-lr 0.05 --latent-scale 1.0 --grid-size 16 --generator dv --dv-qubits 8 --dv-layers 6 --seed 19

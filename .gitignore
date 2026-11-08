@@ -83,6 +83,15 @@ docs/_build/
 *.pdf
 *.png
 
+# ----- Analysis outputs (regenerable from logs/ by scripts/analyze_sweep.py,
+# scripts/rescore.py, scripts/z_sweep_diagnostic.py). Only the benchmark job
+# lists under analysis/matrix/*.txt are tracked: docs/benchmark_plan.md cites
+# them as the record of which runs produced each table. -----
+analysis/*
+!analysis/matrix/
+analysis/matrix/*
+!analysis/matrix/*.txt
+
 # ----- Large Data Files -----
 *.h5
 *.hdf5

@@ -55,6 +55,25 @@ TRAIN_MAP = {
     'val_every': 'val_every',
     'seed': 'seed',
     'deterministic': 'deterministic',
+    'encoding': 'encoding',
+    'inj_layers': 'inj_layers',
+    'r_max': 'r_max',
+    'init_weights': 'init_weights',
+    'norm_floor': 'norm_floor',
+    'squeeze_scale': 'squeeze_scale',
+    'train_squeeze_scale': 'train_squeeze_scale',
+    'inj_latent': 'inj_latent',
+    'generator': 'generator',
+    'critic': 'critic',
+    'critic_points': 'critic_points',
+    'critic_layers': 'critic_layers',
+    'gen_hidden': 'gen_hidden',
+    'gen_activation': 'gen_activation',
+    'gen_fourier': 'gen_fourier',
+    'dv_qubits': 'dv_qubits',
+    'dv_layers': 'dv_layers',
+    'dv_reupload': 'dv_reupload',
+    'dv_encoding': 'dv_encoding',
 }
 # CLI dests with no train_2d_qgan counterpart
 TRAIN_EXCLUDED_DESTS = {
@@ -77,7 +96,9 @@ GEN_EXCLUDED_PARAMS = {
     'n_output_modes',  # always 2 for 2D output, no CLI flag
     'active_sd',       # init std, no CLI flag
     'passive_sd',      # init std, no CLI flag
-    'encoding',        # SEAM 1, no CLI flag
+    'encoding',        # SEAM 1: --encoding maps to train_2d_qgan's string
+                       # param; the generator receives a built EncodingSpec
+                       # OBJECT (default None), so no CLI-default sync here
 }
 
 # argparse dest -> Discriminator2D.__init__ parameter

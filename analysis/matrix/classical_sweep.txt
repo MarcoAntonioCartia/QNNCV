@@ -1,0 +1,46 @@
+# classical baseline sweep (8 Nov 2026): ring 32x32, 300 ep, dense_2d, 5 seeds; lr x {tanh, sine, fourier8}
+--family ring --n-modes 3 --epochs 300 --d-lr 0.0005 --g-lr 0.005 --grid-size 32 --generator classical --gen-activation tanh --seed 0
+--family ring --n-modes 3 --epochs 300 --d-lr 0.0005 --g-lr 0.005 --grid-size 32 --generator classical --gen-activation tanh --seed 1
+--family ring --n-modes 3 --epochs 300 --d-lr 0.0005 --g-lr 0.005 --grid-size 32 --generator classical --gen-activation tanh --seed 2
+--family ring --n-modes 3 --epochs 300 --d-lr 0.0005 --g-lr 0.005 --grid-size 32 --generator classical --gen-activation tanh --seed 3
+--family ring --n-modes 3 --epochs 300 --d-lr 0.0005 --g-lr 0.005 --grid-size 32 --generator classical --gen-activation tanh --seed 4
+--family ring --n-modes 3 --epochs 300 --d-lr 0.0005 --g-lr 0.005 --grid-size 32 --generator classical --gen-activation sine --seed 0
+--family ring --n-modes 3 --epochs 300 --d-lr 0.0005 --g-lr 0.005 --grid-size 32 --generator classical --gen-activation sine --seed 1
+--family ring --n-modes 3 --epochs 300 --d-lr 0.0005 --g-lr 0.005 --grid-size 32 --generator classical --gen-activation sine --seed 2
+--family ring --n-modes 3 --epochs 300 --d-lr 0.0005 --g-lr 0.005 --grid-size 32 --generator classical --gen-activation sine --seed 3
+--family ring --n-modes 3 --epochs 300 --d-lr 0.0005 --g-lr 0.005 --grid-size 32 --generator classical --gen-activation sine --seed 4
+--family ring --n-modes 3 --epochs 300 --d-lr 0.0005 --g-lr 0.005 --grid-size 32 --generator classical --gen-fourier 8 --gen-hidden 6,6 --seed 0
+--family ring --n-modes 3 --epochs 300 --d-lr 0.0005 --g-lr 0.005 --grid-size 32 --generator classical --gen-fourier 8 --gen-hidden 6,6 --seed 1
+--family ring --n-modes 3 --epochs 300 --d-lr 0.0005 --g-lr 0.005 --grid-size 32 --generator classical --gen-fourier 8 --gen-hidden 6,6 --seed 2
+--family ring --n-modes 3 --epochs 300 --d-lr 0.0005 --g-lr 0.005 --grid-size 32 --generator classical --gen-fourier 8 --gen-hidden 6,6 --seed 3
+--family ring --n-modes 3 --epochs 300 --d-lr 0.0005 --g-lr 0.005 --grid-size 32 --generator classical --gen-fourier 8 --gen-hidden 6,6 --seed 4
+--family ring --n-modes 3 --epochs 300 --d-lr 0.0005 --g-lr 0.0005 --grid-size 32 --generator classical --gen-activation tanh --seed 0
+--family ring --n-modes 3 --epochs 300 --d-lr 0.0005 --g-lr 0.0005 --grid-size 32 --generator classical --gen-activation tanh --seed 1
+--family ring --n-modes 3 --epochs 300 --d-lr 0.0005 --g-lr 0.0005 --grid-size 32 --generator classical --gen-activation tanh --seed 2
+--family ring --n-modes 3 --epochs 300 --d-lr 0.0005 --g-lr 0.0005 --grid-size 32 --generator classical --gen-activation tanh --seed 3
+--family ring --n-modes 3 --epochs 300 --d-lr 0.0005 --g-lr 0.0005 --grid-size 32 --generator classical --gen-activation tanh --seed 4
+--family ring --n-modes 3 --epochs 300 --d-lr 0.0005 --g-lr 0.0005 --grid-size 32 --generator classical --gen-activation sine --seed 0
+--family ring --n-modes 3 --epochs 300 --d-lr 0.0005 --g-lr 0.0005 --grid-size 32 --generator classical --gen-activation sine --seed 1
+--family ring --n-modes 3 --epochs 300 --d-lr 0.0005 --g-lr 0.0005 --grid-size 32 --generator classical --gen-activation sine --seed 2
+--family ring --n-modes 3 --epochs 300 --d-lr 0.0005 --g-lr 0.0005 --grid-size 32 --generator classical --gen-activation sine --seed 3
+--family ring --n-modes 3 --epochs 300 --d-lr 0.0005 --g-lr 0.0005 --grid-size 32 --generator classical --gen-activation sine --seed 4
+--family ring --n-modes 3 --epochs 300 --d-lr 0.0005 --g-lr 0.0005 --grid-size 32 --generator classical --gen-fourier 8 --gen-hidden 6,6 --seed 0
+--family ring --n-modes 3 --epochs 300 --d-lr 0.0005 --g-lr 0.0005 --grid-size 32 --generator classical --gen-fourier 8 --gen-hidden 6,6 --seed 1
+--family ring --n-modes 3 --epochs 300 --d-lr 0.0005 --g-lr 0.0005 --grid-size 32 --generator classical --gen-fourier 8 --gen-hidden 6,6 --seed 2
+--family ring --n-modes 3 --epochs 300 --d-lr 0.0005 --g-lr 0.0005 --grid-size 32 --generator classical --gen-fourier 8 --gen-hidden 6,6 --seed 3
+--family ring --n-modes 3 --epochs 300 --d-lr 0.0005 --g-lr 0.0005 --grid-size 32 --generator classical --gen-fourier 8 --gen-hidden 6,6 --seed 4
+--family ring --n-modes 3 --epochs 300 --d-lr 0.0005 --g-lr 0.00005 --grid-size 32 --generator classical --gen-activation tanh --seed 0
+--family ring --n-modes 3 --epochs 300 --d-lr 0.0005 --g-lr 0.00005 --grid-size 32 --generator classical --gen-activation tanh --seed 1
+--family ring --n-modes 3 --epochs 300 --d-lr 0.0005 --g-lr 0.00005 --grid-size 32 --generator classical --gen-activation tanh --seed 2
+--family ring --n-modes 3 --epochs 300 --d-lr 0.0005 --g-lr 0.00005 --grid-size 32 --generator classical --gen-activation tanh --seed 3
+--family ring --n-modes 3 --epochs 300 --d-lr 0.0005 --g-lr 0.00005 --grid-size 32 --generator classical --gen-activation tanh --seed 4
+--family ring --n-modes 3 --epochs 300 --d-lr 0.0005 --g-lr 0.00005 --grid-size 32 --generator classical --gen-activation sine --seed 0
+--family ring --n-modes 3 --epochs 300 --d-lr 0.0005 --g-lr 0.00005 --grid-size 32 --generator classical --gen-activation sine --seed 1
+--family ring --n-modes 3 --epochs 300 --d-lr 0.0005 --g-lr 0.00005 --grid-size 32 --generator classical --gen-activation sine --seed 2
+--family ring --n-modes 3 --epochs 300 --d-lr 0.0005 --g-lr 0.00005 --grid-size 32 --generator classical --gen-activation sine --seed 3
+--family ring --n-modes 3 --epochs 300 --d-lr 0.0005 --g-lr 0.00005 --grid-size 32 --generator classical --gen-activation sine --seed 4
+--family ring --n-modes 3 --epochs 300 --d-lr 0.0005 --g-lr 0.00005 --grid-size 32 --generator classical --gen-fourier 8 --gen-hidden 6,6 --seed 0
+--family ring --n-modes 3 --epochs 300 --d-lr 0.0005 --g-lr 0.00005 --grid-size 32 --generator classical --gen-fourier 8 --gen-hidden 6,6 --seed 1
+--family ring --n-modes 3 --epochs 300 --d-lr 0.0005 --g-lr 0.00005 --grid-size 32 --generator classical --gen-fourier 8 --gen-hidden 6,6 --seed 2
+--family ring --n-modes 3 --epochs 300 --d-lr 0.0005 --g-lr 0.00005 --grid-size 32 --generator classical --gen-fourier 8 --gen-hidden 6,6 --seed 3
+--family ring --n-modes 3 --epochs 300 --d-lr 0.0005 --g-lr 0.00005 --grid-size 32 --generator classical --gen-fourier 8 --gen-hidden 6,6 --seed 4

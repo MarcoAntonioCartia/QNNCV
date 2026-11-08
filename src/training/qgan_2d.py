@@ -28,6 +28,8 @@ draws]. Path A draws NO D-phase RNG and NO G-phase np.randint.
 import os
 import random
 import secrets
+import sys
+import time as _time
 from datetime import datetime
 
 import numpy as np
@@ -36,7 +38,8 @@ import strawberryfields as sf
 import matplotlib.pyplot as plt
 
 from src.quantum.hermite import recommend_cutoff
-from src.quantum.circuit import CVQGANGenerator
+from src.quantum.circuit import CVQGANGenerator, EncodingSpec
+from src.quantum import weights_io
 from src.models.discriminators.qgan2d_discriminator import Discriminator2D
 from src.families.registry import get_family
 from src.data.dataset import generate_dataset
@@ -85,7 +88,7 @@ class _BaseTrainer2D:
                  batch_size, n_critic, gp_weight, gp_warmup,
                  instance_noise, noise_anneal, noise_floor,
                  supervised_weight, supervised_warmup,
-                 ket_penalty_weight, g_grad_clip):
+                 ket_penalty_weight, g_grad_clip, norm_floor=0.99):
         self.generator = generator
         self.discriminator = discriminator
         self.g_optimizer = g_optimizer
@@ -106,6 +109,7 @@ class _BaseTrainer2D:
         self.supervised_warmup = supervised_warmup
         self.ket_penalty_weight = ket_penalty_weight
         self.g_grad_clip = g_grad_clip
+        self.norm_floor = norm_floor
         self.degenerate_count = 0
 
     def schedules(self, epoch):
@@ -146,6 +150,8 @@ class _BaseTrainer2D:
         #   Path A: always the SAME fixed canonical target (representability test).
         #   GAN mode: random family members (adversarial training over the family).
         real_tf = self._g_real_batch()
+        if hasattr(self.discriminator, 'new_points'):
+            self.discriminator.new_points()   # point-wise critics: one subset per step
 
         # Sample new latent vectors
         z = tf.random.normal([self.batch_size, self.generator.latent_dim])
@@ -197,15 +203,32 @@ class _BaseTrainer2D:
                 epoch, adversarial_loss, supervised_loss, ket_penalty)
 
         g_grads = tape.gradient(g_loss, self.generator.trainable_variables)
-        if g_grads[0] is not None:
+        # Filter (grad, var) PAIRS so a None grad never misaligns the zip
+        # (matters once the generator exposes more than one variable).
+        pairs = [(g, v) for g, v in
+                 zip(g_grads, self.generator.trainable_variables)
+                 if g is not None]
+        if pairs:
             if self.g_grad_clip > 0:
-                g_grads = [tf.clip_by_norm(g, self.g_grad_clip) for g in g_grads if g is not None]
+                gs = [tf.clip_by_norm(g, self.g_grad_clip) for g, _ in pairs]
             else:
-                g_grads = [g for g in g_grads if g is not None]
-            self.g_optimizer.apply_gradients(zip(g_grads, self.generator.trainable_variables))
-            g_grad_norm = float(tf.linalg.global_norm(g_grads))
+                gs = [g for g, _ in pairs]
+            self.g_optimizer.apply_gradients(zip(gs, [v for _, v in pairs]))
+            g_grad_norm = float(tf.linalg.global_norm(gs))
         else:
             g_grad_norm = 0.0
+
+        # Per-sample ket-norm monitoring: z-dependent squeezing makes the
+        # Fock-truncation error z-dependent, so a batch MEAN can hide one bad
+        # sample. Diagnostic only — the penalty above stays batch-mean.
+        kn_np = ket_norm_tf.numpy().reshape(-1)
+        worst = int(np.argmin(kn_np))
+        below = int(np.sum(kn_np < self.norm_floor))
+        if below:
+            print(f"WARNING epoch {epoch}: ket_norm < {self.norm_floor} for "
+                  f"{below}/{kn_np.size} samples (min {kn_np.min():.4f}); "
+                  f"worst z = {np.round(z.numpy()[worst], 3).tolist()}",
+                  file=sys.stderr)
 
         return {
             'g_loss': g_loss,
@@ -215,6 +238,10 @@ class _BaseTrainer2D:
             'gen_prob': gen_prob,
             'ket_norm_tf': ket_norm_tf,
             'g_grad_norm': g_grad_norm,
+            'ket_norm_min': float(kn_np.min()),
+            'ket_norm_max': float(kn_np.max()),
+            'ket_norm_warn': below,
+            'worst_z': z.numpy()[worst].copy(),
         }
 
 
@@ -236,6 +263,8 @@ class WGANGPTrainer(_BaseTrainer2D):
         d_fake_scores = []
 
         for _ in range(self.n_critic):
+            if hasattr(self.discriminator, 'new_points'):
+                self.discriminator.new_points()   # same subset for real, fake and GP
             # Pick a RANDOM batch of real samples from train_set
             idxs = np.random.randint(len(self.train_set), size=self.batch_size)
             real_tf = tf.constant(
@@ -390,6 +419,25 @@ def train_2d_qgan(
     val_every=20,
     seed=None,              # Resolved to a concrete int and recorded; None => entropy-based
     deterministic=False,    # Opt into stronger (slower) same-machine determinism
+    encoding='input_displacement',  # SEAM 1: 'input_displacement' | 'interleaved_squeeze'
+    inj_layers=None,        # interleaved only: layers to inject ("0,2" or sequence; None = all)
+    r_max=None,             # interleaved only: hard clip |r| <= r_max on squeeze magnitudes
+    init_weights=None,      # Warm start: path to a best_weights.npy (v1 or v2 format)
+    norm_floor=0.99,        # Per-sample ket-norm warning threshold
+    squeeze_scale=0.0,      # interleaved only: z-squeeze gain w_s (0 = channel off)
+    train_squeeze_scale=False,  # interleaved only: make w_s trainable (init at squeeze_scale)
+    inj_latent='shared',    # interleaved only: 'shared' (z[2m]) | 'dedicated' (extra z components)
+    generator='cv',         # benchmark backend: 'cv' | 'classical' | 'dv' (src/backends)
+    critic='dense_2d',      # 'dense_2d' | 'coord_2d' | 'cv_qnn_2d' | 'dv_qnn_2d'
+    critic_points=64,       # point-wise critics: grid points sampled per critic call (0 = all)
+    critic_layers=6,        # point-wise quantum critics: circuit layers
+    gen_hidden='9,9',       # classical generator: hidden sizes of the coordinate net
+    gen_activation='tanh',  # classical generator: 'tanh' | 'sine' (SIREN)
+    gen_fourier=0,          # classical generator: random Fourier features of the point (0 = off)
+    dv_qubits=10,           # dv generator: qubits (2k -> 2^k x 2^k grid)
+    dv_layers=9,            # dv generator: layers
+    dv_reupload=False,      # dv generator: re-encode z before every layer (data re-uploading)
+    dv_encoding='ry',       # dv generator: 'ry' | 'ryrz' angle encoding of z
 ):
     """
     Train 2D CV-QGAN with pre-generated dataset.
@@ -410,6 +458,7 @@ def train_2d_qgan(
 
     # Seed EVERYTHING before any dataset generation, weight init, or z sampling.
     seed = resolve_seed(seed)
+    _t_start = _time.time()   # wall clock for backend_info.json (no RNG use)
     seed_everything(seed)
     if deterministic:
         try:
@@ -461,6 +510,18 @@ def train_2d_qgan(
     print(f"Ket-norm penalty weight: {ket_penalty_weight}")
     print(f"Latent scale: {latent_scale}")
     print(f"G gradient clip: {g_grad_clip if g_grad_clip > 0 else 'disabled'}")
+    print(f"Encoding: {encoding}"
+          + (f" (inj_layers={inj_layers}, r_max={r_max}, "
+             f"squeeze_scale={squeeze_scale}, "
+             f"train_squeeze_scale={train_squeeze_scale}, "
+             f"inj_latent={inj_latent})"
+             if encoding == 'interleaved_squeeze' else ""))
+    if (encoding == 'interleaved_squeeze' and not train_squeeze_scale
+            and float(squeeze_scale) == 0.0):
+        print("NOTE: squeeze_scale=0 with a fixed gain: the z-squeeze channel "
+              "is OFF — this run is numerically the input_displacement "
+              "baseline (control arm). Use --squeeze-scale S for a fixed "
+              "gain or --train-squeeze-scale for a learned one.")
     print(f"Seed: {seed}")
     print(f"Output: {log_dir}")
     print("=" * 70)
@@ -477,6 +538,11 @@ def train_2d_qgan(
     train_set = full_dataset[:n_train]
     val_set = full_dataset[n_train:]
     print(f"Split: {len(train_set)} train, {len(val_set)} validation")
+    # Fingerprint of the validation set (recorded in backend_info.json so
+    # scripts/rescore.py can assert it rebuilt the same split).
+    import hashlib as _hashlib
+    _val_hash = _hashlib.sha1(np.concatenate(
+        [np.asarray(m, np.float32).ravel() for m, _ in val_set]).tobytes()).hexdigest()[:16]
 
     # Reference diversity of the data itself: the generator's 'diversity'
     # metric should approach this value, not zero.
@@ -498,19 +564,70 @@ def train_2d_qgan(
 
     # Initialize generator
     print("\nInitializing generator...")
-    generator = CVQGANGenerator(
-        n_modes=n_total_modes,
-        n_output_modes=2,
-        n_layers=n_layers,
-        cutoff_dim=cutoff_dim,
-        use_kerr=use_kerr,
-        latent_scale=latent_scale,
-        batch_size=batch_size,
-    )
+    # SEAM 1: build the encoding strategy. Passing an explicit
+    # EncodingSpec('input_displacement') is identical to the generator's
+    # None default, so the legacy path is untouched.
+    if isinstance(inj_layers, str):
+        inj_layers = tuple(int(s) for s in inj_layers.split(',') if s.strip())
+    if encoding == 'input_displacement':
+        enc_spec = EncodingSpec(encoding)
+    else:
+        enc_spec = EncodingSpec(encoding, inj_layers=inj_layers, r_max=r_max,
+                                squeeze_scale=squeeze_scale,
+                                train_squeeze_scale=train_squeeze_scale,
+                                inj_latent=inj_latent)
+    if generator == 'cv':
+        generator = CVQGANGenerator(
+            n_modes=n_total_modes,
+            n_output_modes=2,
+            n_layers=n_layers,
+            cutoff_dim=cutoff_dim,
+            use_kerr=use_kerr,
+            latent_scale=latent_scale,
+            batch_size=batch_size,
+            encoding=enc_spec,
+        )
+    else:
+        # Benchmark backend (src/backends) behind the CV-shaped shim; the
+        # same latent dimension as the CV generator of this config.
+        from src.backends.trainer_shim import GeneratorShim, build_generator
+        # latent_dim follows the CV generator OF THIS CONFIG (2*n_modes, or
+        # 3*n_modes under --inj-latent dedicated): matched controls draw the
+        # same number of normals per sample.
+        generator = GeneratorShim(build_generator({
+            'generator': generator, 'n_modes': n_total_modes,
+            'latent_dim': enc_spec.latent_dim(n_total_modes),
+            'gen_hidden': gen_hidden, 'gen_activation': gen_activation,
+            'gen_fourier': gen_fourier, 'seed': seed, 'dv_qubits': dv_qubits,
+            'dv_layers': dv_layers, 'dv_reupload': dv_reupload,
+            'dv_encoding': dv_encoding, 'latent_scale': latent_scale}))
+        print(f"Generator backend: {generator.describe()}")
+        if generator.batch_size is None and hasattr(generator.backend, 'grid_sizes') \
+                and grid_size not in generator.backend.grid_sizes:
+            raise ValueError(f"--generator {generator.backend.name} produces grids "
+                             f"{generator.backend.grid_sizes}; pass --grid-size accordingly")
+
+    # Warm start (both modes; a legacy v1 file into an interleaved model
+    # leaves w_s at zero = frozen-baseline start).
+    if init_weights:
+        print(f"Warm start from {init_weights}")
+        if isinstance(generator, CVQGANGenerator):
+            weights_io.apply_weights(generator, weights_io.load_weights(init_weights),
+                                     source=init_weights)
+        else:
+            generator.load(init_weights)
 
     # Initialize discriminator
     print("\nInitializing discriminator...")
-    discriminator = Discriminator2D(hidden_dims=[16, 8], dropout_rate=d_dropout)
+    if critic == 'dense_2d':
+        discriminator = Discriminator2D(hidden_dims=[16, 8], dropout_rate=d_dropout)
+    else:
+        from src.backends.trainer_shim import build_critic
+        discriminator = build_critic({'critic': critic, 'critic_points': critic_points,
+                                      'critic_layers': critic_layers,
+                                      'critic_cutoff': cutoff_dim},
+                                     xvec, yvec, seed=seed if seed is not None else 0)
+        print(f"Critic backend: {discriminator.describe()}")
 
     # Fixed Gaussian kernel for critic-input blur (None = off)
     blur_kernel = build_blur_kernel(critic_blur_sigma)
@@ -535,6 +652,7 @@ def train_2d_qgan(
 
     best_val_metric = float('inf')
     best_weights = None
+    best_w_s = None
 
     # Initial validation
     print("\nComputing initial validation...")
@@ -595,7 +713,13 @@ def train_2d_qgan(
         noise_floor=noise_floor,
         supervised_weight=supervised_weight, supervised_warmup=supervised_warmup,
         ket_penalty_weight=ket_penalty_weight, g_grad_clip=g_grad_clip,
+        norm_floor=norm_floor,
     )
+
+    # Per-sample ket-norm monitor — separate file next to history.npz
+    # (history.npz keys are frozen by the E2E goldens' strict key match).
+    norm_mon = {'ket_norm_min': [], 'ket_norm_mean': [], 'ket_norm_max': [],
+                'warn_count': [], 'worst_z': []}
 
     for epoch in range(1, epochs + 1):
 
@@ -630,6 +754,11 @@ def train_2d_qgan(
         # Print a warning at val_every cadence so logs don't get spammy.
         ket_norm = float(tf.reduce_mean(step['ket_norm_tf']))
         history['ket_norm'].append(ket_norm)
+        norm_mon['ket_norm_min'].append(step['ket_norm_min'])
+        norm_mon['ket_norm_mean'].append(ket_norm)
+        norm_mon['ket_norm_max'].append(step['ket_norm_max'])
+        norm_mon['warn_count'].append(step['ket_norm_warn'])
+        norm_mon['worst_z'].append(step['worst_z'])
         if epoch % val_every == 0:
             flag = "  <-- LOW (raise cutoff_dim)" if ket_norm < 0.9 else ""
             print(f"  ket_norm = {ket_norm:.3f}{flag}")
@@ -652,7 +781,15 @@ def train_2d_qgan(
                              else val_metrics['nearest_w1'])
             if select_metric < best_val_metric:
                 best_val_metric = select_metric
-                best_weights = generator.weights.numpy().copy()
+                # Snapshot weights AND w_s at the same epoch — never pair
+                # best-epoch weights with w_s from another epoch.
+                if isinstance(generator, CVQGANGenerator):
+                    best_weights = generator.weights.numpy().copy()
+                    best_w_s = (generator.w_s.numpy().copy()
+                                if generator.w_s is not None else None)
+                else:
+                    best_weights = generator.state_dict()   # backend state
+                    best_w_s = None
 
             print(f"Epoch {epoch:4d} | G: {float(step['g_loss']):.4f} | "
                   f"D: {d_stats['d_loss_avg']:+.4f} | "
@@ -695,12 +832,43 @@ def train_2d_qgan(
     print(f"Best validation ({select_name}): {best_val_metric:.4f}")
 
     # Restore best weights
-    if best_weights is not None:
+    if best_weights is not None and isinstance(generator, CVQGANGenerator):
         print("Restoring best weights from validation...")
         generator.weights.assign(best_weights)
+        if best_w_s is not None:
+            generator.w_s.assign(best_w_s)
         # Persist for post-hoc re-scoring (e.g. with metrics added later);
-        # history.npz alone cannot reconstruct the generator.
-        np.save(f"{log_dir}/best_weights.npy", best_weights)
+        # history.npz alone cannot reconstruct the generator. v1 raw array
+        # for input_displacement (byte-identical to the legacy np.save),
+        # v2 dict with w_s for interleaved_squeeze.
+        weights_io.save_weights(
+            f"{log_dir}/best_weights.npy", best_weights, w_s=best_w_s,
+            meta=({'squeeze_scale': float(squeeze_scale),
+                   'train_squeeze_scale': bool(train_squeeze_scale),
+                   'inj_latent': inj_latent}
+                  if best_w_s is not None else None))
+    elif best_weights is not None:
+        print("Restoring best backend state from validation...")
+        from src.backends.trainer_shim import save_backend_state
+        generator.load_state_dict(best_weights)
+        save_backend_state(f"{log_dir}/best_weights.npy", generator.backend,
+                           state=best_weights)
+
+    # Additive provenance for the benchmark: what was trained, parameter and
+    # Hilbert-space sizes, wall time (backend_info.json next to run_config).
+    try:
+        from src.backends.trainer_shim import write_backend_info
+        from src.backends.cv import CVGeneratorBackend
+        from src.backends.classical_critic import DenseCriticBackend
+        g_desc = (CVGeneratorBackend(generator=generator).describe()
+                  if isinstance(generator, CVQGANGenerator) else generator.describe())
+        c_desc = (DenseCriticBackend(model=discriminator).describe()
+                  if isinstance(discriminator, Discriminator2D) else discriminator.describe())
+        write_backend_info(log_dir, g_desc, c_desc, _time.time() - _t_start,
+                           extra={'epochs_run': int(len(history['g_loss'])),
+                                  'val_set_sha1_16': _val_hash})
+    except Exception as e:  # noqa: BLE001 - provenance must never fail a run
+        print(f"  (backend_info.json not written: {e})")
 
     # Final validation
     final_val = validate(generator, canonical_target, val_set, xvec, yvec, ed_ctx)
@@ -736,6 +904,13 @@ def train_2d_qgan(
     # Save training history
     plot_training_history(history, f"{log_dir}/training_history.png")
     np.savez(f"{log_dir}/history.npz", **history, seed=np.int64(seed))
+    np.savez(f"{log_dir}/norm_monitor.npz",
+             ket_norm_min=np.array(norm_mon['ket_norm_min']),
+             ket_norm_mean=np.array(norm_mon['ket_norm_mean']),
+             ket_norm_max=np.array(norm_mon['ket_norm_max']),
+             warn_count=np.array(norm_mon['warn_count'], dtype=np.int64),
+             worst_z=np.array(norm_mon['worst_z']),
+             norm_floor=np.float64(norm_floor))
 
     print(f"\nResults saved to: {log_dir}")
 

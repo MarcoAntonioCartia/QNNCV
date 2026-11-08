@@ -18,6 +18,8 @@ stay valid across refactors of the internal module layout.
 
 ## What each suite pins
 
+Nineteen suites as of 8 Nov 2026; `run_all.py` picks up any new `test_*.py`.
+
 | Suite | Golden data | Freezes |
 |---|---|---|
 | test_signatures | `data/signatures.json` | exact parameter lists, kinds and defaults of the 13 public callables (formerly-divergent knobs are required keyword-only; CLI defaults are the single source of truth) |
@@ -33,6 +35,12 @@ stay valid across refactors of the internal module layout.
 | test_blur_once | `data/blur_once.npz` | blur applied exactly once per critic tensor path (conv2d call count) + losses |
 | test_e2e_gan_cli | `data/e2e_gan/` | real-CLI GAN run: history.npz, best_weights, `run_config.json` exact minus timestamp (pins the --deterministic prologue provenance), folder suffix, console markers |
 | test_e2e_patha | `data/e2e_patha/` | pure-supervised (Path A) run: D identically inert, history, weights, fixed-z density |
+| test_interleaved_equiv | — (structural) | `interleaved_squeeze` at w_s = 0 equals `input_displacement` exactly; the gradient on w_s is live; a nonzero w_s changes the density's central second moment; batched == sequential |
+| test_squeeze_scale | — (structural) | fixed-gain mode: w_s filled with `--squeeze-scale`, not trainable, identical to a trainable gain assigned the same value; scale 0 is exactly the baseline |
+| test_inj_latent | — (structural) | `--inj-latent dedicated`: latent 3n vs 2n, z-index mapping, dedicated components at zero reproduce the baseline exactly, front components untouched |
+| test_weights_io | — (structural) | `best_weights.npy` contract: v1 raw array loads without pickle, v2 dict round-trips w_s, cross-encoding loads, fixed-scale guard, shape errors |
+| test_norm_monitor | — (structural) | per-sample ket-norm monitor: `norm_monitor.npz` next to `history.npz`, warn counts at an unreachable floor, `history.npz` key set unchanged |
+| test_backend_contract | — (structural) | every registered backend generator and critic: shapes, batched == sequential, gradient reach, exact `state_dict` round-trip, `describe()`; the CV adapter pinned to `CVQGANGenerator` |
 
 Notes:
 - `data/e2e_gan/console.txt` and `data/e2e_patha/stdout.txt` are *stored*

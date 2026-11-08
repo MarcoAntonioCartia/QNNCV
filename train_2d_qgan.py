@@ -37,6 +37,7 @@ import os
 import sys
 import argparse
 import json
+import time
 
 # Refactor strangler: the training code is being extracted into src/ (see
 # tests/golden/). Hard `from src...` imports below need the repo root on
@@ -82,7 +83,7 @@ warnings.filterwarnings('ignore')
 # train_2d_qgan and resolve_seed.
 
 from src.quantum.hermite import compute_hermite_basis, recommend_cutoff
-from src.quantum.circuit import CVQGANGenerator
+from src.quantum.circuit import CVQGANGenerator, EncodingSpec
 from src.models.discriminators.qgan2d_discriminator import Discriminator2D
 from src.families.registry import get_family
 from src.metrics.wasserstein import compute_wasserstein_2d
@@ -137,8 +138,39 @@ def build_hp_suffix(args, parser):
         ('ket_penalty_weight', 'kpen'),
         ('g_grad_clip',       'gclip'),
         ('grid_size',         'gs'),
+        ('encoding',          'enc'),
+        ('inj_layers',        'inj'),
+        ('r_max',             'rmax'),
+        ('squeeze_scale',     'ss'),
+        ('train_squeeze_scale', 'sstrain'),
+        ('inj_latent',        'zl'),
+        ('generator',         'g'),
+        ('critic',            'crit'),
+        ('critic_points',     'cp'),
+        ('critic_layers',     'clay'),
+        ('gen_hidden',        'gh'),
+        ('gen_activation',    'gact'),
+        ('gen_fourier',       'gff'),
+        ('dv_qubits',         'nq'),
+        ('dv_layers',         'dvl'),
+        ('dv_reupload',       'dvru'),
+        ('dv_encoding',       'dvenc'),
+        ('init_weights',      'warm'),   # bare marker: the path stays in run_config.json
+        ('norm_floor',        'normf'),
         ('seed',              'seed'),
     ]
+
+    # Long categorical values get short folder-name codes ('encIS').
+    # init_weights contributes only the bare marker 'warm' (a path would
+    # wreck the folder name — provenance lives in run_config.json); without
+    # it a cold and a warm-started arm of one seed share a folder name.
+    VALUE_ABBREV = {
+        'encoding': {'input_displacement': 'ID', 'interleaved_squeeze': 'IS'},
+        'inj_latent': {'shared': 'sh', 'dedicated': 'ded'},
+        'generator': {'cv': 'cv', 'classical': 'cl', 'dv': 'dv'},
+        'critic': {'dense_2d': 'dense', 'coord_2d': 'coord',
+                   'cv_qnn_2d': 'cvq', 'dv_qnn_2d': 'dvq'},
+    }
 
     parts = []
     for dest, abbrev in HP_MAP:
@@ -148,8 +180,13 @@ def build_hp_suffix(args, parser):
             if isinstance(actual, bool):
                 if actual:          # flag was set (e.g. --no-kerr)
                     parts.append(abbrev)
+            elif dest == 'init_weights':
+                parts.append(abbrev)    # 'warm', never the path
             else:
-                parts.append(f"{abbrev}{_format_val(actual)}")
+                sval = VALUE_ABBREV.get(dest, {}).get(actual,
+                                                      _format_val(actual))
+                # comma-separated lists (e.g. --inj-layers "0,2") -> "0-2"
+                parts.append(f"{abbrev}{sval.replace(',', '-')}")
     return ('_' + '_'.join(parts)) if parts else ''
 
 
@@ -229,6 +266,81 @@ def build_parser():
                        help='Opt into stronger (slower) same-machine determinism: '
                             'TF op determinism + single-threaded intra/inter-op + '
                             'TF_DETERMINISTIC_OPS/oneDNN env (off by default).')
+    parser.add_argument('--encoding', type=str, default='input_displacement',
+                       choices=['input_displacement', 'interleaved_squeeze'],
+                       help='How z enters the circuit: front displacement only '
+                            '(legacy) or additionally modulating each layer\'s '
+                            'squeeze magnitude via r = w_r + w_s*tanh(z[2m])')
+    parser.add_argument('--inj-layers', type=str, default=None,
+                       help='interleaved_squeeze only: comma-separated layer '
+                            'indices to inject into (e.g. "0,2"); default all')
+    parser.add_argument('--r-max', type=float, default=None,
+                       help='interleaved_squeeze only: hard clip |r| <= r_max '
+                            'on effective squeeze magnitudes (default off)')
+    parser.add_argument('--init-weights', type=str, default=None,
+                       help='Warm start from a best_weights.npy (legacy flat '
+                            'array or interleaved v2 format)')
+    parser.add_argument('--norm-floor', type=float, default=0.99,
+                       help='Warn when any sample\'s truncated-ket norm drops '
+                            'below this threshold')
+    parser.add_argument('--squeeze-scale', type=float, default=0.0,
+                       help='interleaved_squeeze only: value of the z-squeeze '
+                            'gain w_s in r = w_r + w_s*tanh(z[2m]); FIXED '
+                            '(non-trainable) unless --train-squeeze-scale. '
+                            '0 (default) = channel off')
+    parser.add_argument('--train-squeeze-scale', action='store_true',
+                       help='interleaved_squeeze only: make w_s trainable, '
+                            'initialized at --squeeze-scale (the original '
+                            'learned-gain design is --train-squeeze-scale '
+                            'with --squeeze-scale 0)')
+    parser.add_argument('--inj-latent', type=str, default='shared',
+                       choices=['shared', 'dedicated'],
+                       help='interleaved_squeeze only: which latent component '
+                            'the squeeze channel reads. shared = z[2m] (also '
+                            'drives the front displacement; latent_dim '
+                            '2*n_modes); dedicated = extra components read '
+                            'only by the squeeze channel (latent_dim '
+                            '3*n_modes), decoupling size from position')
+    # Benchmark backends (src/backends, docs/benchmark_plan.md). Defaults
+    # reproduce the frozen CV + dense critic path byte-for-byte.
+    parser.add_argument('--generator', type=str, default='cv',
+                       choices=['cv', 'classical', 'dv'],
+                       help='generator backend: cv (Strawberry Fields, default), '
+                            'classical (coordinate network), dv (PennyLane qubits; '
+                            'needs the qnncv-dv env and a power-of-two --grid-size)')
+    parser.add_argument('--critic', type=str, default='dense_2d',
+                       choices=['dense_2d', 'coord_2d', 'cv_qnn_2d', 'dv_qnn_2d'],
+                       help='critic backend: dense_2d (grid MLP, default) or a '
+                            'point-wise critic: coord_2d (MLP), cv_qnn_2d (CV '
+                            'circuit), dv_qnn_2d (qubit circuit)')
+    parser.add_argument('--critic-points', type=int, default=64,
+                       help='point-wise critics: grid points sampled per critic '
+                            'call (0 = full grid, exact)')
+    parser.add_argument('--critic-layers', type=int, default=6,
+                       help='point-wise quantum critics: circuit layers '
+                            '(6 -> 96 params for cv_qnn_2d)')
+    parser.add_argument('--gen-hidden', type=str, default='9,9',
+                       help='classical generator: hidden sizes, e.g. "9,9" '
+                            '(181 params) or "64,64"')
+    parser.add_argument('--gen-activation', type=str, default='tanh',
+                       choices=['tanh', 'sine'],
+                       help='classical generator: hidden activation; sine = SIREN '
+                            '(w0 = 30, SIREN initialisation)')
+    parser.add_argument('--gen-fourier', type=int, default=0,
+                       help='classical generator: number of random Fourier features '
+                            'of the grid point (0 = off; 8 -> use --gen-hidden 6,6 '
+                            'for 199 params, the closest match to 186)')
+    parser.add_argument('--dv-qubits', type=int, default=10,
+                       help='dv generator: qubits, 2k for a 2^k x 2^k grid')
+    parser.add_argument('--dv-layers', type=int, default=9,
+                       help='dv generator: layers (10 qubits x 9 = 180 params)')
+    parser.add_argument('--dv-reupload', action='store_true',
+                       help='dv generator: re-encode z before every layer '
+                            '(data re-uploading; no extra parameters)')
+    parser.add_argument('--dv-encoding', type=str, default='ry',
+                       choices=['ry', 'ryrz'],
+                       help='dv generator: angle encoding of z, ry (one '
+                            'component per qubit) or ryrz (two components)')
 
     return parser
 
@@ -254,12 +366,21 @@ def main():
     # If --n-ancilla was used, reflect it in args.n_modes for suffix building
     args.n_modes = n_total_modes
     hp_suffix = build_hp_suffix(args, parser)
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    log_dir = f"./logs/qgan_2d_{args.family}_{timestamp}{hp_suffix}"
+    # Folder names are stamped to the second. Two runs with the same tag
+    # started in the same second (two arms of one seed launched together)
+    # would otherwise share a folder and overwrite each other's history and
+    # weights. Claim the folder atomically; on a clash wait and re-stamp.
+    while True:
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        log_dir = f"./logs/qgan_2d_{args.family}_{timestamp}{hp_suffix}"
+        try:
+            os.makedirs(log_dir, exist_ok=False)
+            break
+        except FileExistsError:
+            time.sleep(1.0)
 
     # Dump a durable run config (args + environment + seed) so any result can be
     # reproduced and each A/B table row can cite its seed.
-    os.makedirs(log_dir, exist_ok=True)
     run_config = dict(vars(args))
     run_config.update({
         'timestamp': timestamp,
@@ -304,6 +425,25 @@ def main():
         val_every=args.val_every,
         seed=args.seed,
         deterministic=args.deterministic,
+        encoding=args.encoding,
+        inj_layers=args.inj_layers,
+        r_max=args.r_max,
+        init_weights=args.init_weights,
+        norm_floor=args.norm_floor,
+        squeeze_scale=args.squeeze_scale,
+        train_squeeze_scale=args.train_squeeze_scale,
+        inj_latent=args.inj_latent,
+        generator=args.generator,
+        critic=args.critic,
+        critic_points=args.critic_points,
+        critic_layers=args.critic_layers,
+        gen_hidden=args.gen_hidden,
+        gen_activation=args.gen_activation,
+        gen_fourier=args.gen_fourier,
+        dv_qubits=args.dv_qubits,
+        dv_layers=args.dv_layers,
+        dv_reupload=args.dv_reupload,
+        dv_encoding=args.dv_encoding,
     )
 
 
