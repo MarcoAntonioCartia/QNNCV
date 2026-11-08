@@ -123,13 +123,20 @@ def rbf_mmd_test(A, B, n_perm, rng):
     return float(obs), float(p)
 
 
-def rescore(run_dir, n_samples, seed, n_perm, verbose=True):
+def rescore(run_dir, n_samples, seed, n_perm, verbose=True, grid=None):
+    """grid=None scores on the run's own grid; grid=G re-renders the
+    checkpoint on a GxG grid (CV and classical generators are grid-free;
+    the DV backend refuses a grid it cannot produce) against a validation
+    set rebuilt at that grid, so arms trained at different grids can be
+    compared on one. W1 values are in cells of the grid used."""
     name = os.path.basename(os.path.normpath(run_dir))
     cfg = json.load(open(os.path.join(run_dir, 'run_config.json')))
     t0 = time.time()
+    rerender = grid is not None and int(grid) != int(cfg['grid_size'])
+    G = int(grid) if grid is not None else int(cfg['grid_size'])
     # validation set exactly as training built it: seed, family, split
     seed_everything(int(cfg['seed']))
-    fam = get_family(cfg['family'], cfg['grid_size'], 3.0)
+    fam = get_family(cfg['family'], G, 3.0)
     data = generate_dataset(fam, cfg['n_train'] + cfg['n_val'])
     val = [m for m, _ in data[cfg['n_train']:]]
     canon, _ = fam.get_canonical()
@@ -139,7 +146,7 @@ def rescore(run_dir, n_samples, seed, n_perm, verbose=True):
     g.load(os.path.join(run_dir, 'best_weights.npy'))
     # assert the rebuilt validation split when the run recorded its fingerprint
     info_path = os.path.join(run_dir, 'backend_info.json')
-    if os.path.exists(info_path):
+    if os.path.exists(info_path) and not rerender:
         import hashlib
         want = json.load(open(info_path)).get('val_set_sha1_16')
         got = hashlib.sha1(np.concatenate(
@@ -184,6 +191,7 @@ def rescore(run_dir, n_samples, seed, n_perm, verbose=True):
     d = g.describe()
     row = {
         'run': name, 'group': group_of(name), 'family': cfg['family'], 'seed': cfg['seed'],
+        'grid': G, 'train_grid': cfg['grid_size'],
         'epochs': cfg.get('epochs'), 'n_samples': nf, 'rescore_seed': seed,
         'fid_w1': float(W.min(1).mean()), 'cov_w1': float(W.min(0).mean()),
         'chamfer_w1': float(W.min(1).mean() + W.min(0).mean()),
@@ -226,6 +234,9 @@ def main():
     ap.add_argument('--n-perm', type=int, default=200, help='permutations for the MMD p-value')
     ap.add_argument('--out', default=os.path.join('analysis', 'rescore'))
     ap.add_argument('--force', action='store_true', help='re-score runs that already have a json')
+    ap.add_argument('--grid', type=int, default=None,
+                    help="re-render every checkpoint on this grid (default: the run's own); "
+                         'with the default --out the folder becomes analysis/rescore_g<G>')
     args = ap.parse_args()
     dirs = []
     for pat in args.runs:
@@ -234,6 +245,8 @@ def main():
             and os.path.exists(os.path.join(d, 'run_config.json'))]
     if not dirs:
         print("no run folders with best_weights.npy + run_config.json"); return 2
+    if args.grid is not None and args.out == os.path.join('analysis', 'rescore'):
+        args.out = os.path.join('analysis', f'rescore_g{args.grid}')
     os.makedirs(args.out, exist_ok=True)
     print(f"re-scoring {len(dirs)} runs with {args.n_samples} samples (seed {args.seed}) -> {args.out}")
     for d in dirs:
@@ -241,7 +254,7 @@ def main():
         jpath = os.path.join(args.out, name + '.json')
         if os.path.exists(jpath) and not args.force:
             print(f"  {name}: already scored (use --force)"); continue
-        row = rescore(d, args.n_samples, args.seed, args.n_perm)
+        row = rescore(d, args.n_samples, args.seed, args.n_perm, grid=args.grid)
         with open(jpath, 'w', encoding='utf-8') as fh:
             json.dump(row, fh, indent=1)
     write_csv(args.out)
