@@ -434,6 +434,8 @@ def train_2d_qgan(
     gen_hidden='9,9',       # classical generator: hidden sizes of the coordinate net
     dv_qubits=10,           # dv generator: qubits (2k -> 2^k x 2^k grid)
     dv_layers=9,            # dv generator: layers
+    dv_reupload=False,      # dv generator: re-encode z before every layer (data re-uploading)
+    dv_encoding='ry',       # dv generator: 'ry' | 'ryrz' angle encoding of z
 ):
     """
     Train 2D CV-QGAN with pre-generated dataset.
@@ -594,7 +596,8 @@ def train_2d_qgan(
             'generator': generator, 'n_modes': n_total_modes,
             'latent_dim': enc_spec.latent_dim(n_total_modes),
             'gen_hidden': gen_hidden, 'dv_qubits': dv_qubits,
-            'dv_layers': dv_layers, 'latent_scale': latent_scale}))
+            'dv_layers': dv_layers, 'dv_reupload': dv_reupload,
+            'dv_encoding': dv_encoding, 'latent_scale': latent_scale}))
         print(f"Generator backend: {generator.describe()}")
         if generator.batch_size is None and hasattr(generator.backend, 'grid_sizes') \
                 and grid_size not in generator.backend.grid_sizes:

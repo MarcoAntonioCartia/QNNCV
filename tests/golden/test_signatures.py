@@ -50,7 +50,8 @@ APPEND_ALLOWLIST = {
                       'inj_latent',
                       # benchmark backends (Phase 2 plumbing), all defaulted
                       'generator', 'critic', 'critic_points', 'critic_layers',
-                      'gen_hidden', 'dv_qubits', 'dv_layers'],
+                      'gen_hidden', 'dv_qubits', 'dv_layers',
+                      'dv_reupload', 'dv_encoding'],
 }
 
 

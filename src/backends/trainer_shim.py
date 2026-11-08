@@ -98,7 +98,8 @@ def parse_hidden(spec):
 
 def build_generator(cfg):
     """Build the generator named by a run_config-like dict (keys: generator,
-    gen_hidden, dv_qubits, dv_layers, latent_scale, n_modes). Returns a
+    gen_hidden, dv_qubits, dv_layers, dv_reupload, dv_encoding, latent_scale,
+    n_modes). Returns a
     GeneratorBackend; the CV backend is built by the trainer itself."""
     from src.backends import registry
     name = cfg.get('generator', 'cv')
@@ -116,7 +117,9 @@ def build_generator(cfg):
     if name == 'dv':
         return registry.GENERATOR_REGISTRY['dv'](
             n_qubits=int(cfg.get('dv_qubits', 10)), n_layers=int(cfg.get('dv_layers', 9)),
-            latent_dim=latent_dim, latent_scale=float(cfg.get('latent_scale', 1.0)))
+            latent_dim=latent_dim, latent_scale=float(cfg.get('latent_scale', 1.0)),
+            reupload=bool(cfg.get('dv_reupload', False)),
+            encoding=str(cfg.get('dv_encoding', 'ry')))
     raise ValueError(f"build_generator: {name!r} is built by the trainer directly")
 
 

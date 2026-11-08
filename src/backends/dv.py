@@ -12,11 +12,17 @@ Design (the June-2025 sketch, made concrete):
   two: `grid_sizes` lists what this backend can produce, and the benchmark
   rule is one grid for every backend (the plan's open decision).
 - encoding: z (latent_dim, default 6 like the CV generator) enters as
-  fixed RY angles on the qubits, cyclically (angle encoding; never
+  fixed rotation angles on the qubits, cyclically (angle encoding; never
   trainable, the January-2026 rule). latent_scale multiplies z first.
+  encoding='ry': RY(z[i % D]) on qubit i. encoding='ryrz': RY(z[i % D])
+  then RZ(z[(i + 1) % D]), so each qubit sees two latent components.
+  reupload=True re-applies the encoding before every layer (data
+  re-uploading, Perez-Salinas et al. 2020; the qubit analogue of the CV
+  interleaved encoding) so the output stays a function of z at depth.
 - layers: n_layers x [RY(w), RZ(w) on every qubit, CNOT ring] with w of
   shape (n_layers, n_qubits, 2): 2*n*L trainable parameters (10 qubits,
-  9 layers = 180, parameter-matched to the CV's 186).
+  9 layers = 180, parameter-matched to the CV's 186). The encoding adds
+  no parameters.
 - readout: qml.probs over all wires, reshaped to (G, G); sums to 1.
 - differentiation: lightning.qubit with diff_method='best' (adjoint does
   not support probs), TF interface; measured 0.13 s per sample fwd+bwd at
@@ -34,10 +40,15 @@ from src.backends.base import GeneratorBackend
 class DVGeneratorBackend(GeneratorBackend):
     name = 'dv'
 
+    ENCODINGS = ('ry', 'ryrz')
+
     def __init__(self, *, n_qubits=10, n_layers=9, latent_dim=6, latent_scale=1.0,
-                 device='lightning.qubit', init_sd=0.1):
+                 device='lightning.qubit', init_sd=0.1, reupload=False, encoding='ry'):
         if n_qubits % 2:
             raise ValueError("n_qubits must be even (k qubits per axis)")
+        if encoding not in self.ENCODINGS:
+            raise ValueError(f"encoding must be one of {self.ENCODINGS}")
+        self.reupload, self.encoding = bool(reupload), str(encoding)
         self.n_qubits, self.n_layers = int(n_qubits), int(n_layers)
         self.k = self.n_qubits // 2
         self.grid = 2 ** self.k
@@ -51,11 +62,20 @@ class DVGeneratorBackend(GeneratorBackend):
         n, L = self.n_qubits, self.n_layers
         diff = 'best' if device.startswith('lightning') else 'backprop'
 
+        D, ryrz, reup = self._latent_dim, self.encoding == 'ryrz', self.reupload
+
+        def encode(z):
+            for i in range(n):
+                qml.RY(z[i % D], wires=i)
+                if ryrz:
+                    qml.RZ(z[(i + 1) % D], wires=i)
+
         @qml.qnode(self.dev, interface='tf', diff_method=diff)
         def circuit(z, w):
-            for i in range(n):
-                qml.RY(z[i % self._latent_dim], wires=i)
+            encode(z)
             for l in range(L):
+                if reup and l > 0:
+                    encode(z)
                 for i in range(n):
                     qml.RY(w[l, i, 0], wires=i)
                     qml.RZ(w[l, i, 1], wires=i)
@@ -99,7 +119,8 @@ class DVGeneratorBackend(GeneratorBackend):
     def state_dict(self):
         return {'weights': self.w.numpy().copy(),
                 'meta': {'n_qubits': self.n_qubits, 'n_layers': self.n_layers,
-                         'latent_dim': self._latent_dim, 'latent_scale': self.latent_scale}}
+                         'latent_dim': self._latent_dim, 'latent_scale': self.latent_scale,
+                         'reupload': self.reupload, 'encoding': self.encoding}}
 
     def load_state_dict(self, state):
         w = np.asarray(state['weights'], np.float32)
@@ -114,4 +135,6 @@ class DVGeneratorBackend(GeneratorBackend):
                 'latent_dim': self._latent_dim,
                 'n_qubits': self.n_qubits, 'n_layers': self.n_layers,
                 'grid': self.grid, 'device': self.device_name,
-                'encoding': 'angle_ry_cyclic'}
+                'encoding': f"angle_{self.encoding}_cyclic"
+                            + ('_reupload' if self.reupload else ''),
+                'reupload': self.reupload}

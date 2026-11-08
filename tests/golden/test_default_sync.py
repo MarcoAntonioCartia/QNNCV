@@ -70,6 +70,8 @@ TRAIN_MAP = {
     'gen_hidden': 'gen_hidden',
     'dv_qubits': 'dv_qubits',
     'dv_layers': 'dv_layers',
+    'dv_reupload': 'dv_reupload',
+    'dv_encoding': 'dv_encoding',
 }
 # CLI dests with no train_2d_qgan counterpart
 TRAIN_EXCLUDED_DESTS = {

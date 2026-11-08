@@ -151,6 +151,8 @@ def build_hp_suffix(args, parser):
         ('gen_hidden',        'gh'),
         ('dv_qubits',         'nq'),
         ('dv_layers',         'dvl'),
+        ('dv_reupload',       'dvru'),
+        ('dv_encoding',       'dvenc'),
         ('init_weights',      'warm'),   # bare marker: the path stays in run_config.json
         ('norm_floor',        'normf'),
         ('seed',              'seed'),
@@ -322,6 +324,13 @@ def build_parser():
                        help='dv generator: qubits, 2k for a 2^k x 2^k grid')
     parser.add_argument('--dv-layers', type=int, default=9,
                        help='dv generator: layers (10 qubits x 9 = 180 params)')
+    parser.add_argument('--dv-reupload', action='store_true',
+                       help='dv generator: re-encode z before every layer '
+                            '(data re-uploading; no extra parameters)')
+    parser.add_argument('--dv-encoding', type=str, default='ry',
+                       choices=['ry', 'ryrz'],
+                       help='dv generator: angle encoding of z, ry (one '
+                            'component per qubit) or ryrz (two components)')
 
     return parser
 
@@ -421,6 +430,8 @@ def main():
         gen_hidden=args.gen_hidden,
         dv_qubits=args.dv_qubits,
         dv_layers=args.dv_layers,
+        dv_reupload=args.dv_reupload,
+        dv_encoding=args.dv_encoding,
     )
 
 

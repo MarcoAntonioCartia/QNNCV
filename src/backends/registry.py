@@ -64,6 +64,8 @@ def toy_factories(batch_size=4):
     if DVGeneratorBackend is not None:
         # 8 qubits -> 16x16 toy grid (the backend's grid_sizes tells the test)
         gens['dv'] = lambda: DVGeneratorBackend(n_qubits=8, n_layers=2)
+        gens['dv/reupload-ryrz'] = lambda: DVGeneratorBackend(
+            n_qubits=8, n_layers=2, reupload=True, encoding='ryrz')
     import numpy as np
     xv = np.linspace(-3.0, 3.0, 40)
     critics = {
