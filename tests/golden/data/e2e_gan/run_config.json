@@ -19,6 +19,8 @@
   "family": "ring",
   "g_grad_clip": 5.0,
   "g_lr": 0.005,
+  "gen_activation": "tanh",
+  "gen_fourier": 0,
   "gen_hidden": "9,9",
   "generator": "cv",
   "gp_warmup": 50,
@@ -49,7 +51,7 @@
   "supervised_warmup": 200,
   "supervised_weight": 0.0,
   "tf_version": "2.18.0",
-  "timestamp": "20261108_110018",
+  "timestamp": "20261108_111217",
   "train_squeeze_scale": false,
   "val_every": 2
 }
