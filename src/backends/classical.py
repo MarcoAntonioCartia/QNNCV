@@ -125,9 +125,13 @@ class ClassicalCoordGenerator(GeneratorBackend):
         if feats is None:
             X, Y = np.meshgrid(np.asarray(xvec, np.float32),
                                np.asarray(yvec, np.float32), indexing='ij')
-            cols = [X.ravel(), Y.ravel()]
+            # SIREN's w0 = 30 assumes inputs in [-1, 1]: feed the sine net
+            # the grid point divided by the half-range (3.0 on the default
+            # grid); tanh and the Fourier features see the raw coordinates.
+            s = 1.0 / float(max(np.abs(xvec).max(), np.abs(yvec).max()))                 if self.activation == 'sine' else 1.0
+            cols = [X.ravel() * s, Y.ravel() * s]
             if self.features == 'xyr':
-                cols.append(np.sqrt(X.ravel() ** 2 + Y.ravel() ** 2))
+                cols.append(np.sqrt(X.ravel() ** 2 + Y.ravel() ** 2) * s)
             if self.fourier:
                 proj = 2.0 * np.pi * np.stack([X.ravel(), Y.ravel()], 1) @ self.fourier_B.T
                 cols += [np.sin(proj[:, k]) for k in range(self.fourier)]

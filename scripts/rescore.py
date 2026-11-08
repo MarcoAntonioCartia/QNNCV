@@ -219,7 +219,9 @@ def write_csv(out_dir):
     if not rows:
         return
     with open(os.path.join(out_dir, 'rescore.csv'), 'w', newline='', encoding='utf-8') as fh:
-        w = csv.DictWriter(fh, fieldnames=list(rows[0].keys()))
+        fields = list(rows[0].keys())
+        fields += sorted({k for r in rows for k in r} - set(fields))  # keys added later
+        w = csv.DictWriter(fh, fieldnames=fields)
         w.writeheader()
         for r in rows:
             w.writerow(r)
