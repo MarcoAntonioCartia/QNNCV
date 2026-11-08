@@ -137,7 +137,17 @@ def rescore(run_dir, n_samples, seed, n_perm, verbose=True):
 
     g = build_generator(cfg)
     g.load(os.path.join(run_dir, 'best_weights.npy'))
-    B = g.batch_size or 1
+    # assert the rebuilt validation split when the run recorded its fingerprint
+    info_path = os.path.join(run_dir, 'backend_info.json')
+    if os.path.exists(info_path):
+        import hashlib
+        want = json.load(open(info_path)).get('val_set_sha1_16')
+        got = hashlib.sha1(np.concatenate(
+            [np.asarray(m, np.float32).ravel() for m in val]).tobytes()).hexdigest()[:16]
+        if want and want != got:
+            raise RuntimeError(f"{name}: rebuilt validation set ({got}) differs from the "
+                               f"one used in training ({want}); rescore would be wrong")
+    B = g.batch_size or 8
     tf.random.set_seed(seed)
     fakes, kets = [], []
     while len(fakes) < n_samples:

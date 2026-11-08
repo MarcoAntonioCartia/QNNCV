@@ -163,14 +163,22 @@ def test():
         exact = (x.numpy().reshape(BATCH, -1) @ d_all)[:, None]
         full = c(x, points=np.arange(c.n_cells)).numpy()
         assert_close(full, exact, label=f'{name}: full-grid score == sum P*D', rtol=1e-4, atol=1e-4)
-        # unbiasedness: the mean of 128 sampled scores is within 4 standard
-        # errors of the exact sum (the estimator is a plain Monte-Carlo sum)
-        draws = np.stack([c(x).numpy() for _ in range(128)], axis=0)   # (128, B, 1)
+        # sampled scores: the point set is held until new_points(); the mean
+        # over 128 fresh point sets is sqrt(|S|/G^2) * exact (the Lipschitz-
+        # preserving scale, see pointwise.py) within 4 standard errors
+        s0 = c(x).numpy()
+        assert_exact(c(x).numpy(), s0, label=f'{name}: point set held between calls')
+        draws = []
+        for _ in range(128):
+            c.new_points()
+            draws.append(c(x).numpy())
+        draws = np.stack(draws, axis=0)                                # (128, B, 1)
+        target = exact * np.sqrt(len(c.points) / c.n_cells)
         se = draws.std(axis=0, ddof=1) / np.sqrt(draws.shape[0]) + 1e-9
-        zscore = np.abs(draws.mean(axis=0) - exact) / se
-        assert zscore.max() < 4.0, f"{name}: sampled-score mean is {zscore.max():.1f} SE from exact"
+        zscore = np.abs(draws.mean(axis=0) - target) / se
+        assert zscore.max() < 4.0, f"{name}: sampled-score mean is {zscore.max():.1f} SE off"
         print(f"  ok: pointwise  {name:16s} full-grid exact; sampled mean within "
-              f"{zscore.max():.1f} SE of exact")
+              f"{zscore.max():.1f} SE of the scaled exact score")
 
 
 def generate(force=False):

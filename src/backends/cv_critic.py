@@ -14,7 +14,6 @@ the critic and the generator are the same family of circuits — only the
 readout differs.
 """
 
-import numpy as np
 import tensorflow as tf
 
 from src.backends.pointwise import PointwiseCritic

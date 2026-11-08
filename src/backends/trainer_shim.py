@@ -106,7 +106,9 @@ def build_generator(cfg):
         raise ValueError(f"generator {name!r} not available in this environment; "
                          f"registered: {sorted(registry.GENERATOR_REGISTRY)} (the DV "
                          f"backend needs the qnncv-dv env with PennyLane)")
-    latent_dim = 2 * int(cfg.get('n_modes', 3))   # match the CV latent of the same run
+    # match the CV latent of the same run (the trainer passes the EncodingSpec's
+    # value: 2*n_modes, or 3*n_modes under --inj-latent dedicated)
+    latent_dim = int(cfg.get('latent_dim') or 2 * int(cfg.get('n_modes', 3)))
     if name == 'classical':
         from src.backends.classical import ClassicalCoordGenerator
         return ClassicalCoordGenerator(latent_dim=latent_dim,

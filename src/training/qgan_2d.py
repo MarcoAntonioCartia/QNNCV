@@ -150,6 +150,8 @@ class _BaseTrainer2D:
         #   Path A: always the SAME fixed canonical target (representability test).
         #   GAN mode: random family members (adversarial training over the family).
         real_tf = self._g_real_batch()
+        if hasattr(self.discriminator, 'new_points'):
+            self.discriminator.new_points()   # point-wise critics: one subset per step
 
         # Sample new latent vectors
         z = tf.random.normal([self.batch_size, self.generator.latent_dim])
@@ -261,6 +263,8 @@ class WGANGPTrainer(_BaseTrainer2D):
         d_fake_scores = []
 
         for _ in range(self.n_critic):
+            if hasattr(self.discriminator, 'new_points'):
+                self.discriminator.new_points()   # same subset for real, fake and GP
             # Pick a RANDOM batch of real samples from train_set
             idxs = np.random.randint(len(self.train_set), size=self.batch_size)
             real_tf = tf.constant(
@@ -530,6 +534,11 @@ def train_2d_qgan(
     train_set = full_dataset[:n_train]
     val_set = full_dataset[n_train:]
     print(f"Split: {len(train_set)} train, {len(val_set)} validation")
+    # Fingerprint of the validation set (recorded in backend_info.json so
+    # scripts/rescore.py can assert it rebuilt the same split).
+    import hashlib as _hashlib
+    _val_hash = _hashlib.sha1(np.concatenate(
+        [np.asarray(m, np.float32).ravel() for m, _ in val_set]).tobytes()).hexdigest()[:16]
 
     # Reference diversity of the data itself: the generator's 'diversity'
     # metric should approach this value, not zero.
@@ -578,8 +587,12 @@ def train_2d_qgan(
         # Benchmark backend (src/backends) behind the CV-shaped shim; the
         # same latent dimension as the CV generator of this config.
         from src.backends.trainer_shim import GeneratorShim, build_generator
+        # latent_dim follows the CV generator OF THIS CONFIG (2*n_modes, or
+        # 3*n_modes under --inj-latent dedicated): matched controls draw the
+        # same number of normals per sample.
         generator = GeneratorShim(build_generator({
             'generator': generator, 'n_modes': n_total_modes,
+            'latent_dim': enc_spec.latent_dim(n_total_modes),
             'gen_hidden': gen_hidden, 'dv_qubits': dv_qubits,
             'dv_layers': dv_layers, 'latent_scale': latent_scale}))
         print(f"Generator backend: {generator.describe()}")
@@ -846,7 +859,8 @@ def train_2d_qgan(
         c_desc = (DenseCriticBackend(model=discriminator).describe()
                   if isinstance(discriminator, Discriminator2D) else discriminator.describe())
         write_backend_info(log_dir, g_desc, c_desc, _time.time() - _t_start,
-                           extra={'epochs_run': int(len(history['g_loss']))})
+                           extra={'epochs_run': int(len(history['g_loss'])),
+                                  'val_set_sha1_16': _val_hash})
     except Exception as e:  # noqa: BLE001 - provenance must never fail a run
         print(f"  (backend_info.json not written: {e})")
 

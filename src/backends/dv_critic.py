@@ -12,7 +12,6 @@ call per point set) when the device supports it, else one call per point.
 Requires the qnncv-dv env; the registry omits 'dv_qnn_2d' without PennyLane.
 """
 
-import numpy as np
 import tensorflow as tf
 
 import pennylane as qml
