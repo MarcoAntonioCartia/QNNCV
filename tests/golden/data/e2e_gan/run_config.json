@@ -10,8 +10,10 @@
   "d_dropout": 0.0,
   "d_lr": 0.0005,
   "deterministic": true,
+  "dv_encoding": "ry",
   "dv_layers": 9,
   "dv_qubits": 10,
+  "dv_reupload": false,
   "encoding": "input_displacement",
   "epochs": 4,
   "family": "ring",
@@ -47,7 +49,7 @@
   "supervised_warmup": 200,
   "supervised_weight": 0.0,
   "tf_version": "2.18.0",
-  "timestamp": "20261108_045440",
+  "timestamp": "20261108_110018",
   "train_squeeze_scale": false,
   "val_every": 2
 }
