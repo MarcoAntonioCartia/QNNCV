@@ -90,6 +90,32 @@ TF-2.18 compatibility is confirmed.
 
 ## Phase 3 — experiments
 
+### Pilot result (8 Nov 2026): ring, 32×32, 300 epochs, seeds 0–4, `dense_2d` critic, CV hyper-parameters for every arm
+
+Re-scored with `scripts/rescore.py` (200 fixed-seed samples; W1 in 32×32 grid
+cells, not comparable to the 40×40 numbers; validation self-diversity 1.92).
+
+| arm | params | hilbert | fidelity W1 median (range) | coverage W1 median | diversity | fid ED / cov ED | wall / run |
+|---|---|---|---|---|---|---|---|
+| cv (frozen config) | 186 | 1728 | **0.66** (0.61–0.69) | **0.82** (0.75–0.99) | 1.3 (under) | 0.023 / 0.044 | 22 min |
+| classical coord net (9, 9) | 181 | — | 1.57 (1.30–3.83) | 0.97 (0.94–1.12) | 2.0–6.0 (over; seeds 2, 4 diverged) | 0.095 / 0.037 | 2 min |
+| dv 10 qubits × 9 layers | 180 | 1024 | 2.08 (1.93–2.17) | 3.0 (2.8–3.2) | **0.26** (collapsed: z ignored) | 0.10 / 0.24 | 45 min |
+
+Every arm is distinguishable from the real family (MMD p = 0.005). Reading:
+the CV generator leads at matched parameter count, but the two baselines ran
+with the CV's hyper-parameters and zero tuning of their own, which Bowles et
+al. (2024) rightly call unfair in the other direction. Before any claim:
+(a) classical — lower learning rate or SIREN/Fourier features (two of five
+seeds diverged); (b) dv — the cyclic RY angle encoding with 9 layers
+collapses to one output regardless of z, and the output itself is the
+speckle a hardware-efficient 10-qubit Born distribution produces (1024
+near-random amplitudes, `final_samples.png`), nothing like a smooth ring;
+Zoufal et al. used 3 qubits (8 bins) per distribution for this reason. Try a
+coarser DV grid (16×16 = 8 qubits, CV re-rendered to match), data
+re-uploading of z between layers, fewer layers, a stronger encoding (RY+RZ)
+and its own learning rate;
+(c) then 20 seeds or paired restarts per the statistical-design rules.
+
 1. Pilot: 3 generators × `dense_2d` on ring, 5 seeds, 300 epochs.
 2. Matrix: generators × critics × 5 families at one budget and one grid;
    re-scored with Phase 1f; results as paired comparisons per family.
