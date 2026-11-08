@@ -1,0 +1,11 @@
+# classical step 3: tanh g_lr 0.1 / 0.2 at gp 5
+--family ring --n-modes 3 --epochs 300 --d-lr 0.0005 --g-lr 0.1 --grid-size 32 --generator classical --gen-activation tanh --seed 0
+--family ring --n-modes 3 --epochs 300 --d-lr 0.0005 --g-lr 0.2 --grid-size 32 --generator classical --gen-activation tanh --seed 0
+--family ring --n-modes 3 --epochs 300 --d-lr 0.0005 --g-lr 0.1 --grid-size 32 --generator classical --gen-activation tanh --seed 1
+--family ring --n-modes 3 --epochs 300 --d-lr 0.0005 --g-lr 0.2 --grid-size 32 --generator classical --gen-activation tanh --seed 1
+--family ring --n-modes 3 --epochs 300 --d-lr 0.0005 --g-lr 0.1 --grid-size 32 --generator classical --gen-activation tanh --seed 2
+--family ring --n-modes 3 --epochs 300 --d-lr 0.0005 --g-lr 0.2 --grid-size 32 --generator classical --gen-activation tanh --seed 2
+--family ring --n-modes 3 --epochs 300 --d-lr 0.0005 --g-lr 0.1 --grid-size 32 --generator classical --gen-activation tanh --seed 3
+--family ring --n-modes 3 --epochs 300 --d-lr 0.0005 --g-lr 0.2 --grid-size 32 --generator classical --gen-activation tanh --seed 3
+--family ring --n-modes 3 --epochs 300 --d-lr 0.0005 --g-lr 0.1 --grid-size 32 --generator classical --gen-activation tanh --seed 4
+--family ring --n-modes 3 --epochs 300 --d-lr 0.0005 --g-lr 0.2 --grid-size 32 --generator classical --gen-activation tanh --seed 4

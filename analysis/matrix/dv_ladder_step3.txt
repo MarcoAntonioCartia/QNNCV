@@ -1,0 +1,13 @@
+# DV step 3: 8 qubits, ry, latent 1.0, g_lr 0.1/0.2 x layers 6/9, 3 seeds
+--family ring --n-modes 3 --epochs 300 --d-lr 0.0005 --g-lr 0.1 --latent-scale 1.0 --grid-size 16 --generator dv --dv-qubits 8 --dv-layers 6 --seed 0
+--family ring --n-modes 3 --epochs 300 --d-lr 0.0005 --g-lr 0.1 --latent-scale 1.0 --grid-size 16 --generator dv --dv-qubits 8 --dv-layers 9 --seed 0
+--family ring --n-modes 3 --epochs 300 --d-lr 0.0005 --g-lr 0.2 --latent-scale 1.0 --grid-size 16 --generator dv --dv-qubits 8 --dv-layers 6 --seed 0
+--family ring --n-modes 3 --epochs 300 --d-lr 0.0005 --g-lr 0.2 --latent-scale 1.0 --grid-size 16 --generator dv --dv-qubits 8 --dv-layers 9 --seed 0
+--family ring --n-modes 3 --epochs 300 --d-lr 0.0005 --g-lr 0.1 --latent-scale 1.0 --grid-size 16 --generator dv --dv-qubits 8 --dv-layers 6 --seed 1
+--family ring --n-modes 3 --epochs 300 --d-lr 0.0005 --g-lr 0.1 --latent-scale 1.0 --grid-size 16 --generator dv --dv-qubits 8 --dv-layers 9 --seed 1
+--family ring --n-modes 3 --epochs 300 --d-lr 0.0005 --g-lr 0.2 --latent-scale 1.0 --grid-size 16 --generator dv --dv-qubits 8 --dv-layers 6 --seed 1
+--family ring --n-modes 3 --epochs 300 --d-lr 0.0005 --g-lr 0.2 --latent-scale 1.0 --grid-size 16 --generator dv --dv-qubits 8 --dv-layers 9 --seed 1
+--family ring --n-modes 3 --epochs 300 --d-lr 0.0005 --g-lr 0.1 --latent-scale 1.0 --grid-size 16 --generator dv --dv-qubits 8 --dv-layers 6 --seed 2
+--family ring --n-modes 3 --epochs 300 --d-lr 0.0005 --g-lr 0.1 --latent-scale 1.0 --grid-size 16 --generator dv --dv-qubits 8 --dv-layers 9 --seed 2
+--family ring --n-modes 3 --epochs 300 --d-lr 0.0005 --g-lr 0.2 --latent-scale 1.0 --grid-size 16 --generator dv --dv-qubits 8 --dv-layers 6 --seed 2
+--family ring --n-modes 3 --epochs 300 --d-lr 0.0005 --g-lr 0.2 --latent-scale 1.0 --grid-size 16 --generator dv --dv-qubits 8 --dv-layers 9 --seed 2
