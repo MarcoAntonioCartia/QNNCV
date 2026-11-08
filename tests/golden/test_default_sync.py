@@ -63,6 +63,13 @@ TRAIN_MAP = {
     'squeeze_scale': 'squeeze_scale',
     'train_squeeze_scale': 'train_squeeze_scale',
     'inj_latent': 'inj_latent',
+    'generator': 'generator',
+    'critic': 'critic',
+    'critic_points': 'critic_points',
+    'critic_layers': 'critic_layers',
+    'gen_hidden': 'gen_hidden',
+    'dv_qubits': 'dv_qubits',
+    'dv_layers': 'dv_layers',
 }
 # CLI dests with no train_2d_qgan counterpart
 TRAIN_EXCLUDED_DESTS = {

@@ -11,8 +11,10 @@ from src.models.discriminators.qgan2d_discriminator import Discriminator2D
 class DenseCriticBackend(CriticBackend):
     name = 'dense_2d'
 
-    def __init__(self, *, dropout_rate, hidden_dims=(16, 8), init_scale=0.05,
+    def __init__(self, *, dropout_rate=None, hidden_dims=(16, 8), init_scale=0.05,
                  model=None):
+        if model is None and dropout_rate is None:
+            raise TypeError("DenseCriticBackend needs dropout_rate (or model=)")
         self.model = model if model is not None else Discriminator2D(
             hidden_dims=list(hidden_dims), init_scale=init_scale,
             dropout_rate=dropout_rate)

@@ -29,6 +29,7 @@ import os
 import random
 import secrets
 import sys
+import time as _time
 from datetime import datetime
 
 import numpy as np
@@ -422,6 +423,13 @@ def train_2d_qgan(
     squeeze_scale=0.0,      # interleaved only: z-squeeze gain w_s (0 = channel off)
     train_squeeze_scale=False,  # interleaved only: make w_s trainable (init at squeeze_scale)
     inj_latent='shared',    # interleaved only: 'shared' (z[2m]) | 'dedicated' (extra z components)
+    generator='cv',         # benchmark backend: 'cv' | 'classical' | 'dv' (src/backends)
+    critic='dense_2d',      # 'dense_2d' | 'coord_2d' | 'cv_qnn_2d' | 'dv_qnn_2d'
+    critic_points=64,       # point-wise critics: grid points sampled per critic call (0 = all)
+    critic_layers=6,        # point-wise quantum critics: circuit layers
+    gen_hidden='9,9',       # classical generator: hidden sizes of the coordinate net
+    dv_qubits=10,           # dv generator: qubits (2k -> 2^k x 2^k grid)
+    dv_layers=9,            # dv generator: layers
 ):
     """
     Train 2D CV-QGAN with pre-generated dataset.
@@ -442,6 +450,7 @@ def train_2d_qgan(
 
     # Seed EVERYTHING before any dataset generation, weight init, or z sampling.
     seed = resolve_seed(seed)
+    _t_start = _time.time()   # wall clock for backend_info.json (no RNG use)
     seed_everything(seed)
     if deterministic:
         try:
@@ -554,27 +563,52 @@ def train_2d_qgan(
                                 squeeze_scale=squeeze_scale,
                                 train_squeeze_scale=train_squeeze_scale,
                                 inj_latent=inj_latent)
-    generator = CVQGANGenerator(
-        n_modes=n_total_modes,
-        n_output_modes=2,
-        n_layers=n_layers,
-        cutoff_dim=cutoff_dim,
-        use_kerr=use_kerr,
-        latent_scale=latent_scale,
-        batch_size=batch_size,
-        encoding=enc_spec,
-    )
+    if generator == 'cv':
+        generator = CVQGANGenerator(
+            n_modes=n_total_modes,
+            n_output_modes=2,
+            n_layers=n_layers,
+            cutoff_dim=cutoff_dim,
+            use_kerr=use_kerr,
+            latent_scale=latent_scale,
+            batch_size=batch_size,
+            encoding=enc_spec,
+        )
+    else:
+        # Benchmark backend (src/backends) behind the CV-shaped shim; the
+        # same latent dimension as the CV generator of this config.
+        from src.backends.trainer_shim import GeneratorShim, build_generator
+        generator = GeneratorShim(build_generator({
+            'generator': generator, 'n_modes': n_total_modes,
+            'gen_hidden': gen_hidden, 'dv_qubits': dv_qubits,
+            'dv_layers': dv_layers, 'latent_scale': latent_scale}))
+        print(f"Generator backend: {generator.describe()}")
+        if generator.batch_size is None and hasattr(generator.backend, 'grid_sizes') \
+                and grid_size not in generator.backend.grid_sizes:
+            raise ValueError(f"--generator {generator.backend.name} produces grids "
+                             f"{generator.backend.grid_sizes}; pass --grid-size accordingly")
 
     # Warm start (both modes; a legacy v1 file into an interleaved model
     # leaves w_s at zero = frozen-baseline start).
     if init_weights:
         print(f"Warm start from {init_weights}")
-        weights_io.apply_weights(generator, weights_io.load_weights(init_weights),
-                                 source=init_weights)
+        if isinstance(generator, CVQGANGenerator):
+            weights_io.apply_weights(generator, weights_io.load_weights(init_weights),
+                                     source=init_weights)
+        else:
+            generator.load(init_weights)
 
     # Initialize discriminator
     print("\nInitializing discriminator...")
-    discriminator = Discriminator2D(hidden_dims=[16, 8], dropout_rate=d_dropout)
+    if critic == 'dense_2d':
+        discriminator = Discriminator2D(hidden_dims=[16, 8], dropout_rate=d_dropout)
+    else:
+        from src.backends.trainer_shim import build_critic
+        discriminator = build_critic({'critic': critic, 'critic_points': critic_points,
+                                      'critic_layers': critic_layers,
+                                      'critic_cutoff': cutoff_dim},
+                                     xvec, yvec, seed=seed if seed is not None else 0)
+        print(f"Critic backend: {discriminator.describe()}")
 
     # Fixed Gaussian kernel for critic-input blur (None = off)
     blur_kernel = build_blur_kernel(critic_blur_sigma)
@@ -730,9 +764,13 @@ def train_2d_qgan(
                 best_val_metric = select_metric
                 # Snapshot weights AND w_s at the same epoch — never pair
                 # best-epoch weights with w_s from another epoch.
-                best_weights = generator.weights.numpy().copy()
-                best_w_s = (generator.w_s.numpy().copy()
-                            if generator.w_s is not None else None)
+                if isinstance(generator, CVQGANGenerator):
+                    best_weights = generator.weights.numpy().copy()
+                    best_w_s = (generator.w_s.numpy().copy()
+                                if generator.w_s is not None else None)
+                else:
+                    best_weights = generator.state_dict()   # backend state
+                    best_w_s = None
 
             print(f"Epoch {epoch:4d} | G: {float(step['g_loss']):.4f} | "
                   f"D: {d_stats['d_loss_avg']:+.4f} | "
@@ -775,7 +813,7 @@ def train_2d_qgan(
     print(f"Best validation ({select_name}): {best_val_metric:.4f}")
 
     # Restore best weights
-    if best_weights is not None:
+    if best_weights is not None and isinstance(generator, CVQGANGenerator):
         print("Restoring best weights from validation...")
         generator.weights.assign(best_weights)
         if best_w_s is not None:
@@ -790,6 +828,27 @@ def train_2d_qgan(
                    'train_squeeze_scale': bool(train_squeeze_scale),
                    'inj_latent': inj_latent}
                   if best_w_s is not None else None))
+    elif best_weights is not None:
+        print("Restoring best backend state from validation...")
+        from src.backends.trainer_shim import save_backend_state
+        generator.load_state_dict(best_weights)
+        save_backend_state(f"{log_dir}/best_weights.npy", generator.backend,
+                           state=best_weights)
+
+    # Additive provenance for the benchmark: what was trained, parameter and
+    # Hilbert-space sizes, wall time (backend_info.json next to run_config).
+    try:
+        from src.backends.trainer_shim import write_backend_info
+        from src.backends.cv import CVGeneratorBackend
+        from src.backends.classical_critic import DenseCriticBackend
+        g_desc = (CVGeneratorBackend(generator=generator).describe()
+                  if isinstance(generator, CVQGANGenerator) else generator.describe())
+        c_desc = (DenseCriticBackend(model=discriminator).describe()
+                  if isinstance(discriminator, Discriminator2D) else discriminator.describe())
+        write_backend_info(log_dir, g_desc, c_desc, _time.time() - _t_start,
+                           extra={'epochs_run': int(len(history['g_loss']))})
+    except Exception as e:  # noqa: BLE001 - provenance must never fail a run
+        print(f"  (backend_info.json not written: {e})")
 
     # Final validation
     final_val = validate(generator, canonical_target, val_set, xvec, yvec, ed_ctx)

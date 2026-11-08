@@ -36,6 +36,10 @@ NON_SWEEPABLE = {
     '--train-squeeze-scale',
     # categorical (shared | dedicated): passthrough per arm
     '--inj-latent',
+    # benchmark backends: categorical choices and per-run backend config,
+    # passthrough per arm (not sweep axes)
+    '--generator', '--critic', '--critic-points', '--critic-layers',
+    '--gen-hidden', '--dv-qubits', '--dv-layers',
 }
 
 

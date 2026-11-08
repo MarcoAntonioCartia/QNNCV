@@ -144,6 +144,13 @@ def build_hp_suffix(args, parser):
         ('squeeze_scale',     'ss'),
         ('train_squeeze_scale', 'sstrain'),
         ('inj_latent',        'zl'),
+        ('generator',         'g'),
+        ('critic',            'crit'),
+        ('critic_points',     'cp'),
+        ('critic_layers',     'clay'),
+        ('gen_hidden',        'gh'),
+        ('dv_qubits',         'nq'),
+        ('dv_layers',         'dvl'),
         ('init_weights',      'warm'),   # bare marker: the path stays in run_config.json
         ('norm_floor',        'normf'),
         ('seed',              'seed'),
@@ -156,6 +163,9 @@ def build_hp_suffix(args, parser):
     VALUE_ABBREV = {
         'encoding': {'input_displacement': 'ID', 'interleaved_squeeze': 'IS'},
         'inj_latent': {'shared': 'sh', 'dedicated': 'ded'},
+        'generator': {'cv': 'cv', 'classical': 'cl', 'dv': 'dv'},
+        'critic': {'dense_2d': 'dense', 'coord_2d': 'coord',
+                   'cv_qnn_2d': 'cvq', 'dv_qnn_2d': 'dvq'},
     }
 
     parts = []
@@ -287,6 +297,31 @@ def build_parser():
                             '2*n_modes); dedicated = extra components read '
                             'only by the squeeze channel (latent_dim '
                             '3*n_modes), decoupling size from position')
+    # Benchmark backends (src/backends, docs/benchmark_plan.md). Defaults
+    # reproduce the frozen CV + dense critic path byte-for-byte.
+    parser.add_argument('--generator', type=str, default='cv',
+                       choices=['cv', 'classical', 'dv'],
+                       help='generator backend: cv (Strawberry Fields, default), '
+                            'classical (coordinate network), dv (PennyLane qubits; '
+                            'needs the qnncv-dv env and a power-of-two --grid-size)')
+    parser.add_argument('--critic', type=str, default='dense_2d',
+                       choices=['dense_2d', 'coord_2d', 'cv_qnn_2d', 'dv_qnn_2d'],
+                       help='critic backend: dense_2d (grid MLP, default) or a '
+                            'point-wise critic: coord_2d (MLP), cv_qnn_2d (CV '
+                            'circuit), dv_qnn_2d (qubit circuit)')
+    parser.add_argument('--critic-points', type=int, default=64,
+                       help='point-wise critics: grid points sampled per critic '
+                            'call (0 = full grid, exact)')
+    parser.add_argument('--critic-layers', type=int, default=6,
+                       help='point-wise quantum critics: circuit layers '
+                            '(6 -> 96 params for cv_qnn_2d)')
+    parser.add_argument('--gen-hidden', type=str, default='9,9',
+                       help='classical generator: hidden sizes, e.g. "9,9" '
+                            '(181 params) or "64,64"')
+    parser.add_argument('--dv-qubits', type=int, default=10,
+                       help='dv generator: qubits, 2k for a 2^k x 2^k grid')
+    parser.add_argument('--dv-layers', type=int, default=9,
+                       help='dv generator: layers (10 qubits x 9 = 180 params)')
 
     return parser
 
@@ -379,6 +414,13 @@ def main():
         squeeze_scale=args.squeeze_scale,
         train_squeeze_scale=args.train_squeeze_scale,
         inj_latent=args.inj_latent,
+        generator=args.generator,
+        critic=args.critic,
+        critic_points=args.critic_points,
+        critic_layers=args.critic_layers,
+        gen_hidden=args.gen_hidden,
+        dv_qubits=args.dv_qubits,
+        dv_layers=args.dv_layers,
     )
 
 

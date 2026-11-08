@@ -47,7 +47,10 @@ APPEND_ALLOWLIST = {
     # appended last, all defaulted.
     'train_2d_qgan': ['encoding', 'inj_layers', 'r_max', 'init_weights',
                       'norm_floor', 'squeeze_scale', 'train_squeeze_scale',
-                      'inj_latent'],
+                      'inj_latent',
+                      # benchmark backends (Phase 2 plumbing), all defaulted
+                      'generator', 'critic', 'critic_points', 'critic_layers',
+                      'gen_hidden', 'dv_qubits', 'dv_layers'],
 }
 
 

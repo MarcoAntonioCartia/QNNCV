@@ -21,14 +21,19 @@ from src.quantum.circuit import CVQGANGenerator, EncodingSpec
 class CVGeneratorBackend(GeneratorBackend):
     name = 'cv'
 
-    def __init__(self, *, n_modes, n_layers, cutoff_dim, latent_scale,
-                 use_kerr=True, batch_size=None, encoding=None,
-                 generator=None):
+    def __init__(self, *, n_modes=None, n_layers=None, cutoff_dim=None,
+                 latent_scale=None, use_kerr=True, batch_size=None,
+                 encoding=None, generator=None):
         """Build a CVQGANGenerator with the given config, or wrap an
         existing one (`generator=`; the other kwargs are then ignored)."""
         if generator is not None:
             self.gen = generator
         else:
+            missing = [k for k, v in (('n_modes', n_modes), ('n_layers', n_layers),
+                                      ('cutoff_dim', cutoff_dim),
+                                      ('latent_scale', latent_scale)) if v is None]
+            if missing:
+                raise TypeError(f"CVGeneratorBackend needs {missing} (or generator=)")
             self.gen = CVQGANGenerator(
                 n_modes=n_modes, n_output_modes=2, n_layers=n_layers,
                 cutoff_dim=cutoff_dim, use_kerr=use_kerr,
