@@ -1,0 +1,11 @@
+# 9 Nov 2026 smoke timing (20 epochs, 1 seed, 32x32) - qnncv-dv env
+# D: DV generator 10 qubits x 9 layers (180 params) + dense critic, classical-tuned lr
+--family ring --generator dv --dv-qubits 10 --dv-layers 9 --g-lr 0.05 --gp-weight 5 --grid-size 32 --epochs 20 --val-every 10 --seed 0
+# E: frozen CV generator + DV quantum critic
+--family ring --n-modes 3 --d-lr 0.0005 --gp-weight 10 --grid-size 32 --critic dv_qnn_2d --epochs 20 --val-every 10 --seed 0
+# F: DV generator 10q + DV quantum critic
+--family ring --generator dv --dv-qubits 10 --dv-layers 9 --g-lr 0.05 --gp-weight 5 --grid-size 32 --critic dv_qnn_2d --epochs 20 --val-every 10 --seed 0
+# G: DV generator 10q + CV quantum critic
+--family ring --generator dv --dv-qubits 10 --dv-layers 9 --g-lr 0.05 --gp-weight 5 --grid-size 32 --critic cv_qnn_2d --epochs 20 --val-every 10 --seed 0
+# H: tuned classical generator + DV quantum critic
+--family ring --generator classical --g-lr 0.05 --gp-weight 5 --grid-size 32 --critic dv_qnn_2d --epochs 20 --val-every 10 --seed 0

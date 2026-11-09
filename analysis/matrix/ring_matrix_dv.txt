@@ -1,0 +1,122 @@
+# Ring matrix + DV re-run, qnncv-dv env: every cell with a DV generator or DV critic. Order: cheap cells first.
+# DV re-run matched (dense critic = the thesis table's third arm)
+--family ring --generator dv --dv-qubits 10 --dv-layers 9 --g-lr 0.05 --gp-weight 5 --grid-size 32 --epochs 300 --seed 0
+--family ring --generator dv --dv-qubits 10 --dv-layers 9 --g-lr 0.05 --gp-weight 5 --grid-size 32 --epochs 300 --seed 1
+--family ring --generator dv --dv-qubits 10 --dv-layers 9 --g-lr 0.05 --gp-weight 5 --grid-size 32 --epochs 300 --seed 2
+--family ring --generator dv --dv-qubits 10 --dv-layers 9 --g-lr 0.05 --gp-weight 5 --grid-size 32 --epochs 300 --seed 3
+--family ring --generator dv --dv-qubits 10 --dv-layers 9 --g-lr 0.05 --gp-weight 5 --grid-size 32 --epochs 300 --seed 4
+--family ring --generator dv --dv-qubits 10 --dv-layers 9 --g-lr 0.05 --gp-weight 5 --grid-size 32 --epochs 300 --seed 5
+--family ring --generator dv --dv-qubits 10 --dv-layers 9 --g-lr 0.05 --gp-weight 5 --grid-size 32 --epochs 300 --seed 6
+--family ring --generator dv --dv-qubits 10 --dv-layers 9 --g-lr 0.05 --gp-weight 5 --grid-size 32 --epochs 300 --seed 7
+--family ring --generator dv --dv-qubits 10 --dv-layers 9 --g-lr 0.05 --gp-weight 5 --grid-size 32 --epochs 300 --seed 8
+--family ring --generator dv --dv-qubits 10 --dv-layers 9 --g-lr 0.05 --gp-weight 5 --grid-size 32 --epochs 300 --seed 9
+--family ring --generator dv --dv-qubits 10 --dv-layers 9 --g-lr 0.05 --gp-weight 5 --grid-size 32 --epochs 300 --seed 10
+--family ring --generator dv --dv-qubits 10 --dv-layers 9 --g-lr 0.05 --gp-weight 5 --grid-size 32 --epochs 300 --seed 11
+--family ring --generator dv --dv-qubits 10 --dv-layers 9 --g-lr 0.05 --gp-weight 5 --grid-size 32 --epochs 300 --seed 12
+--family ring --generator dv --dv-qubits 10 --dv-layers 9 --g-lr 0.05 --gp-weight 5 --grid-size 32 --epochs 300 --seed 13
+--family ring --generator dv --dv-qubits 10 --dv-layers 9 --g-lr 0.05 --gp-weight 5 --grid-size 32 --epochs 300 --seed 14
+--family ring --generator dv --dv-qubits 10 --dv-layers 9 --g-lr 0.05 --gp-weight 5 --grid-size 32 --epochs 300 --seed 15
+--family ring --generator dv --dv-qubits 10 --dv-layers 9 --g-lr 0.05 --gp-weight 5 --grid-size 32 --epochs 300 --seed 16
+--family ring --generator dv --dv-qubits 10 --dv-layers 9 --g-lr 0.05 --gp-weight 5 --grid-size 32 --epochs 300 --seed 17
+--family ring --generator dv --dv-qubits 10 --dv-layers 9 --g-lr 0.05 --gp-weight 5 --grid-size 32 --epochs 300 --seed 18
+--family ring --generator dv --dv-qubits 10 --dv-layers 9 --g-lr 0.05 --gp-weight 5 --grid-size 32 --epochs 300 --seed 19
+--family ring --generator dv --dv-qubits 10 --dv-layers 9 --g-lr 0.05 --gp-weight 5 --grid-size 32 --epochs 300 --critic coord_2d --seed 0
+--family ring --generator dv --dv-qubits 10 --dv-layers 9 --g-lr 0.05 --gp-weight 5 --grid-size 32 --epochs 300 --critic coord_2d --seed 1
+--family ring --generator dv --dv-qubits 10 --dv-layers 9 --g-lr 0.05 --gp-weight 5 --grid-size 32 --epochs 300 --critic coord_2d --seed 2
+--family ring --generator dv --dv-qubits 10 --dv-layers 9 --g-lr 0.05 --gp-weight 5 --grid-size 32 --epochs 300 --critic coord_2d --seed 3
+--family ring --generator dv --dv-qubits 10 --dv-layers 9 --g-lr 0.05 --gp-weight 5 --grid-size 32 --epochs 300 --critic coord_2d --seed 4
+--family ring --generator dv --dv-qubits 10 --dv-layers 9 --g-lr 0.05 --gp-weight 5 --grid-size 32 --epochs 300 --critic coord_2d --seed 5
+--family ring --generator dv --dv-qubits 10 --dv-layers 9 --g-lr 0.05 --gp-weight 5 --grid-size 32 --epochs 300 --critic coord_2d --seed 6
+--family ring --generator dv --dv-qubits 10 --dv-layers 9 --g-lr 0.05 --gp-weight 5 --grid-size 32 --epochs 300 --critic coord_2d --seed 7
+--family ring --generator dv --dv-qubits 10 --dv-layers 9 --g-lr 0.05 --gp-weight 5 --grid-size 32 --epochs 300 --critic coord_2d --seed 8
+--family ring --generator dv --dv-qubits 10 --dv-layers 9 --g-lr 0.05 --gp-weight 5 --grid-size 32 --epochs 300 --critic coord_2d --seed 9
+--family ring --generator dv --dv-qubits 10 --dv-layers 9 --g-lr 0.05 --gp-weight 5 --grid-size 32 --epochs 300 --critic coord_2d --seed 10
+--family ring --generator dv --dv-qubits 10 --dv-layers 9 --g-lr 0.05 --gp-weight 5 --grid-size 32 --epochs 300 --critic coord_2d --seed 11
+--family ring --generator dv --dv-qubits 10 --dv-layers 9 --g-lr 0.05 --gp-weight 5 --grid-size 32 --epochs 300 --critic coord_2d --seed 12
+--family ring --generator dv --dv-qubits 10 --dv-layers 9 --g-lr 0.05 --gp-weight 5 --grid-size 32 --epochs 300 --critic coord_2d --seed 13
+--family ring --generator dv --dv-qubits 10 --dv-layers 9 --g-lr 0.05 --gp-weight 5 --grid-size 32 --epochs 300 --critic coord_2d --seed 14
+--family ring --generator dv --dv-qubits 10 --dv-layers 9 --g-lr 0.05 --gp-weight 5 --grid-size 32 --epochs 300 --critic coord_2d --seed 15
+--family ring --generator dv --dv-qubits 10 --dv-layers 9 --g-lr 0.05 --gp-weight 5 --grid-size 32 --epochs 300 --critic coord_2d --seed 16
+--family ring --generator dv --dv-qubits 10 --dv-layers 9 --g-lr 0.05 --gp-weight 5 --grid-size 32 --epochs 300 --critic coord_2d --seed 17
+--family ring --generator dv --dv-qubits 10 --dv-layers 9 --g-lr 0.05 --gp-weight 5 --grid-size 32 --epochs 300 --critic coord_2d --seed 18
+--family ring --generator dv --dv-qubits 10 --dv-layers 9 --g-lr 0.05 --gp-weight 5 --grid-size 32 --epochs 300 --critic coord_2d --seed 19
+--family ring --n-modes 3 --generator classical --gen-activation tanh --g-lr 0.05 --gp-weight 5 --grid-size 32 --epochs 300 --critic dv_qnn_2d --critic-layers 12 --seed 0
+--family ring --n-modes 3 --generator classical --gen-activation tanh --g-lr 0.05 --gp-weight 5 --grid-size 32 --epochs 300 --critic dv_qnn_2d --critic-layers 12 --seed 1
+--family ring --n-modes 3 --generator classical --gen-activation tanh --g-lr 0.05 --gp-weight 5 --grid-size 32 --epochs 300 --critic dv_qnn_2d --critic-layers 12 --seed 2
+--family ring --n-modes 3 --generator classical --gen-activation tanh --g-lr 0.05 --gp-weight 5 --grid-size 32 --epochs 300 --critic dv_qnn_2d --critic-layers 12 --seed 3
+--family ring --n-modes 3 --generator classical --gen-activation tanh --g-lr 0.05 --gp-weight 5 --grid-size 32 --epochs 300 --critic dv_qnn_2d --critic-layers 12 --seed 4
+--family ring --n-modes 3 --generator classical --gen-activation tanh --g-lr 0.05 --gp-weight 5 --grid-size 32 --epochs 300 --critic dv_qnn_2d --critic-layers 12 --seed 5
+--family ring --n-modes 3 --generator classical --gen-activation tanh --g-lr 0.05 --gp-weight 5 --grid-size 32 --epochs 300 --critic dv_qnn_2d --critic-layers 12 --seed 6
+--family ring --n-modes 3 --generator classical --gen-activation tanh --g-lr 0.05 --gp-weight 5 --grid-size 32 --epochs 300 --critic dv_qnn_2d --critic-layers 12 --seed 7
+--family ring --n-modes 3 --generator classical --gen-activation tanh --g-lr 0.05 --gp-weight 5 --grid-size 32 --epochs 300 --critic dv_qnn_2d --critic-layers 12 --seed 8
+--family ring --n-modes 3 --generator classical --gen-activation tanh --g-lr 0.05 --gp-weight 5 --grid-size 32 --epochs 300 --critic dv_qnn_2d --critic-layers 12 --seed 9
+--family ring --n-modes 3 --generator classical --gen-activation tanh --g-lr 0.05 --gp-weight 5 --grid-size 32 --epochs 300 --critic dv_qnn_2d --critic-layers 12 --seed 10
+--family ring --n-modes 3 --generator classical --gen-activation tanh --g-lr 0.05 --gp-weight 5 --grid-size 32 --epochs 300 --critic dv_qnn_2d --critic-layers 12 --seed 11
+--family ring --n-modes 3 --generator classical --gen-activation tanh --g-lr 0.05 --gp-weight 5 --grid-size 32 --epochs 300 --critic dv_qnn_2d --critic-layers 12 --seed 12
+--family ring --n-modes 3 --generator classical --gen-activation tanh --g-lr 0.05 --gp-weight 5 --grid-size 32 --epochs 300 --critic dv_qnn_2d --critic-layers 12 --seed 13
+--family ring --n-modes 3 --generator classical --gen-activation tanh --g-lr 0.05 --gp-weight 5 --grid-size 32 --epochs 300 --critic dv_qnn_2d --critic-layers 12 --seed 14
+--family ring --n-modes 3 --generator classical --gen-activation tanh --g-lr 0.05 --gp-weight 5 --grid-size 32 --epochs 300 --critic dv_qnn_2d --critic-layers 12 --seed 15
+--family ring --n-modes 3 --generator classical --gen-activation tanh --g-lr 0.05 --gp-weight 5 --grid-size 32 --epochs 300 --critic dv_qnn_2d --critic-layers 12 --seed 16
+--family ring --n-modes 3 --generator classical --gen-activation tanh --g-lr 0.05 --gp-weight 5 --grid-size 32 --epochs 300 --critic dv_qnn_2d --critic-layers 12 --seed 17
+--family ring --n-modes 3 --generator classical --gen-activation tanh --g-lr 0.05 --gp-weight 5 --grid-size 32 --epochs 300 --critic dv_qnn_2d --critic-layers 12 --seed 18
+--family ring --n-modes 3 --generator classical --gen-activation tanh --g-lr 0.05 --gp-weight 5 --grid-size 32 --epochs 300 --critic dv_qnn_2d --critic-layers 12 --seed 19
+--family ring --n-modes 3 --d-lr 0.0005 --gp-weight 10 --grid-size 32 --epochs 300 --critic dv_qnn_2d --critic-layers 12 --seed 0
+--family ring --n-modes 3 --d-lr 0.0005 --gp-weight 10 --grid-size 32 --epochs 300 --critic dv_qnn_2d --critic-layers 12 --seed 1
+--family ring --n-modes 3 --d-lr 0.0005 --gp-weight 10 --grid-size 32 --epochs 300 --critic dv_qnn_2d --critic-layers 12 --seed 2
+--family ring --n-modes 3 --d-lr 0.0005 --gp-weight 10 --grid-size 32 --epochs 300 --critic dv_qnn_2d --critic-layers 12 --seed 3
+--family ring --n-modes 3 --d-lr 0.0005 --gp-weight 10 --grid-size 32 --epochs 300 --critic dv_qnn_2d --critic-layers 12 --seed 4
+--family ring --n-modes 3 --d-lr 0.0005 --gp-weight 10 --grid-size 32 --epochs 300 --critic dv_qnn_2d --critic-layers 12 --seed 5
+--family ring --n-modes 3 --d-lr 0.0005 --gp-weight 10 --grid-size 32 --epochs 300 --critic dv_qnn_2d --critic-layers 12 --seed 6
+--family ring --n-modes 3 --d-lr 0.0005 --gp-weight 10 --grid-size 32 --epochs 300 --critic dv_qnn_2d --critic-layers 12 --seed 7
+--family ring --n-modes 3 --d-lr 0.0005 --gp-weight 10 --grid-size 32 --epochs 300 --critic dv_qnn_2d --critic-layers 12 --seed 8
+--family ring --n-modes 3 --d-lr 0.0005 --gp-weight 10 --grid-size 32 --epochs 300 --critic dv_qnn_2d --critic-layers 12 --seed 9
+--family ring --n-modes 3 --d-lr 0.0005 --gp-weight 10 --grid-size 32 --epochs 300 --critic dv_qnn_2d --critic-layers 12 --seed 10
+--family ring --n-modes 3 --d-lr 0.0005 --gp-weight 10 --grid-size 32 --epochs 300 --critic dv_qnn_2d --critic-layers 12 --seed 11
+--family ring --n-modes 3 --d-lr 0.0005 --gp-weight 10 --grid-size 32 --epochs 300 --critic dv_qnn_2d --critic-layers 12 --seed 12
+--family ring --n-modes 3 --d-lr 0.0005 --gp-weight 10 --grid-size 32 --epochs 300 --critic dv_qnn_2d --critic-layers 12 --seed 13
+--family ring --n-modes 3 --d-lr 0.0005 --gp-weight 10 --grid-size 32 --epochs 300 --critic dv_qnn_2d --critic-layers 12 --seed 14
+--family ring --n-modes 3 --d-lr 0.0005 --gp-weight 10 --grid-size 32 --epochs 300 --critic dv_qnn_2d --critic-layers 12 --seed 15
+--family ring --n-modes 3 --d-lr 0.0005 --gp-weight 10 --grid-size 32 --epochs 300 --critic dv_qnn_2d --critic-layers 12 --seed 16
+--family ring --n-modes 3 --d-lr 0.0005 --gp-weight 10 --grid-size 32 --epochs 300 --critic dv_qnn_2d --critic-layers 12 --seed 17
+--family ring --n-modes 3 --d-lr 0.0005 --gp-weight 10 --grid-size 32 --epochs 300 --critic dv_qnn_2d --critic-layers 12 --seed 18
+--family ring --n-modes 3 --d-lr 0.0005 --gp-weight 10 --grid-size 32 --epochs 300 --critic dv_qnn_2d --critic-layers 12 --seed 19
+--family ring --generator dv --dv-qubits 10 --dv-layers 9 --g-lr 0.05 --gp-weight 5 --grid-size 32 --epochs 300 --critic dv_qnn_2d --critic-layers 12 --seed 0
+--family ring --generator dv --dv-qubits 10 --dv-layers 9 --g-lr 0.05 --gp-weight 5 --grid-size 32 --epochs 300 --critic dv_qnn_2d --critic-layers 12 --seed 1
+--family ring --generator dv --dv-qubits 10 --dv-layers 9 --g-lr 0.05 --gp-weight 5 --grid-size 32 --epochs 300 --critic dv_qnn_2d --critic-layers 12 --seed 2
+--family ring --generator dv --dv-qubits 10 --dv-layers 9 --g-lr 0.05 --gp-weight 5 --grid-size 32 --epochs 300 --critic dv_qnn_2d --critic-layers 12 --seed 3
+--family ring --generator dv --dv-qubits 10 --dv-layers 9 --g-lr 0.05 --gp-weight 5 --grid-size 32 --epochs 300 --critic dv_qnn_2d --critic-layers 12 --seed 4
+--family ring --generator dv --dv-qubits 10 --dv-layers 9 --g-lr 0.05 --gp-weight 5 --grid-size 32 --epochs 300 --critic dv_qnn_2d --critic-layers 12 --seed 5
+--family ring --generator dv --dv-qubits 10 --dv-layers 9 --g-lr 0.05 --gp-weight 5 --grid-size 32 --epochs 300 --critic dv_qnn_2d --critic-layers 12 --seed 6
+--family ring --generator dv --dv-qubits 10 --dv-layers 9 --g-lr 0.05 --gp-weight 5 --grid-size 32 --epochs 300 --critic dv_qnn_2d --critic-layers 12 --seed 7
+--family ring --generator dv --dv-qubits 10 --dv-layers 9 --g-lr 0.05 --gp-weight 5 --grid-size 32 --epochs 300 --critic dv_qnn_2d --critic-layers 12 --seed 8
+--family ring --generator dv --dv-qubits 10 --dv-layers 9 --g-lr 0.05 --gp-weight 5 --grid-size 32 --epochs 300 --critic dv_qnn_2d --critic-layers 12 --seed 9
+--family ring --generator dv --dv-qubits 10 --dv-layers 9 --g-lr 0.05 --gp-weight 5 --grid-size 32 --epochs 300 --critic dv_qnn_2d --critic-layers 12 --seed 10
+--family ring --generator dv --dv-qubits 10 --dv-layers 9 --g-lr 0.05 --gp-weight 5 --grid-size 32 --epochs 300 --critic dv_qnn_2d --critic-layers 12 --seed 11
+--family ring --generator dv --dv-qubits 10 --dv-layers 9 --g-lr 0.05 --gp-weight 5 --grid-size 32 --epochs 300 --critic dv_qnn_2d --critic-layers 12 --seed 12
+--family ring --generator dv --dv-qubits 10 --dv-layers 9 --g-lr 0.05 --gp-weight 5 --grid-size 32 --epochs 300 --critic dv_qnn_2d --critic-layers 12 --seed 13
+--family ring --generator dv --dv-qubits 10 --dv-layers 9 --g-lr 0.05 --gp-weight 5 --grid-size 32 --epochs 300 --critic dv_qnn_2d --critic-layers 12 --seed 14
+--family ring --generator dv --dv-qubits 10 --dv-layers 9 --g-lr 0.05 --gp-weight 5 --grid-size 32 --epochs 300 --critic dv_qnn_2d --critic-layers 12 --seed 15
+--family ring --generator dv --dv-qubits 10 --dv-layers 9 --g-lr 0.05 --gp-weight 5 --grid-size 32 --epochs 300 --critic dv_qnn_2d --critic-layers 12 --seed 16
+--family ring --generator dv --dv-qubits 10 --dv-layers 9 --g-lr 0.05 --gp-weight 5 --grid-size 32 --epochs 300 --critic dv_qnn_2d --critic-layers 12 --seed 17
+--family ring --generator dv --dv-qubits 10 --dv-layers 9 --g-lr 0.05 --gp-weight 5 --grid-size 32 --epochs 300 --critic dv_qnn_2d --critic-layers 12 --seed 18
+--family ring --generator dv --dv-qubits 10 --dv-layers 9 --g-lr 0.05 --gp-weight 5 --grid-size 32 --epochs 300 --critic dv_qnn_2d --critic-layers 12 --seed 19
+--family ring --generator dv --dv-qubits 10 --dv-layers 9 --g-lr 0.05 --gp-weight 5 --grid-size 32 --epochs 300 --critic cv_qnn_2d --seed 0
+--family ring --generator dv --dv-qubits 10 --dv-layers 9 --g-lr 0.05 --gp-weight 5 --grid-size 32 --epochs 300 --critic cv_qnn_2d --seed 1
+--family ring --generator dv --dv-qubits 10 --dv-layers 9 --g-lr 0.05 --gp-weight 5 --grid-size 32 --epochs 300 --critic cv_qnn_2d --seed 2
+--family ring --generator dv --dv-qubits 10 --dv-layers 9 --g-lr 0.05 --gp-weight 5 --grid-size 32 --epochs 300 --critic cv_qnn_2d --seed 3
+--family ring --generator dv --dv-qubits 10 --dv-layers 9 --g-lr 0.05 --gp-weight 5 --grid-size 32 --epochs 300 --critic cv_qnn_2d --seed 4
+--family ring --generator dv --dv-qubits 10 --dv-layers 9 --g-lr 0.05 --gp-weight 5 --grid-size 32 --epochs 300 --critic cv_qnn_2d --seed 5
+--family ring --generator dv --dv-qubits 10 --dv-layers 9 --g-lr 0.05 --gp-weight 5 --grid-size 32 --epochs 300 --critic cv_qnn_2d --seed 6
+--family ring --generator dv --dv-qubits 10 --dv-layers 9 --g-lr 0.05 --gp-weight 5 --grid-size 32 --epochs 300 --critic cv_qnn_2d --seed 7
+--family ring --generator dv --dv-qubits 10 --dv-layers 9 --g-lr 0.05 --gp-weight 5 --grid-size 32 --epochs 300 --critic cv_qnn_2d --seed 8
+--family ring --generator dv --dv-qubits 10 --dv-layers 9 --g-lr 0.05 --gp-weight 5 --grid-size 32 --epochs 300 --critic cv_qnn_2d --seed 9
+--family ring --generator dv --dv-qubits 10 --dv-layers 9 --g-lr 0.05 --gp-weight 5 --grid-size 32 --epochs 300 --critic cv_qnn_2d --seed 10
+--family ring --generator dv --dv-qubits 10 --dv-layers 9 --g-lr 0.05 --gp-weight 5 --grid-size 32 --epochs 300 --critic cv_qnn_2d --seed 11
+--family ring --generator dv --dv-qubits 10 --dv-layers 9 --g-lr 0.05 --gp-weight 5 --grid-size 32 --epochs 300 --critic cv_qnn_2d --seed 12
+--family ring --generator dv --dv-qubits 10 --dv-layers 9 --g-lr 0.05 --gp-weight 5 --grid-size 32 --epochs 300 --critic cv_qnn_2d --seed 13
+--family ring --generator dv --dv-qubits 10 --dv-layers 9 --g-lr 0.05 --gp-weight 5 --grid-size 32 --epochs 300 --critic cv_qnn_2d --seed 14
+--family ring --generator dv --dv-qubits 10 --dv-layers 9 --g-lr 0.05 --gp-weight 5 --grid-size 32 --epochs 300 --critic cv_qnn_2d --seed 15
+--family ring --generator dv --dv-qubits 10 --dv-layers 9 --g-lr 0.05 --gp-weight 5 --grid-size 32 --epochs 300 --critic cv_qnn_2d --seed 16
+--family ring --generator dv --dv-qubits 10 --dv-layers 9 --g-lr 0.05 --gp-weight 5 --grid-size 32 --epochs 300 --critic cv_qnn_2d --seed 17
+--family ring --generator dv --dv-qubits 10 --dv-layers 9 --g-lr 0.05 --gp-weight 5 --grid-size 32 --epochs 300 --critic cv_qnn_2d --seed 18
+--family ring --generator dv --dv-qubits 10 --dv-layers 9 --g-lr 0.05 --gp-weight 5 --grid-size 32 --epochs 300 --critic cv_qnn_2d --seed 19
