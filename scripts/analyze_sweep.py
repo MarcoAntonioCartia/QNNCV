@@ -17,9 +17,10 @@ validation with the lowest nearest-member W1) and writes:
     <out>/<family>_curves_nearW1.png val nearest-W1 vs epoch, median + IQR band
 
 ``--compare A B`` adds a paired-by-seed comparison of two groups (per-seed
-deltas, wins, median delta, Wilcoxon signed-rank p) on the console and in
-<out>/compare_<A>_vs_<B>.{csv,md}. A and B may be unique substrings of the
-group names.
+deltas, wins, median and mean delta with percentile-bootstrap 95% intervals,
+interquartile means, probability of improvement with its interval, Wilcoxon
+signed-rank p) on the console and in <out>/compare_<A>_vs_<B>.{csv,md}.
+A and B may be unique substrings of the group names.
 
 Reads only history.npz, run_config.json and norm_monitor.npz. Never writes
 into a run directory, never trains, never imports TensorFlow or ``src``.
@@ -689,6 +690,41 @@ COMPARE_METRICS = [('best_nearW1', 'lower'), ('best_div', None), ('best_nearED',
                    ('rs_diversity_w1', None), ('rs_mmd2', 'lower'), ('rs_mmd_p', None)]
 
 
+N_BOOT = 10_000  # bootstrap resamples for the paired-comparison intervals (fixed seed, deterministic)
+
+
+def iqm(x):
+    """Interquartile mean (Agarwal et al. 2021): mean of the middle 50% of the values."""
+    x = np.sort(np.asarray(x, dtype=float))
+    n = len(x)
+    if n < 4:
+        return float(x.mean())
+    lo, hi = int(np.floor(0.25 * n)), int(np.ceil(0.75 * n))
+    return float(x[lo:hi].mean())
+
+
+def paired_bootstrap(d, better, n_boot=N_BOOT, seed=0):
+    """Percentile-bootstrap 95% intervals over the paired deltas d = B - A.
+
+    Returns (ci_median, ci_mean, p_improve, ci_p_improve). ``p_improve`` is the
+    probability of improvement (Bouthillier et al. 2021): the fraction of
+    pairs where B beats A, ties counted one half. For ``better == 'lower'`` a
+    win is d < 0; with no direction it is reported as P(B lower) and should
+    be read as a descriptive statistic only.
+    """
+    d = np.asarray(d, dtype=float)
+    n = len(d)
+    rng = np.random.default_rng(seed)
+    idx = rng.integers(0, n, size=(n_boot, n))
+    samples = d[idx]
+    med = np.median(samples, axis=1)
+    mean = samples.mean(axis=1)
+    wins = (samples < 0).mean(axis=1) + 0.5 * (samples == 0).mean(axis=1)
+    pct = lambda v: (float(np.percentile(v, 2.5)), float(np.percentile(v, 97.5)))  # noqa: E731
+    p_improve = float((d < 0).mean() + 0.5 * (d == 0).mean())
+    return pct(med), pct(mean), p_improve, pct(wins)
+
+
 def compare_groups(ga, gb, entries, out_dir):
     by_group = {s['group']: (s, us) for s, _, us in entries}
     sa, ua = by_group[ga]
@@ -723,7 +759,8 @@ def compare_groups(ga, gb, entries, out_dir):
         from scipy.stats import wilcoxon
     except Exception:  # noqa: BLE001
         wilcoxon = None
-    hdr = ['metric', 'n', 'median A', 'median B', 'median delta', 'mean delta', 'B lower / ties / B higher',
+    hdr = ['metric', 'n', 'median A', 'median B', 'IQM A', 'IQM B', 'median delta [95% CI]',
+           'mean delta [95% CI]', 'B lower / ties / B higher', 'P(B lower) [95% CI]',
            'Wilcoxon p (two-sided)', 'direction']
     rows = []
     for m, better in COMPARE_METRICS:
@@ -744,11 +781,19 @@ def compare_groups(ga, gb, entries, out_dir):
         elif n < 5:
             p = 'n<5'
         nd = 0 if m == 'best_epoch' else 3
-        rows.append([m, n, fmt(np.median(a), nd), fmt(np.median(b), nd), fmt(np.median(d), nd), fmt(d.mean(), nd),
-                     f"{int((d < 0).sum())} / {int((d == 0).sum())} / {int((d > 0).sum())}", p,
+        ci_med, ci_mean, p_imp, ci_p = paired_bootstrap(d, better)
+        rows.append([m, n, fmt(np.median(a), nd), fmt(np.median(b), nd), fmt(iqm(a), nd), fmt(iqm(b), nd),
+                     f"{fmt(np.median(d), nd)} [{fmt(ci_med[0], nd)}, {fmt(ci_med[1], nd)}]",
+                     f"{fmt(d.mean(), nd)} [{fmt(ci_mean[0], nd)}, {fmt(ci_mean[1], nd)}]",
+                     f"{int((d < 0).sum())} / {int((d == 0).sum())} / {int((d > 0).sum())}",
+                     f"{p_imp:.2f} [{ci_p[0]:.2f}, {ci_p[1]:.2f}]", p,
                      'lower is better' if better == 'lower' else 'no direction'])
     L.append(md_table(hdr, rows))
     L.append('')
+    L.append(f'Intervals are percentile bootstraps over the {len(seeds)} seed pairs ({N_BOOT:,} resamples, fixed '
+             'seed). IQM = interquartile mean (Agarwal et al. 2021). P(B lower) is the probability of improvement '
+             '(Bouthillier et al. 2021): the fraction of pairs with B < A, ties counted one half; for "lower is '
+             'better" metrics it is the probability that B improves on A, otherwise a descriptive statistic.')
     L.append('With n < 10 pairs the Wilcoxon test has little power; read the per-seed deltas, not the p-value alone.')
     text = '\n'.join(L)
     print(text)
