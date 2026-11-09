@@ -199,8 +199,13 @@ Every arm remains distinguishable from the real family (MMD p = 0.005 on
 every run). **Result on the ring at matched parameter count: the tuned
 classical coordinate network beats the frozen CV generator** (0.52 vs 0.64
 at 32x32, ranges barely overlapping over 20 seeds; 0.26 vs 0.32 at 16x16),
-the CV generator keeps the better coverage (0.88 vs 0.58 at 32x32: the
-classical net is sharper but misses more of the real family), and the DV
+the classical net also has the better coverage (coverage W1 is the mean
+distance from each validation member to its nearest fake, so lower is
+better: 0.58 vs 0.88 at 32x32; an earlier version of this sentence read the
+number the wrong way round), is closer to the validation self-diversity
+(0.81 vs 0.62) and has the lower MMD^2 (0.08 vs 0.31; paired by seed the
+classical net is better on 19/20 seeds for fidelity and 20/20 for coverage
+and MMD^2, `scripts/analyze_sweep.py --compare` with `--rescore`), and the DV
 generator trails both by a factor 2.5-3 on the common grid at a quarter of
 the Hilbert dimension and half the parameters. This is the outcome Bowles,
 Ahmed & Schuld (2024) describe and it is the honest baseline for the
