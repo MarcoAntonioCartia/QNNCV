@@ -74,6 +74,11 @@ TRAIN_MAP = {
     'dv_layers': 'dv_layers',
     'dv_reupload': 'dv_reupload',
     'dv_encoding': 'dv_encoding',
+    'objective': 'objective',
+    'mmd_kernel': 'mmd_kernel',
+    'mmd_bandwidths': 'mmd_bandwidths',
+    'mmd_real_batch': 'mmd_real_batch',
+    'mmd_shots': 'mmd_shots',
 }
 # CLI dests with no train_2d_qgan counterpart
 TRAIN_EXCLUDED_DESTS = {

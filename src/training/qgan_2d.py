@@ -130,6 +130,14 @@ class _BaseTrainer2D:
 
     # --- objective hooks -----------------------------------------------------
 
+    def _adversarial_loss(self, gen_prob):
+        """Generator-side objective term, recorded as 'adversarial_loss'.
+        Default: -E[D(fake)] on the blurred, peak-normalised densities."""
+        fake_score = self.discriminator(
+            to_critic_input(critic_blur(gen_prob, self.blur_kernel)), training=False)
+        # Adversarial loss: G wants to maximize fake_score
+        return -tf.reduce_mean(fake_score)
+
     def _g_real_batch(self):
         """Select the real target(s) for the generator step."""
         raise NotImplementedError
@@ -171,11 +179,10 @@ class _BaseTrainer2D:
             else:
                 self.degenerate_count = 0
 
-            fake_score = self.discriminator(
-                to_critic_input(critic_blur(gen_prob, self.blur_kernel)), training=False)
-
-            # Adversarial loss: G wants to maximize fake_score
-            adversarial_loss = -tf.reduce_mean(fake_score)
+            # Objective term (SEAM 2): the critic score for WGAN-GP, a fixed
+            # kernel two-sample statistic for MMD. Same ops as before for the
+            # default objective.
+            adversarial_loss = self._adversarial_loss(gen_prob)
 
             # Supervised loss: KL(target || generated).
             # Scale-free (dimensionless, independent of grid resolution) and
@@ -378,6 +385,170 @@ class PureSupervisedTrainer(_BaseTrainer2D):
         return g_loss, current_sw
 
 
+class MMDTrainer(_BaseTrainer2D):
+    """Born-machine objective: no critic; the generator minimises a fixed-
+    kernel maximum mean discrepancy (MMD^2) between its output and the data.
+    Same generators, same data, same validation and checkpointing as the
+    GAN, so the arm isolates the effect of the training objective.
+
+    mmd_kernel='density' (default): the family-level statistic. Each density
+    is one point; k(p, q) = sum_b exp(-||p - q||^2 / (b^2 * m)) on flattened,
+    sum-normalised densities, m = median pairwise SQUARED distance over the
+    training set (fixed at construction, so the kernel is pre-registered and
+    data-only), b in mmd_bandwidths. At b = 1 this is rescore.py's evaluation
+    kernel exp(-d^2 / m); as a Gaussian length scale, h = b * sqrt(m / 2). The unbiased MMD^2 between the batch of
+    B generated densities and a fresh batch of mmd_real_batch training
+    members is minimised (generative moment matching, Li et al. 2015;
+    Dziugaite et al. 2015). Penalises collapse: a generator emitting one
+    density cannot match the spread of the family.
+
+    mmd_kernel='sample': the sample-space MMD used for Born machines (Liu &
+    Wang 2018 use a mixture of Gaussian kernels with FIXED absolute
+    bandwidths; their kernel divides by 2*sigma, not 2*sigma^2, so their
+    sigma = 0.25, 10, 1000 are length scales 0.5, 3.2, 31.6 on a 1024-point
+    support: even their widest is far below the support size in length terms
+    [exponent read from extracted text, check the PDF]. Ours are length
+    scales l = b * 0.5 in x units, i.e. 0.25-1 for the default b, below the
+    ring's diameter ~2.3).
+    Each generated or real density is a distribution over grid points; the
+    unbiased U-statistic over the B generated and R real densities is
+        sum_{b!=b'} p_b^T K p_b' / (B(B-1)) + sum_{r!=r'} q_r^T K q_r' / (R(R-1))
+        - 2 sum_{b,r} p_b^T K q_r / (B R),
+    computed exactly (densities are known, no sampling). Its expectation is
+    the MMD^2 between the generated and real MIXTURES, so a generator that
+    collapses onto the family's mean density scores 0, like a perfect one:
+    it cannot see collapse (the earlier V-statistic (p_bar - q_bar)^T K
+    (p_bar - q_bar) was worse: its (1/B) tr(K Cov_z p) bias rewarded
+    collapse). Kept as the literal Born-machine baseline, not the main arm.
+
+    Both kernels are a plain SUM over mmd_bandwidths, not a mean: changing
+    the number of bandwidths rescales the loss and hence the effective
+    learning rate, so runs with different bandwidth counts are not
+    comparable at the same lr.
+
+    mmd_shots=N > 0 (finite measurement budget): inside the loss, each
+    generated density is replaced by the histogram of N outcomes drawn from
+    it (multinomial on the grid), as a photonic device sees homodyne samples,
+    not densities. Kolarovszki et al. (2024) train CV Born machines this way
+    with ~10^3 homodyne shots per iteration for both loss and gradients;
+    Ngo et al. (2026) study MMD training under a finite shot budget (there
+    residual HARDWARE noise, not shot noise, acts as the regulariser). Ours
+    is a cheaper approximation: straight-through estimator, the loss VALUE
+    carries the shot noise, the gradient flows through the exact density.
+    Describe it as a sensitivity test of the loss to measurement noise, with
+    exact gradients, not as hardware-like training. With the 'sample' kernel
+    the noisy loss is an unbiased estimate of the exact one (linear in each
+    histogram, and the U-statistic never pairs a histogram with itself);
+    with the 'density' kernel the histogram sits inside an exponential, so
+    it is biased. On hardware the gradient would also cost shots: two
+    shifted circuits per parameter, 186 x 2 x 8 x 1000 ~ 3.0e6 shots per
+    step at 1000 shots, against 8000 for the loss value. And only some
+    parameters have a shift rule: Kerr gates have no known exact one, and a
+    non-Gaussian gate also breaks the rule for every Gaussian gate BEFORE it
+    (Kolarovszki et al. 2024 train only gates after all non-Gaussian ones),
+    so with a Kerr gate ending every Killoran layer only the last layer's
+    Gaussian gates would qualify. Exactness of the VC Gaussian-gate rules
+    for a kernel loss (as opposed to quadrature expectation values) is not
+    verified here; do not claim it.
+    The real batch stays exact. N = 0 (default) = exact densities.
+    Meaningful with the 'sample' kernel (it compares grid points, exactly how
+    shot-trained Born machines work). With the 'density' kernel only when N
+    is well above the number of grid cells: a 100-shot histogram on a 32x32
+    grid is so spiky that it sits far from every smooth training density,
+    the kernel goes flat and the loss stops discriminating (seen in the
+    smoke check: MMD^2 1.80 exact -> 0.61 at 100 shots, a symptom, not a fit).
+
+    The ket-norm penalty and the supervised blend are combined exactly as in
+    WGANGPTrainer. RNG: no critic-phase draws; the generator phase draws the
+    supervised batch and, inside the objective, the MMD real batch (then the
+    shot samples when mmd_shots > 0), all from the NumPy global stream.
+    """
+
+    SAMPLE_LENGTH = 0.5   # x units; ring width ~0.25, radius ~1.15
+
+    def __init__(self, *, mmd_kernel='density', mmd_bandwidths=(0.5, 1.0, 2.0),
+                 mmd_real_batch=32, mmd_shots=0, **kw):
+        super().__init__(**kw)
+        self.mmd_shots = int(mmd_shots)
+        if self.mmd_shots < 0:
+            raise ValueError(f"mmd_shots must be >= 0, got {mmd_shots}")
+        if mmd_kernel not in ('density', 'sample'):
+            raise ValueError(f"mmd_kernel must be 'density' or 'sample', got {mmd_kernel!r}")
+        if not mmd_bandwidths or any(float(b) <= 0 for b in mmd_bandwidths):
+            raise ValueError(f"mmd_bandwidths must be a non-empty list of positive numbers, "
+                             f"got {mmd_bandwidths!r}")
+        if int(self.batch_size) < 2 or int(mmd_real_batch) < 2:
+            raise ValueError("the unbiased MMD needs at least 2 generated and 2 real "
+                             f"densities per step (batch_size={self.batch_size}, "
+                             f"mmd_real_batch={mmd_real_batch})")
+        self.mmd_kernel = mmd_kernel
+        self.mmd_bandwidths = tuple(float(b) for b in mmd_bandwidths)
+        self.mmd_real_batch = int(mmd_real_batch)
+        train = np.stack([m for m, _ in self.train_set]).astype(np.float64)
+        self._train_flat = (train.reshape(len(train), -1)
+                            / train.reshape(len(train), -1).sum(1, keepdims=True)).astype(np.float32)
+        if mmd_kernel == 'density':
+            F = self._train_flat.astype(np.float64)
+            sq = (F ** 2).sum(1)
+            D2 = np.maximum(sq[:, None] + sq[None, :] - 2 * F @ F.T, 0.0)
+            self.mmd_median = float(np.median(D2[np.triu_indices(len(F), 1)]))
+            self._scales = tf.constant([b * b * self.mmd_median for b in self.mmd_bandwidths],
+                                       tf.float32)
+        else:
+            X, Y = np.meshgrid(np.asarray(self.xvec, np.float64), np.asarray(self.yvec, np.float64))
+            P = np.stack([X.ravel(), Y.ravel()], 1)
+            d2 = ((P[:, None, :] - P[None, :, :]) ** 2).sum(-1)
+            K = sum(np.exp(-d2 / (2.0 * (b * self.SAMPLE_LENGTH) ** 2)) for b in self.mmd_bandwidths)
+            self._Ks = tf.constant(K, tf.float32)
+
+    def discriminator_epoch(self, epoch):
+        current_gp_weight, current_noise = self.schedules(epoch)
+        return {'d_loss_avg': 0.0, 'd_grad_avg': 0.0, 'gp_avg': 0.0,
+                'd_real_scores': [], 'd_fake_scores': [],
+                'current_gp_weight': current_gp_weight, 'current_noise': current_noise}
+
+    def _g_real_batch(self):
+        idxs = np.random.randint(len(self.train_set), size=self.batch_size)
+        return tf.constant(
+            np.stack([self.train_set[i][0] for i in idxs]), dtype=tf.float32)
+
+    def _kernel(self, A, B):
+        sa = tf.reduce_sum(A * A, 1)[:, None]
+        sb = tf.reduce_sum(B * B, 1)[None, :]
+        d2 = tf.maximum(sa + sb - 2.0 * tf.matmul(A, B, transpose_b=True), 0.0)
+        return tf.add_n([tf.exp(-d2 / s) for s in tf.unstack(self._scales)])
+
+    def _adversarial_loss(self, gen_prob):
+        B = int(gen_prob.shape[0])
+        idx = np.random.randint(len(self.train_set), size=self.mmd_real_batch)
+        real = tf.constant(self._train_flat[idx])
+        fake = tf.reshape(gen_prob, [B, -1])
+        fake = fake / (tf.reduce_sum(fake, 1, keepdims=True) + 1e-12)
+        if self.mmd_shots > 0:
+            p = np.clip(fake.numpy().astype(np.float64), 0.0, None)
+            p = p / p.sum(1, keepdims=True)
+            hist = np.stack([np.random.multinomial(self.mmd_shots, row) for row in p])
+            hist = tf.constant(hist / float(self.mmd_shots), tf.float32)
+            fake = fake + tf.stop_gradient(hist - fake)   # straight-through
+        R = self.mmd_real_batch
+        if self.mmd_kernel == 'sample':
+            FK = tf.matmul(fake, self._Ks)                  # (B, G^2)
+            Kff = tf.matmul(FK, fake, transpose_b=True)     # p_b^T K p_b'
+            Krr = tf.matmul(tf.matmul(real, self._Ks), real, transpose_b=True)
+            Kfr = tf.matmul(FK, real, transpose_b=True)
+        else:
+            Kff, Krr, Kfr = self._kernel(fake, fake), self._kernel(real, real), self._kernel(fake, real)
+        return ((tf.reduce_sum(Kff) - tf.linalg.trace(Kff)) / (B * (B - 1))
+                + (tf.reduce_sum(Krr) - tf.linalg.trace(Krr)) / (R * (R - 1))
+                - 2.0 * tf.reduce_mean(Kfr))
+
+    def _combine_losses(self, epoch, adversarial_loss, supervised_loss, ket_penalty):
+        current_sw = self.supervised_weight * max(0.0, 1.0 - epoch / max(1, self.supervised_warmup))
+        g_loss = ((1 - current_sw) * adversarial_loss + current_sw * supervised_loss
+                  + self.ket_penalty_weight * ket_penalty)
+        return g_loss, current_sw
+
+
 # =============================================================================
 # Training Loop
 # =============================================================================
@@ -438,6 +609,11 @@ def train_2d_qgan(
     dv_layers=9,            # dv generator: layers
     dv_reupload=False,      # dv generator: re-encode z before every layer (data re-uploading)
     dv_encoding='ry',       # dv generator: 'ry' | 'ryrz' angle encoding of z
+    objective='wgan_gp',    # 'wgan_gp' (critic) | 'mmd' (Born machine: fixed-kernel MMD, no critic)
+    mmd_kernel='density',   # mmd only: 'density' (family-level) | 'sample' (Liu-Wang, grid points)
+    mmd_bandwidths='0.5,1,2',  # mmd only: bandwidth multipliers of the pre-registered kernel
+    mmd_real_batch=32,      # mmd only: real family members per generator step
+    mmd_shots=0,            # mmd only: homodyne outcomes per generated density in the loss (0 = exact)
 ):
     """
     Train 2D CV-QGAN with pre-generated dataset.
@@ -701,8 +877,26 @@ def train_2d_qgan(
 
     # SEAM 2: pick the trainer for the detected objective (current behavior
     # only; future MMD/energy-distance trainers plug in here).
-    trainer_cls = PureSupervisedTrainer if pure_supervised else WGANGPTrainer
+    if objective not in ('wgan_gp', 'mmd'):
+        raise ValueError(f"objective must be 'wgan_gp' or 'mmd', got {objective!r}")
+    if objective == 'mmd' and pure_supervised:
+        raise ValueError("--objective mmd conflicts with the pure-supervised settings "
+                         "(supervised_weight >= 1 and supervised_warmup >= epochs): "
+                         "the MMD objective would be silently ignored")
+    trainer_cls = (PureSupervisedTrainer if pure_supervised
+                   else MMDTrainer if objective == 'mmd' else WGANGPTrainer)
+    mmd_kw = {}
+    if trainer_cls is MMDTrainer:
+        bws = (tuple(float(s) for s in mmd_bandwidths.split(',') if s.strip())
+               if isinstance(mmd_bandwidths, str) else tuple(mmd_bandwidths))
+        mmd_kw = dict(mmd_kernel=mmd_kernel, mmd_bandwidths=bws, mmd_real_batch=mmd_real_batch,
+                      mmd_shots=mmd_shots)
+        print(f"Objective: MMD ({mmd_kernel} kernel, bandwidths {bws}, "
+              f"{mmd_real_batch} real members per step, "
+              f"{'exact densities' if not mmd_shots else f'{mmd_shots} shots per density'}); "
+              f"the critic is not trained")
     trainer = trainer_cls(
+        **mmd_kw,
         generator=generator, discriminator=discriminator,
         g_optimizer=g_optimizer, d_optimizer=d_optimizer,
         train_set=train_set, fixed_real_tf=fixed_real_tf,

@@ -155,6 +155,11 @@ def build_hp_suffix(args, parser):
         ('dv_layers',         'dvl'),
         ('dv_reupload',       'dvru'),
         ('dv_encoding',       'dvenc'),
+        ('objective',         'obj'),
+        ('mmd_kernel',        'mmdk'),
+        ('mmd_bandwidths',    'mmdbw'),
+        ('mmd_real_batch',    'mmdrb'),
+        ('mmd_shots',         'mmdsh'),
         ('init_weights',      'warm'),   # bare marker: the path stays in run_config.json
         ('norm_floor',        'normf'),
         ('seed',              'seed'),
@@ -170,6 +175,8 @@ def build_hp_suffix(args, parser):
         'generator': {'cv': 'cv', 'classical': 'cl', 'dv': 'dv'},
         'critic': {'dense_2d': 'dense', 'coord_2d': 'coord',
                    'cv_qnn_2d': 'cvq', 'dv_qnn_2d': 'dvq'},
+        'objective': {'wgan_gp': 'wgan', 'mmd': 'mmd'},
+        'mmd_kernel': {'density': 'dens', 'sample': 'samp'},
     }
 
     parts = []
@@ -341,6 +348,25 @@ def build_parser():
                        choices=['ry', 'ryrz'],
                        help='dv generator: angle encoding of z, ry (one '
                             'component per qubit) or ryrz (two components)')
+    # Training objective (SEAM 2). Default reproduces the WGAN-GP path exactly.
+    parser.add_argument('--objective', type=str, default='wgan_gp',
+                       choices=['wgan_gp', 'mmd'],
+                       help='wgan_gp: adversarial critic (default); mmd: Born-machine '
+                            'objective, fixed-kernel MMD^2 to the data, no critic training')
+    parser.add_argument('--mmd-kernel', type=str, default='density',
+                       choices=['density', 'sample'],
+                       help='mmd only: density = kernel between whole densities (learns '
+                            'the family, penalises collapse); sample = Liu-Wang kernel '
+                            'over grid points (matches the family mixture only)')
+    parser.add_argument('--mmd-bandwidths', type=str, default='0.5,1,2',
+                       help='mmd only: comma-separated bandwidth multipliers of the '
+                            'pre-registered kernel (median heuristic on the training set)')
+    parser.add_argument('--mmd-real-batch', type=int, default=32,
+                       help='mmd only: real family members drawn per generator step')
+    parser.add_argument('--mmd-shots', type=int, default=0,
+                       help='mmd only: replace each generated density in the loss by the '
+                            'histogram of N sampled outcomes (finite measurement budget, '
+                            'straight-through gradient); 0 = exact densities')
 
     return parser
 
@@ -444,6 +470,11 @@ def main():
         dv_layers=args.dv_layers,
         dv_reupload=args.dv_reupload,
         dv_encoding=args.dv_encoding,
+        objective=args.objective,
+        mmd_kernel=args.mmd_kernel,
+        mmd_bandwidths=args.mmd_bandwidths,
+        mmd_real_batch=args.mmd_real_batch,
+        mmd_shots=args.mmd_shots,
     )
 
 

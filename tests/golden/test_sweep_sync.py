@@ -41,6 +41,10 @@ NON_SWEEPABLE = {
     '--generator', '--critic', '--critic-points', '--critic-layers',
     '--gen-hidden', '--gen-activation', '--gen-fourier',
     '--dv-qubits', '--dv-layers', '--dv-reupload', '--dv-encoding',
+    # training objective (Born-machine arm): categorical choice and per-run
+    # kernel config, passthrough per arm
+    '--objective', '--mmd-kernel', '--mmd-bandwidths', '--mmd-real-batch',
+    '--mmd-shots',
 }
 
 
