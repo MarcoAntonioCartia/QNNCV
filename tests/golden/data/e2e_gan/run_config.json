@@ -32,6 +32,10 @@
   "instance_noise": 0.1,
   "ket_penalty_weight": 20.0,
   "latent_scale": 0.3,
+  "mmd_bandwidths": "0.5,1,2",
+  "mmd_kernel": "density",
+  "mmd_real_batch": 32,
+  "mmd_shots": 0,
   "n_ancilla": null,
   "n_critic": 5,
   "n_layers": 2,
@@ -43,6 +47,7 @@
   "noise_floor": 0.0,
   "norm_floor": 0.99,
   "numpy_version": "2.0.2",
+  "objective": "wgan_gp",
   "plot_every": 999,
   "r_max": null,
   "seed": 0,
@@ -51,7 +56,7 @@
   "supervised_warmup": 200,
   "supervised_weight": 0.0,
   "tf_version": "2.18.0",
-  "timestamp": "20261108_111217",
+  "timestamp": "20261115_214954",
   "train_squeeze_scale": false,
   "val_every": 2
 }
