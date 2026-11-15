@@ -30,7 +30,7 @@ here. Thesis citations should quote the journal version where one exists.
 - Székely & Rizzo (2013), *Energy statistics*, JSPI 143, 1249 — the energy distance used as the full-2D metric.
 - Arjovsky, Chintala & Bottou (2017), *Wasserstein GAN*, ICML; arXiv:1701.07875 — and Gulrajani et al. (2017), *Improved training of Wasserstein GANs*, NeurIPS; arXiv:1704.00028 — the WGAN-GP objective every arm shares.
 - Schuld & Killoran (2022), *Is quantum advantage the right goal for QML?*, PRX Quantum 3, 030101 — argues for characterisation over "beat classical" claims; the register this benchmark should be written in.
-- Bowles, Ahmed & Schuld (2024), *Better than classical? The subtle art of benchmarking QML models*, arXiv:2403.07059 — matched, simple classical baselines; classical often wins; the methodology the parameter-matched comparison follows.
+- Bowles, Ahmed & Schuld (2024), *Better than classical? The subtle art of benchmarking QML models*, arXiv:2403.07059 — simple, tuned classical baselines across 160 classification datasets; classical often wins. NOTE (15 Nov 2026): Bowles et al. explicitly consider parameter-matched comparisons not meaningful, so the thesis's parity design is our own choice, not taken from them; what we follow is their insistence on tuning the classical baselines.
 
 ## Coordinate networks (the classical generator family)
 - Sitzmann et al. (2020), *Implicit neural representations with periodic activation functions* (SIREN), NeurIPS; arXiv:2006.09661 — sine-activated coordinate MLPs fit high-frequency 2-D fields with few parameters: the natural upgrade of `ClassicalCoordGenerator` if tanh units prove too smooth.
