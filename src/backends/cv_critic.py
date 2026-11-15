@@ -39,6 +39,12 @@ class CVQuantumCritic(PointwiseCritic):
         n = tf.range(cutoff_dim, dtype=tf.float32)
         self._n0 = n[:, None]          # photon number weights on mode 0
         self._n1 = n[None, :]          # ... and mode 1
+        # Fock-truncation monitor (diagnostic only, no effect on the score):
+        # min and mean of sum |c|^2 over the evaluated points, one entry per
+        # evaluate() call. The readout is not renormalised, so a norm well
+        # below 1 means the critic partly scores truncation artefacts. The
+        # trainer writes it to critic_norm_monitor.npz.
+        self.ket_norm_log = []
 
     def evaluate(self, points):
         pts = tf.cast(points, tf.float32) * self.point_scale
@@ -49,7 +55,7 @@ class CVQuantumCritic(PointwiseCritic):
         bs = self.circuit.batch_size or n
         # SF's batched engine is sized at construction: evaluate in chunks
         # of bs, padding the last chunk by repetition and trimming after.
-        outs = []
+        outs, norms = [], []
         for start in range(0, n, bs):
             chunk = z[start:start + bs]
             m = int(chunk.shape[0])
@@ -61,6 +67,9 @@ class CVQuantumCritic(PointwiseCritic):
             n0 = tf.reduce_sum(prob * self._n0[None], axis=[1, 2])
             n1 = tf.reduce_sum(prob * self._n1[None], axis=[1, 2])
             outs.append((n0 - n1)[:m])
+            norms.append(tf.stop_gradient(tf.reduce_sum(prob, axis=[1, 2]))[:m])
+        kn = tf.concat(norms, axis=0).numpy()
+        self.ket_norm_log.append((float(kn.min()), float(kn.mean())))
         return tf.concat(outs, axis=0)
 
     @property

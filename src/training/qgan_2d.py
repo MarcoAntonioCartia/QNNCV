@@ -911,6 +911,12 @@ def train_2d_qgan(
              warn_count=np.array(norm_mon['warn_count'], dtype=np.int64),
              worst_z=np.array(norm_mon['worst_z']),
              norm_floor=np.float64(norm_floor))
+    # CV quantum critic: its own Fock-truncation monitor (separate file; the
+    # critic score is not renormalised, so this is the evidence of whether a
+    # trained CV critic still evaluates inside its cutoff).
+    if getattr(discriminator, 'ket_norm_log', None):
+        kl = np.array(discriminator.ket_norm_log, dtype=np.float64)
+        np.savez(f"{log_dir}/critic_norm_monitor.npz", ket_norm_min=kl[:, 0], ket_norm_mean=kl[:, 1])
 
     print(f"\nResults saved to: {log_dir}")
 
