@@ -1,0 +1,11 @@
+# E1 (15 Nov 2026): single canonical ring, Path A, DV generator at parity: 8 qubits x 11 layers (176 params) on 16x16, 10 x 9 (180) on 32x32. qnncv-dv env.
+--family ring --epochs 300 --supervised-weight 1 --supervised-warmup 300 --d-lr 0.0005 --n-modes 3 --generator dv --dv-qubits 8 --dv-layers 11 --latent-scale 1.0 --g-lr 0.05 --gp-weight 5 --grid-size 16 --seed 0
+--family ring --epochs 300 --supervised-weight 1 --supervised-warmup 300 --d-lr 0.0005 --n-modes 3 --generator dv --dv-qubits 8 --dv-layers 11 --latent-scale 1.0 --g-lr 0.05 --gp-weight 5 --grid-size 16 --seed 1
+--family ring --epochs 300 --supervised-weight 1 --supervised-warmup 300 --d-lr 0.0005 --n-modes 3 --generator dv --dv-qubits 8 --dv-layers 11 --latent-scale 1.0 --g-lr 0.05 --gp-weight 5 --grid-size 16 --seed 2
+--family ring --epochs 300 --supervised-weight 1 --supervised-warmup 300 --d-lr 0.0005 --n-modes 3 --generator dv --dv-qubits 8 --dv-layers 11 --latent-scale 1.0 --g-lr 0.05 --gp-weight 5 --grid-size 16 --seed 3
+--family ring --epochs 300 --supervised-weight 1 --supervised-warmup 300 --d-lr 0.0005 --n-modes 3 --generator dv --dv-qubits 8 --dv-layers 11 --latent-scale 1.0 --g-lr 0.05 --gp-weight 5 --grid-size 16 --seed 4
+--family ring --epochs 300 --supervised-weight 1 --supervised-warmup 300 --d-lr 0.0005 --n-modes 3 --generator dv --dv-qubits 10 --dv-layers 9 --latent-scale 1.0 --g-lr 0.05 --gp-weight 5 --grid-size 32 --seed 0
+--family ring --epochs 300 --supervised-weight 1 --supervised-warmup 300 --d-lr 0.0005 --n-modes 3 --generator dv --dv-qubits 10 --dv-layers 9 --latent-scale 1.0 --g-lr 0.05 --gp-weight 5 --grid-size 32 --seed 1
+--family ring --epochs 300 --supervised-weight 1 --supervised-warmup 300 --d-lr 0.0005 --n-modes 3 --generator dv --dv-qubits 10 --dv-layers 9 --latent-scale 1.0 --g-lr 0.05 --gp-weight 5 --grid-size 32 --seed 2
+--family ring --epochs 300 --supervised-weight 1 --supervised-warmup 300 --d-lr 0.0005 --n-modes 3 --generator dv --dv-qubits 10 --dv-layers 9 --latent-scale 1.0 --g-lr 0.05 --gp-weight 5 --grid-size 32 --seed 3
+--family ring --epochs 300 --supervised-weight 1 --supervised-warmup 300 --d-lr 0.0005 --n-modes 3 --generator dv --dv-qubits 10 --dv-layers 9 --latent-scale 1.0 --g-lr 0.05 --gp-weight 5 --grid-size 32 --seed 4

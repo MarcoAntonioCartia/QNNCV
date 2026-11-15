@@ -1,0 +1,10 @@
+# Remainder of the corrected dv list after the 13 Nov scheduler kill: DV + cv_qnn_2d, d_lr 0.0005
+--family ring --generator dv --dv-qubits 10 --dv-layers 9 --g-lr 0.05 --d-lr 0.0005 --gp-weight 5 --grid-size 32 --epochs 300 --critic cv_qnn_2d --seed 8
+--family ring --generator dv --dv-qubits 10 --dv-layers 9 --g-lr 0.05 --d-lr 0.0005 --gp-weight 5 --grid-size 32 --epochs 300 --critic cv_qnn_2d --seed 10
+--family ring --generator dv --dv-qubits 10 --dv-layers 9 --g-lr 0.05 --d-lr 0.0005 --gp-weight 5 --grid-size 32 --epochs 300 --critic cv_qnn_2d --seed 11
+--family ring --generator dv --dv-qubits 10 --dv-layers 9 --g-lr 0.05 --d-lr 0.0005 --gp-weight 5 --grid-size 32 --epochs 300 --critic cv_qnn_2d --seed 14
+--family ring --generator dv --dv-qubits 10 --dv-layers 9 --g-lr 0.05 --d-lr 0.0005 --gp-weight 5 --grid-size 32 --epochs 300 --critic cv_qnn_2d --seed 15
+--family ring --generator dv --dv-qubits 10 --dv-layers 9 --g-lr 0.05 --d-lr 0.0005 --gp-weight 5 --grid-size 32 --epochs 300 --critic cv_qnn_2d --seed 16
+--family ring --generator dv --dv-qubits 10 --dv-layers 9 --g-lr 0.05 --d-lr 0.0005 --gp-weight 5 --grid-size 32 --epochs 300 --critic cv_qnn_2d --seed 17
+--family ring --generator dv --dv-qubits 10 --dv-layers 9 --g-lr 0.05 --d-lr 0.0005 --gp-weight 5 --grid-size 32 --epochs 300 --critic cv_qnn_2d --seed 18
+--family ring --generator dv --dv-qubits 10 --dv-layers 9 --g-lr 0.05 --d-lr 0.0005 --gp-weight 5 --grid-size 32 --epochs 300 --critic cv_qnn_2d --seed 19

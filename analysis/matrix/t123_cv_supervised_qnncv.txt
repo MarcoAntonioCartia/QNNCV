@@ -1,0 +1,68 @@
+# T1-T3 (15 Nov 2026): follow-ups to the CV trainability diagnosis (reports/Diagnostico de entrenabilidad - generador VC 2026-11-15.md). qnncv env.
+# Pure supervised KL fit of the canonical ring (Path A), CV generator, grid 16. Baselines at cutoff 12 / 6 layers / 300 epochs are the E1 runs (seeds 0-4).
+# T1: lr ladder 0.001/0.005/0.02/0.05 x seeds 0-9, 600 epochs (local minima vs optimiser). T2: cutoff 8 and 16 at lr 0.05, 300 epochs, seeds 0-4. T3: 4/8/10 layers at lr 0.05, 300 epochs, seeds 0-4.
+--family ring --supervised-weight 1 --d-lr 0.0005 --n-modes 3 --gp-weight 10 --grid-size 16 --epochs 600 --supervised-warmup 600 --g-lr 0.001 --seed 0
+--family ring --supervised-weight 1 --d-lr 0.0005 --n-modes 3 --gp-weight 10 --grid-size 16 --epochs 600 --supervised-warmup 600 --g-lr 0.005 --seed 0
+--family ring --supervised-weight 1 --d-lr 0.0005 --n-modes 3 --gp-weight 10 --grid-size 16 --epochs 600 --supervised-warmup 600 --g-lr 0.02 --seed 0
+--family ring --supervised-weight 1 --d-lr 0.0005 --n-modes 3 --gp-weight 10 --grid-size 16 --epochs 600 --supervised-warmup 600 --g-lr 0.05 --seed 0
+--family ring --supervised-weight 1 --d-lr 0.0005 --n-modes 3 --gp-weight 10 --grid-size 16 --epochs 600 --supervised-warmup 600 --g-lr 0.001 --seed 1
+--family ring --supervised-weight 1 --d-lr 0.0005 --n-modes 3 --gp-weight 10 --grid-size 16 --epochs 600 --supervised-warmup 600 --g-lr 0.005 --seed 1
+--family ring --supervised-weight 1 --d-lr 0.0005 --n-modes 3 --gp-weight 10 --grid-size 16 --epochs 600 --supervised-warmup 600 --g-lr 0.02 --seed 1
+--family ring --supervised-weight 1 --d-lr 0.0005 --n-modes 3 --gp-weight 10 --grid-size 16 --epochs 600 --supervised-warmup 600 --g-lr 0.05 --seed 1
+--family ring --supervised-weight 1 --d-lr 0.0005 --n-modes 3 --gp-weight 10 --grid-size 16 --epochs 600 --supervised-warmup 600 --g-lr 0.001 --seed 2
+--family ring --supervised-weight 1 --d-lr 0.0005 --n-modes 3 --gp-weight 10 --grid-size 16 --epochs 600 --supervised-warmup 600 --g-lr 0.005 --seed 2
+--family ring --supervised-weight 1 --d-lr 0.0005 --n-modes 3 --gp-weight 10 --grid-size 16 --epochs 600 --supervised-warmup 600 --g-lr 0.02 --seed 2
+--family ring --supervised-weight 1 --d-lr 0.0005 --n-modes 3 --gp-weight 10 --grid-size 16 --epochs 600 --supervised-warmup 600 --g-lr 0.05 --seed 2
+--family ring --supervised-weight 1 --d-lr 0.0005 --n-modes 3 --gp-weight 10 --grid-size 16 --epochs 600 --supervised-warmup 600 --g-lr 0.001 --seed 3
+--family ring --supervised-weight 1 --d-lr 0.0005 --n-modes 3 --gp-weight 10 --grid-size 16 --epochs 600 --supervised-warmup 600 --g-lr 0.005 --seed 3
+--family ring --supervised-weight 1 --d-lr 0.0005 --n-modes 3 --gp-weight 10 --grid-size 16 --epochs 600 --supervised-warmup 600 --g-lr 0.02 --seed 3
+--family ring --supervised-weight 1 --d-lr 0.0005 --n-modes 3 --gp-weight 10 --grid-size 16 --epochs 600 --supervised-warmup 600 --g-lr 0.05 --seed 3
+--family ring --supervised-weight 1 --d-lr 0.0005 --n-modes 3 --gp-weight 10 --grid-size 16 --epochs 600 --supervised-warmup 600 --g-lr 0.001 --seed 4
+--family ring --supervised-weight 1 --d-lr 0.0005 --n-modes 3 --gp-weight 10 --grid-size 16 --epochs 600 --supervised-warmup 600 --g-lr 0.005 --seed 4
+--family ring --supervised-weight 1 --d-lr 0.0005 --n-modes 3 --gp-weight 10 --grid-size 16 --epochs 600 --supervised-warmup 600 --g-lr 0.02 --seed 4
+--family ring --supervised-weight 1 --d-lr 0.0005 --n-modes 3 --gp-weight 10 --grid-size 16 --epochs 600 --supervised-warmup 600 --g-lr 0.05 --seed 4
+--family ring --supervised-weight 1 --d-lr 0.0005 --n-modes 3 --gp-weight 10 --grid-size 16 --epochs 300 --supervised-warmup 300 --g-lr 0.05 --cutoff-dim 8 --seed 0
+--family ring --supervised-weight 1 --d-lr 0.0005 --n-modes 3 --gp-weight 10 --grid-size 16 --epochs 300 --supervised-warmup 300 --g-lr 0.05 --cutoff-dim 16 --seed 0
+--family ring --supervised-weight 1 --d-lr 0.0005 --n-modes 3 --gp-weight 10 --grid-size 16 --epochs 300 --supervised-warmup 300 --g-lr 0.05 --n-layers 4 --seed 0
+--family ring --supervised-weight 1 --d-lr 0.0005 --n-modes 3 --gp-weight 10 --grid-size 16 --epochs 300 --supervised-warmup 300 --g-lr 0.05 --n-layers 8 --seed 0
+--family ring --supervised-weight 1 --d-lr 0.0005 --n-modes 3 --gp-weight 10 --grid-size 16 --epochs 300 --supervised-warmup 300 --g-lr 0.05 --n-layers 10 --seed 0
+--family ring --supervised-weight 1 --d-lr 0.0005 --n-modes 3 --gp-weight 10 --grid-size 16 --epochs 300 --supervised-warmup 300 --g-lr 0.05 --cutoff-dim 8 --seed 1
+--family ring --supervised-weight 1 --d-lr 0.0005 --n-modes 3 --gp-weight 10 --grid-size 16 --epochs 300 --supervised-warmup 300 --g-lr 0.05 --cutoff-dim 16 --seed 1
+--family ring --supervised-weight 1 --d-lr 0.0005 --n-modes 3 --gp-weight 10 --grid-size 16 --epochs 300 --supervised-warmup 300 --g-lr 0.05 --n-layers 4 --seed 1
+--family ring --supervised-weight 1 --d-lr 0.0005 --n-modes 3 --gp-weight 10 --grid-size 16 --epochs 300 --supervised-warmup 300 --g-lr 0.05 --n-layers 8 --seed 1
+--family ring --supervised-weight 1 --d-lr 0.0005 --n-modes 3 --gp-weight 10 --grid-size 16 --epochs 300 --supervised-warmup 300 --g-lr 0.05 --n-layers 10 --seed 1
+--family ring --supervised-weight 1 --d-lr 0.0005 --n-modes 3 --gp-weight 10 --grid-size 16 --epochs 300 --supervised-warmup 300 --g-lr 0.05 --cutoff-dim 8 --seed 2
+--family ring --supervised-weight 1 --d-lr 0.0005 --n-modes 3 --gp-weight 10 --grid-size 16 --epochs 300 --supervised-warmup 300 --g-lr 0.05 --cutoff-dim 16 --seed 2
+--family ring --supervised-weight 1 --d-lr 0.0005 --n-modes 3 --gp-weight 10 --grid-size 16 --epochs 300 --supervised-warmup 300 --g-lr 0.05 --n-layers 4 --seed 2
+--family ring --supervised-weight 1 --d-lr 0.0005 --n-modes 3 --gp-weight 10 --grid-size 16 --epochs 300 --supervised-warmup 300 --g-lr 0.05 --n-layers 8 --seed 2
+--family ring --supervised-weight 1 --d-lr 0.0005 --n-modes 3 --gp-weight 10 --grid-size 16 --epochs 300 --supervised-warmup 300 --g-lr 0.05 --n-layers 10 --seed 2
+--family ring --supervised-weight 1 --d-lr 0.0005 --n-modes 3 --gp-weight 10 --grid-size 16 --epochs 300 --supervised-warmup 300 --g-lr 0.05 --cutoff-dim 8 --seed 3
+--family ring --supervised-weight 1 --d-lr 0.0005 --n-modes 3 --gp-weight 10 --grid-size 16 --epochs 300 --supervised-warmup 300 --g-lr 0.05 --cutoff-dim 16 --seed 3
+--family ring --supervised-weight 1 --d-lr 0.0005 --n-modes 3 --gp-weight 10 --grid-size 16 --epochs 300 --supervised-warmup 300 --g-lr 0.05 --n-layers 4 --seed 3
+--family ring --supervised-weight 1 --d-lr 0.0005 --n-modes 3 --gp-weight 10 --grid-size 16 --epochs 300 --supervised-warmup 300 --g-lr 0.05 --n-layers 8 --seed 3
+--family ring --supervised-weight 1 --d-lr 0.0005 --n-modes 3 --gp-weight 10 --grid-size 16 --epochs 300 --supervised-warmup 300 --g-lr 0.05 --n-layers 10 --seed 3
+--family ring --supervised-weight 1 --d-lr 0.0005 --n-modes 3 --gp-weight 10 --grid-size 16 --epochs 300 --supervised-warmup 300 --g-lr 0.05 --cutoff-dim 8 --seed 4
+--family ring --supervised-weight 1 --d-lr 0.0005 --n-modes 3 --gp-weight 10 --grid-size 16 --epochs 300 --supervised-warmup 300 --g-lr 0.05 --cutoff-dim 16 --seed 4
+--family ring --supervised-weight 1 --d-lr 0.0005 --n-modes 3 --gp-weight 10 --grid-size 16 --epochs 300 --supervised-warmup 300 --g-lr 0.05 --n-layers 4 --seed 4
+--family ring --supervised-weight 1 --d-lr 0.0005 --n-modes 3 --gp-weight 10 --grid-size 16 --epochs 300 --supervised-warmup 300 --g-lr 0.05 --n-layers 8 --seed 4
+--family ring --supervised-weight 1 --d-lr 0.0005 --n-modes 3 --gp-weight 10 --grid-size 16 --epochs 300 --supervised-warmup 300 --g-lr 0.05 --n-layers 10 --seed 4
+--family ring --supervised-weight 1 --d-lr 0.0005 --n-modes 3 --gp-weight 10 --grid-size 16 --epochs 600 --supervised-warmup 600 --g-lr 0.001 --seed 5
+--family ring --supervised-weight 1 --d-lr 0.0005 --n-modes 3 --gp-weight 10 --grid-size 16 --epochs 600 --supervised-warmup 600 --g-lr 0.005 --seed 5
+--family ring --supervised-weight 1 --d-lr 0.0005 --n-modes 3 --gp-weight 10 --grid-size 16 --epochs 600 --supervised-warmup 600 --g-lr 0.02 --seed 5
+--family ring --supervised-weight 1 --d-lr 0.0005 --n-modes 3 --gp-weight 10 --grid-size 16 --epochs 600 --supervised-warmup 600 --g-lr 0.05 --seed 5
+--family ring --supervised-weight 1 --d-lr 0.0005 --n-modes 3 --gp-weight 10 --grid-size 16 --epochs 600 --supervised-warmup 600 --g-lr 0.001 --seed 6
+--family ring --supervised-weight 1 --d-lr 0.0005 --n-modes 3 --gp-weight 10 --grid-size 16 --epochs 600 --supervised-warmup 600 --g-lr 0.005 --seed 6
+--family ring --supervised-weight 1 --d-lr 0.0005 --n-modes 3 --gp-weight 10 --grid-size 16 --epochs 600 --supervised-warmup 600 --g-lr 0.02 --seed 6
+--family ring --supervised-weight 1 --d-lr 0.0005 --n-modes 3 --gp-weight 10 --grid-size 16 --epochs 600 --supervised-warmup 600 --g-lr 0.05 --seed 6
+--family ring --supervised-weight 1 --d-lr 0.0005 --n-modes 3 --gp-weight 10 --grid-size 16 --epochs 600 --supervised-warmup 600 --g-lr 0.001 --seed 7
+--family ring --supervised-weight 1 --d-lr 0.0005 --n-modes 3 --gp-weight 10 --grid-size 16 --epochs 600 --supervised-warmup 600 --g-lr 0.005 --seed 7
+--family ring --supervised-weight 1 --d-lr 0.0005 --n-modes 3 --gp-weight 10 --grid-size 16 --epochs 600 --supervised-warmup 600 --g-lr 0.02 --seed 7
+--family ring --supervised-weight 1 --d-lr 0.0005 --n-modes 3 --gp-weight 10 --grid-size 16 --epochs 600 --supervised-warmup 600 --g-lr 0.05 --seed 7
+--family ring --supervised-weight 1 --d-lr 0.0005 --n-modes 3 --gp-weight 10 --grid-size 16 --epochs 600 --supervised-warmup 600 --g-lr 0.001 --seed 8
+--family ring --supervised-weight 1 --d-lr 0.0005 --n-modes 3 --gp-weight 10 --grid-size 16 --epochs 600 --supervised-warmup 600 --g-lr 0.005 --seed 8
+--family ring --supervised-weight 1 --d-lr 0.0005 --n-modes 3 --gp-weight 10 --grid-size 16 --epochs 600 --supervised-warmup 600 --g-lr 0.02 --seed 8
+--family ring --supervised-weight 1 --d-lr 0.0005 --n-modes 3 --gp-weight 10 --grid-size 16 --epochs 600 --supervised-warmup 600 --g-lr 0.05 --seed 8
+--family ring --supervised-weight 1 --d-lr 0.0005 --n-modes 3 --gp-weight 10 --grid-size 16 --epochs 600 --supervised-warmup 600 --g-lr 0.001 --seed 9
+--family ring --supervised-weight 1 --d-lr 0.0005 --n-modes 3 --gp-weight 10 --grid-size 16 --epochs 600 --supervised-warmup 600 --g-lr 0.005 --seed 9
+--family ring --supervised-weight 1 --d-lr 0.0005 --n-modes 3 --gp-weight 10 --grid-size 16 --epochs 600 --supervised-warmup 600 --g-lr 0.02 --seed 9
+--family ring --supervised-weight 1 --d-lr 0.0005 --n-modes 3 --gp-weight 10 --grid-size 16 --epochs 600 --supervised-warmup 600 --g-lr 0.05 --seed 9

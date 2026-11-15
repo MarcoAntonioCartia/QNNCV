@@ -1,0 +1,2 @@
+# Re-queue of dvfix2 job 003 (MemoryError at 00:53 on 15 Nov, caused by the hw_sweep loss stage).
+--family ring --n-modes 3 --generator dv --dv-qubits 10 --dv-layers 9 --latent-scale 1.0 --g-lr 0.05 --d-lr 0.0005 --gp-weight 5 --grid-size 32 --epochs 300 --critic coord_2d --seed 8

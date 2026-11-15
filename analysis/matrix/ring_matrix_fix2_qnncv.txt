@@ -1,0 +1,2 @@
+# Remainder of the corrected qnncv list after the 13 Nov scheduler kill: CV + cv_qnn_2d, d_lr 0.0005
+--family ring --n-modes 3 --d-lr 0.0005 --gp-weight 10 --grid-size 32 --epochs 300 --critic cv_qnn_2d --seed 15

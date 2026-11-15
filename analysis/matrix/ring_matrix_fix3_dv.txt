@@ -1,0 +1,3 @@
+# fix3 (14 Nov 2026): DV + cv_qnn_2d seeds whose orphaned runs died with the 13 Nov session kill
+--family ring --generator dv --dv-qubits 10 --dv-layers 9 --g-lr 0.05 --d-lr 0.0005 --gp-weight 5 --grid-size 32 --epochs 300 --critic cv_qnn_2d --seed 12
+--family ring --generator dv --dv-qubits 10 --dv-layers 9 --g-lr 0.05 --d-lr 0.0005 --gp-weight 5 --grid-size 32 --epochs 300 --critic cv_qnn_2d --seed 13

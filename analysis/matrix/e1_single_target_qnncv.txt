@@ -1,0 +1,32 @@
+# E1 (15 Nov 2026): single canonical ring, pure supervised KL fit (Path A: no critic, the latent is free to be ignored). qnncv env.
+# CV frozen config at its GAN lr 0.005 and at the classical lr 0.05; classical tuned net (181 params). Grids 16 and 32, seeds 0-4.
+--family ring --epochs 300 --supervised-weight 1 --supervised-warmup 300 --d-lr 0.0005 --n-modes 3 --gp-weight 10 --grid-size 16 --seed 0
+--family ring --epochs 300 --supervised-weight 1 --supervised-warmup 300 --d-lr 0.0005 --n-modes 3 --g-lr 0.05 --gp-weight 10 --grid-size 16 --seed 0
+--family ring --epochs 300 --supervised-weight 1 --supervised-warmup 300 --d-lr 0.0005 --n-modes 3 --generator classical --gen-activation tanh --g-lr 0.05 --gp-weight 5 --grid-size 16 --seed 0
+--family ring --epochs 300 --supervised-weight 1 --supervised-warmup 300 --d-lr 0.0005 --n-modes 3 --gp-weight 10 --grid-size 16 --seed 1
+--family ring --epochs 300 --supervised-weight 1 --supervised-warmup 300 --d-lr 0.0005 --n-modes 3 --g-lr 0.05 --gp-weight 10 --grid-size 16 --seed 1
+--family ring --epochs 300 --supervised-weight 1 --supervised-warmup 300 --d-lr 0.0005 --n-modes 3 --generator classical --gen-activation tanh --g-lr 0.05 --gp-weight 5 --grid-size 16 --seed 1
+--family ring --epochs 300 --supervised-weight 1 --supervised-warmup 300 --d-lr 0.0005 --n-modes 3 --gp-weight 10 --grid-size 16 --seed 2
+--family ring --epochs 300 --supervised-weight 1 --supervised-warmup 300 --d-lr 0.0005 --n-modes 3 --g-lr 0.05 --gp-weight 10 --grid-size 16 --seed 2
+--family ring --epochs 300 --supervised-weight 1 --supervised-warmup 300 --d-lr 0.0005 --n-modes 3 --generator classical --gen-activation tanh --g-lr 0.05 --gp-weight 5 --grid-size 16 --seed 2
+--family ring --epochs 300 --supervised-weight 1 --supervised-warmup 300 --d-lr 0.0005 --n-modes 3 --gp-weight 10 --grid-size 16 --seed 3
+--family ring --epochs 300 --supervised-weight 1 --supervised-warmup 300 --d-lr 0.0005 --n-modes 3 --g-lr 0.05 --gp-weight 10 --grid-size 16 --seed 3
+--family ring --epochs 300 --supervised-weight 1 --supervised-warmup 300 --d-lr 0.0005 --n-modes 3 --generator classical --gen-activation tanh --g-lr 0.05 --gp-weight 5 --grid-size 16 --seed 3
+--family ring --epochs 300 --supervised-weight 1 --supervised-warmup 300 --d-lr 0.0005 --n-modes 3 --gp-weight 10 --grid-size 16 --seed 4
+--family ring --epochs 300 --supervised-weight 1 --supervised-warmup 300 --d-lr 0.0005 --n-modes 3 --g-lr 0.05 --gp-weight 10 --grid-size 16 --seed 4
+--family ring --epochs 300 --supervised-weight 1 --supervised-warmup 300 --d-lr 0.0005 --n-modes 3 --generator classical --gen-activation tanh --g-lr 0.05 --gp-weight 5 --grid-size 16 --seed 4
+--family ring --epochs 300 --supervised-weight 1 --supervised-warmup 300 --d-lr 0.0005 --n-modes 3 --gp-weight 10 --grid-size 32 --seed 0
+--family ring --epochs 300 --supervised-weight 1 --supervised-warmup 300 --d-lr 0.0005 --n-modes 3 --g-lr 0.05 --gp-weight 10 --grid-size 32 --seed 0
+--family ring --epochs 300 --supervised-weight 1 --supervised-warmup 300 --d-lr 0.0005 --n-modes 3 --generator classical --gen-activation tanh --g-lr 0.05 --gp-weight 5 --grid-size 32 --seed 0
+--family ring --epochs 300 --supervised-weight 1 --supervised-warmup 300 --d-lr 0.0005 --n-modes 3 --gp-weight 10 --grid-size 32 --seed 1
+--family ring --epochs 300 --supervised-weight 1 --supervised-warmup 300 --d-lr 0.0005 --n-modes 3 --g-lr 0.05 --gp-weight 10 --grid-size 32 --seed 1
+--family ring --epochs 300 --supervised-weight 1 --supervised-warmup 300 --d-lr 0.0005 --n-modes 3 --generator classical --gen-activation tanh --g-lr 0.05 --gp-weight 5 --grid-size 32 --seed 1
+--family ring --epochs 300 --supervised-weight 1 --supervised-warmup 300 --d-lr 0.0005 --n-modes 3 --gp-weight 10 --grid-size 32 --seed 2
+--family ring --epochs 300 --supervised-weight 1 --supervised-warmup 300 --d-lr 0.0005 --n-modes 3 --g-lr 0.05 --gp-weight 10 --grid-size 32 --seed 2
+--family ring --epochs 300 --supervised-weight 1 --supervised-warmup 300 --d-lr 0.0005 --n-modes 3 --generator classical --gen-activation tanh --g-lr 0.05 --gp-weight 5 --grid-size 32 --seed 2
+--family ring --epochs 300 --supervised-weight 1 --supervised-warmup 300 --d-lr 0.0005 --n-modes 3 --gp-weight 10 --grid-size 32 --seed 3
+--family ring --epochs 300 --supervised-weight 1 --supervised-warmup 300 --d-lr 0.0005 --n-modes 3 --g-lr 0.05 --gp-weight 10 --grid-size 32 --seed 3
+--family ring --epochs 300 --supervised-weight 1 --supervised-warmup 300 --d-lr 0.0005 --n-modes 3 --generator classical --gen-activation tanh --g-lr 0.05 --gp-weight 5 --grid-size 32 --seed 3
+--family ring --epochs 300 --supervised-weight 1 --supervised-warmup 300 --d-lr 0.0005 --n-modes 3 --gp-weight 10 --grid-size 32 --seed 4
+--family ring --epochs 300 --supervised-weight 1 --supervised-warmup 300 --d-lr 0.0005 --n-modes 3 --g-lr 0.05 --gp-weight 10 --grid-size 32 --seed 4
+--family ring --epochs 300 --supervised-weight 1 --supervised-warmup 300 --d-lr 0.0005 --n-modes 3 --generator classical --gen-activation tanh --g-lr 0.05 --gp-weight 5 --grid-size 32 --seed 4

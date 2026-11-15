@@ -1,0 +1,5 @@
+# fix3 (14 Nov 2026): CV + cv_qnn_2d seeds whose orphaned runs died with the 13 Nov session kill
+--family ring --n-modes 3 --d-lr 0.0005 --gp-weight 10 --grid-size 32 --epochs 300 --critic cv_qnn_2d --seed 16
+--family ring --n-modes 3 --d-lr 0.0005 --gp-weight 10 --grid-size 32 --epochs 300 --critic cv_qnn_2d --seed 17
+--family ring --n-modes 3 --d-lr 0.0005 --gp-weight 10 --grid-size 32 --epochs 300 --critic cv_qnn_2d --seed 18
+--family ring --n-modes 3 --d-lr 0.0005 --gp-weight 10 --grid-size 32 --epochs 300 --critic cv_qnn_2d --seed 19
