@@ -1,0 +1,11 @@
+# Table used only by the simulation: steps and ramps, both directions,
+# full-scale jumps, a step without gate, and three layers (one of a single step).
+layer,phase_a,phase_b,ramp,gate
+0,3.141593,1.570796,0,1
+0,6.283000,0.0,0,1
+0,0.0,6.283000,0,0
+1,6.283000,0.0,1,1
+1,0.001000,3.141593,1,1
+1,2.000000,2.000000,1,0
+1,2.010000,1.990000,1,1
+4,4.712389,0.785398,0,1
