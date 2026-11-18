@@ -7,7 +7,7 @@
 //   [30]    ramp   1: linear ramp from the previous code, 0: step
 //   [29]    gate   1: fire the gate pulse in this step
 //   [28]    mark   1: first step of a layer (drives the scope trigger output)
-//   [27:24] layer  layer number, 0..15
+//   [27:24] layer  layer number, 0..14 (15 on the switches = play all)
 //   [23:12] code B 12-bit DAC code, channel B
 //   [11:0]  code A 12-bit DAC code, channel A
 `timescale 1ns / 1ps

@@ -66,7 +66,7 @@ Una palabra de 32 bits por paso:
 | 23:12 | código B | fase externa del Mach–Zehnder |
 | 11:0 | código A | fase interna del Mach–Zehnder |
 
-Cada Mach–Zehnder de las mallas U1 y U2 de una capa es un paso. Con 3 modos son 6 pasos por capa. Caben 256 pasos.
+Cada Mach–Zehnder de las mallas U1 y U2 de una capa es un paso. Con 3 modos son 6 pasos por capa. Caben 256 pasos; el script escribe las 256 palabras y rellena las que sobran con pasos vacíos.
 
 ### De los ángulos a los códigos
 

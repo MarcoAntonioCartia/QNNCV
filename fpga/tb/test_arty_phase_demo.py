@@ -22,7 +22,7 @@ RAMP = 1 << P['RAMP_LOG2']
 T_GATE_ON = (RAMP + P['SETTLE_TICKS']) * TICK              # clock periods after the step starts
 T_GATE_OFF = T_GATE_ON + P['GATE_TICKS'] * TICK
 T_STEP = T_GATE_OFF + P['HOLD_TICKS'] * TICK
-TABLE = [phases_to_mem.unpack(w) for w in phases_to_mem.read_mem(os.environ['TB_MEM'])]
+TABLE = [phases_to_mem.unpack(w) for w in phases_to_mem.table_of(phases_to_mem.read_mem(os.environ['TB_MEM']))]
 
 
 def reference(table, layer, n_steps):
@@ -158,7 +158,7 @@ async def test_table_file(dut):
     await Timer(1, unit='ns')
     words = phases_to_mem.read_mem(os.environ['TB_MEM'])
     depth = len(dut.u_rom.mem)
-    assert len(words) <= depth, f"{len(words)} words in a ROM of {depth}"
+    assert len(words) == depth, f"{len(words)} words in the file for a ROM of {depth}"
     for i in range(depth):
         exp = words[i] if i < len(words) else 0x80000000
         got = int(dut.u_rom.mem[i].value)

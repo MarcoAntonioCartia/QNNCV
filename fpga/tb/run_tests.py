@@ -60,7 +60,7 @@ def run(name):
         build.mkdir(parents=True, exist_ok=True)
         mem = build / 'tb_table.mem'
         steps = phases_to_mem.load(str(TB / 'tb_table.csv'), addr_w=DEMO['ADDR_W'])
-        phases_to_mem.write_mem(steps, str(mem), 'tb/tb_table.csv')
+        phases_to_mem.write_mem(steps, str(mem), 'tb/tb_table.csv', DEMO['ADDR_W'])
         return bench(name, ['da2_spi.v', 'phase_rom.v', 'phase_sequencer.v', 'arty_phase_demo.v'],
                      'arty_phase_demo', 'test_arty_phase_demo',
                      {**DEMO, 'MEM_FILE': f'"{mem.as_posix()}"'},

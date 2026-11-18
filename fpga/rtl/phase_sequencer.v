@@ -20,8 +20,8 @@
 module phase_sequencer #(
     parameter integer ADDR_W       = 8,
     parameter integer TICK_DIV     = 10000,  // clk periods per tick (100 MHz: 100 us)
-    parameter integer RAMP_LOG2    = 5,      // ramp length = 2^RAMP_LOG2 ticks
-    parameter integer SETTLE_TICKS = 8,
+    parameter integer RAMP_LOG2    = 5,      // ramp length = 2^RAMP_LOG2 ticks (>= 2)
+    parameter integer SETTLE_TICKS = 8,      // these three: 1 .. 65536
     parameter integer GATE_TICKS   = 8,
     parameter integer HOLD_TICKS   = 8
 ) (

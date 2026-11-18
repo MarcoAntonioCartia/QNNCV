@@ -22,7 +22,7 @@ module arty_phase_demo #(
     parameter integer GATE_TICKS   = 8,      // 0.8 ms
     parameter integer HOLD_TICKS   = 8,      // 0.8 ms
     parameter integer SPI_HALF_DIV = 4,      // SCLK = 12.5 MHz
-    parameter integer SPI_GAP_DIV  = 8       // SYNC high 80 ns between frames
+    parameter integer SPI_GAP_DIV  = 8       // SYNC high at least 90 ns between frames
 ) (
     input  wire       clk100,
     input  wire       btn0,
@@ -37,13 +37,9 @@ module arty_phase_demo #(
 );
     // a DAC frame must fit inside one tick, or ramp writes would be dropped
     localparam integer FRAME_CLKS = 33 * SPI_HALF_DIV + SPI_GAP_DIV + 2;
-    initial begin
-        if (TICK_DIV <= FRAME_CLKS) begin
-            $display("ERROR: TICK_DIV (%0d) must exceed the DAC frame (%0d clk)",
-                     TICK_DIV, FRAME_CLKS);
-            $finish;
-        end
-    end
+    generate if (TICK_DIV <= FRAME_CLKS) begin : g_bad_tick_div
+        TICK_DIV_must_exceed_the_DAC_frame u_err ();   // elaboration fails, in any tool
+    end endgenerate
 
     // two-flop synchronizers for the button and the switches
     (* ASYNC_REG = "TRUE" *) reg [1:0] rst_ff = 2'b11;

@@ -5,7 +5,7 @@
 // Coefficients: signed Q1.17 (18 bits), read from COEF_FILE with $readmemh
 // (five hex digits per line, two's complement, h[0] first). Samples: signed
 // 13 bits. The sum is rounded, shifted by 17 bits and clamped to 13 bits.
-// The result is ready N + 3 clock periods after start.
+// The result is registered N + 3 clock periods after the one that takes start.
 //
 // No feedback: the filter is stable whatever the coefficients are and has no
 // limit cycles; its memory is exactly N samples.
@@ -31,13 +31,8 @@ module fir_serial #(
     reg signed [17:0] coef [0:N-1];
     reg signed [12:0] xbuf [0:N-1];
     integer i;
-    initial begin
-        for (i = 0; i < N; i = i + 1) begin
-            coef[i] = 18'sd0;
-            xbuf[i] = 13'sd0;
-        end
-        $readmemh(COEF_FILE, coef);
-    end
+    initial $readmemh(COEF_FILE, coef);          // the file holds all N words
+    initial for (i = 0; i < N; i = i + 1) xbuf[i] = 13'sd0;
 
     reg [LOG2_TAPS-1:0]  ptr;          // position of the newest sample
     reg [LOG2_TAPS+1:0]  cnt;
@@ -82,7 +77,7 @@ module fir_serial #(
             if (cnt >= 2 && cnt <= N + 1)        // product of tap cnt - 2
                 acc <= acc + prod;
             if (cnt == N + 2) begin
-                y    <= over ? 13'sd4095 : (under ? -13'sd4096 : res[12:0]);
+                y    <= over ? 13'sd4095 : (under ? 13'sh1000 : res[12:0]);
                 sat  <= over | under;
                 done <= 1'b1;
                 run  <= 1'b0;

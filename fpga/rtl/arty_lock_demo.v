@@ -59,13 +59,11 @@ module arty_lock_demo #(
     // per sample: ADC conversion, three pipeline steps, FIR, DAC frame
     localparam integer SPI_CLKS = 33 * SPI_HALF_DIV + SPI_GAP_DIV + 2;
     localparam integer DSP_CLKS = (1 << LOG2_TAPS) + 12;
-    initial begin
-        if (SAMPLE_DIV <= 2 * SPI_CLKS + DSP_CLKS + 4) begin
-            $display("ERROR: SAMPLE_DIV (%0d) too short for one sample (%0d clk)",
-                     SAMPLE_DIV, 2 * SPI_CLKS + DSP_CLKS + 4);
-            $finish;
-        end
-    end
+    // elaboration fails, in any tool, if a sample does not fit in SAMPLE_DIV clocks
+    generate if (SAMPLE_DIV <= 2 * SPI_CLKS + DSP_CLKS + 4) begin : g_bad_sample_div
+        SAMPLE_DIV_too_short_for_one_sample u_err ();
+    end endgenerate
+    // Other limits: GATE_PERIOD, STEP_HALF and WARM_SAMPLES between 1 and 65536.
 
     // ---------------------------------------------------------- inputs ---
     (* ASYNC_REG = "TRUE" *) reg [1:0] rst_ff = 2'b11;
@@ -146,12 +144,13 @@ module arty_lock_demo #(
     );
 
     // --------------------------------------- emulated fringe and error ---
-    reg [11:0] fringe [0:4095];      // one entry per ADC code: block RAM
+    (* rom_style = "block" *) reg [11:0] fringe [0:4095];      // one entry per ADC code
     initial $readmemh(FRINGE_FILE, fringe);
 
-    reg [7:0]         pc;          // pipeline step after the ADC result, 0 = idle
+    localparam integer PC_W = $clog2(DSP_CLKS + 1);
+    reg [PC_W-1:0]    pc;          // pipeline step after the ADC result, 0 = idle
     reg [15:0]        phase;
-    reg [11:0]        det;         // detector signal
+    reg [11:0]        det = 12'd2048;  // detector signal: the table's read register, so no reset
     reg signed [12:0] err;
     reg               dsp_start;
     reg               dac_start;
@@ -179,9 +178,8 @@ module arty_lock_demo #(
         dsp_start <= 1'b0;
         dac_start <= 1'b0;
         if (rst) begin
-            pc       <= 8'd0;
+            pc       <= {PC_W{1'b0}};
             phase    <= 16'd0;
-            det      <= 12'd2048;
             err      <= 13'sd0;
             dac_a    <= 12'd2048;
             dac_b    <= 12'd2048;
@@ -197,16 +195,16 @@ module arty_lock_demo #(
             end
             if (adc_done) begin
                 phase <= (v_c <<< PHASE_SHIFT) + drift;
-                pc    <= 8'd1;
-            end else if (pc != 8'd0)
-                pc <= (pc == DSP_CLKS) ? 8'd0 : pc + 1'b1;
+                pc    <= 1;
+            end else if (pc != 0)
+                pc <= (pc == DSP_CLKS) ? {PC_W{1'b0}} : pc + 1'b1;
 
-            if (pc == 8'd1) det <= fringe[phase[15:4]];
-            if (pc == 8'd2) begin
+            if (pc == 1) det <= fringe[phase[15:4]];
+            if (pc == 2) begin
                 err       <= setpoint - $signed({1'b0, det});
                 dsp_start <= 1'b1;
             end
-            if (pc == 8'd3) begin              // lock detector, once per sample
+            if (pc == 3) begin              // lock detector, once per sample
                 if (err_abs < LOCK_WINDOW) begin
                     if (lock_cnt == 8'd255) locked <= 1'b1;
                     else lock_cnt <= lock_cnt + 1'b1;

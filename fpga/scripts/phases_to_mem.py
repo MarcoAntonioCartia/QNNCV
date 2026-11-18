@@ -34,6 +34,7 @@ import sys
 
 TWO_PI = 2.0 * math.pi
 MAX_LAYER = 14            # 15 on the switches means "play all layers"
+EMPTY = 0x80000000        # unused entry: an empty 'last' step
 VREF = 3.3                # Pmod DA2: the reference is the supply rail
 
 
@@ -146,7 +147,7 @@ def load(path, elements=('U1', 'U2'), ramp='alternate', addr_w=8):
     return finish(steps, addr_w)
 
 
-def write_mem(steps, path, source):
+def write_mem(steps, path, source, addr_w=8):
     with open(path, 'w', encoding='utf-8', newline='\n') as fh:
         fh.write(f"// phase table for fpga/rtl/phase_rom.v, written by phases_to_mem.py\n")
         fh.write(f"// source: {source}\n")
@@ -156,6 +157,15 @@ def write_mem(steps, path, source):
                      f"A={s['code_a']:4d} ({code_to_volts(s['code_a']):.3f} V) "
                      f"B={s['code_b']:4d} ({code_to_volts(s['code_b']):.3f} V) "
                      f"{'ramp' if s['ramp'] else 'step'}{' gate' if s['gate'] else ''}\n")
+        # every word of the ROM is written, so nothing depends on how a tool fills the rest
+        for i in range(len(steps), 1 << addr_w):
+            fh.write(f"{EMPTY:08X}\n")
+
+
+def table_of(words):
+    """The words that are played: up to and including the first 'last' one."""
+    n = next(i for i, w in enumerate(words) if w >> 31)
+    return words[:n + 1]
 
 
 def read_mem(path):
@@ -179,7 +189,7 @@ def main(argv=None):
     ap.add_argument('--addr-width', type=int, default=8, help='ADDR_W of the ROM')
     a = ap.parse_args(argv)
     steps = load(a.table, tuple(a.elements.split(',')), a.ramp, a.addr_width)
-    write_mem(steps, a.out, a.table.replace('\\', '/'))
+    write_mem(steps, a.out, a.table.replace('\\', '/'), a.addr_width)
     layers = sorted({s['layer'] for s in steps})
     print(f"{a.out}: {len(steps)} steps, layers {layers}")
     for s in steps:

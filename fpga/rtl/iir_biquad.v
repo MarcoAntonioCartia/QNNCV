@@ -17,8 +17,9 @@
 // the recursion stores. For a PI this is anti-windup: the integrator cannot
 // run away while the actuator is at a rail.
 //
-// One multiplier, used five times; the result is ready 8 clock periods after
-// start.
+// One multiplier, used five times; the result is registered 8 clock periods
+// after the one that takes start. The accumulator starts from the rounding
+// constant, so no adder sits between it and the clamp.
 `timescale 1ns / 1ps
 `default_nettype none
 
@@ -54,8 +55,7 @@ module iir_biquad #(
     assign y = y1[24:FRAC];
 
     // rounded result in Q13.12, before clamping
-    wire signed [47:0] rnd = acc + (48'sd1 <<< (CFRAC - 1));
-    wire signed [47:0] res = rnd >>> CFRAC;
+    wire signed [47:0] res = acc >>> CFRAC;
     wire signed [47:0] hi  = {{23{Y_MAX[12]}}, Y_MAX, {FRAC{1'b0}}};
     wire signed [47:0] lo  = {{23{Y_MIN[12]}}, Y_MIN, {FRAC{1'b0}}};
     wire               over  = (res > hi);
@@ -76,7 +76,7 @@ module iir_biquad #(
         end else if (!run) begin
             if (start) begin
                 x0  <= {x, {FRAC{1'b0}}};
-                acc <= 48'sd0;
+                acc <= 48'sd1 <<< (CFRAC - 1);     // rounding
                 cnt <= 4'd0;
                 run <= 1'b1;
             end

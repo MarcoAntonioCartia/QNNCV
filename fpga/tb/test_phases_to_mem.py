@@ -42,7 +42,9 @@ def test_gates_example():
 def test_committed_mem_is_current():
     """data/phase_table.mem is what the script produces from data/gates_example.csv."""
     steps = p2m.load(str(FPGA / 'data' / 'gates_example.csv'))
-    assert p2m.read_mem(str(FPGA / 'data' / 'phase_table.mem')) == [p2m.pack(s) for s in steps]
+    words = p2m.read_mem(str(FPGA / 'data' / 'phase_table.mem'))
+    assert len(words) == 256 and words[18:] == [p2m.EMPTY] * 238
+    assert p2m.table_of(words) == [p2m.pack(s) for s in steps]
 
 
 def test_simple_format_and_limits():
