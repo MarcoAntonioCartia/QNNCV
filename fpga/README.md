@@ -257,7 +257,7 @@ La franja es periódica. La pendiente solo es positiva a menos de un cuarto de v
 
 Tras un reinicio el condensador está descargado, a media vuelta exacta (equilibrio inestable). Sin espera, el lazo satura unas 20 muestras y engancha en unos 2 ms (simulado con `WARM_SAMPLES = 1`). Para arrancar sin ese transitorio, el DAC espera 10 ms a media escala (1024 muestras, diez constantes de tiempo de la red RC) antes de dejar actuar al controlador, y la deriva emulada no arranca hasta entonces.
 
-Una versión anterior de este apartado decía que sin la espera el controlador se quedaba en el tope y que el margen de captura era de un cuarto de vuelta. Las dos afirmaciones eran erróneas; se corrigieron tras la verificación independiente (véase `GUIA_control_digital.md`).
+Una versión anterior de este apartado decía que sin la espera el controlador se quedaba en el tope y que el margen de captura era de un cuarto de vuelta. Las dos afirmaciones eran erróneas; se corrigieron tras la verificación independiente (véase `GUIDE_digital_control.md`).
 
 ### Pruebas de la extensión
 
