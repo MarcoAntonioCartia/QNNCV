@@ -2,7 +2,7 @@
 
 Reproducción de una tabla de fases en los dos canales de un Pmod DA2, con un pulso de compuerta por paso, sobre una Arty A7. Base del Apéndice C de la tesis (sección 5.5).
 
-**Estado (18 nov 2026):** diseño escrito y probado en simulación (Icarus Verilog 12.0 + cocotb 2.1.0, 14 pruebas, todas pasan). **No se ha sintetizado con Vivado ni probado en la placa.** Los datos marcados *por verificar* no se pudieron contrastar con la hoja de datos original.
+**Estado (18 nov 2026):** dos diseños escritos y probados en simulación (Icarus Verilog 12.0 + cocotb 2.1.0): la tabla de fases (secciones 1 a 9) y la extensión de lazo cerrado con filtros IIR y FIR (sección 10). 35 pruebas: 34 pasan y 1 se omite a propósito. **No se ha sintetizado con Vivado ni probado en la placa.** Los datos marcados *por verificar* no se pudieron contrastar con la hoja de datos original.
 
 ## 1. Qué demuestra y qué no
 
@@ -123,7 +123,7 @@ pip install cocotb            # 2.x
 python fpga/tb/run_tests.py
 ```
 
-Resultado del 18 nov 2026: 5 comprobaciones del script, 6 pruebas del controlador y 7 del módulo superior, todas correctas.
+Resultado del 18 nov 2026 para este diseño: 5 comprobaciones del script, 6 pruebas del controlador y 7 del módulo superior, todas correctas. `python fpga/tb/run_tests.py spi demo` ejecuta solo estas; sin argumentos se ejecuta todo, incluida la extensión (unos 4 minutos).
 
 | prueba | qué comprueba |
 |---|---|
@@ -144,11 +144,11 @@ Además, yosys 0.33 (`synth_xilinx`) sintetiza el diseño sin errores: unos 194 
 
 ```
 cd fpga
-vivado -mode batch -source scripts/build.tcl -tclargs 100     # Arty A7-100T (xc7a100tcsg324-1)
-vivado -mode batch -source scripts/build.tcl -tclargs 35      # Arty A7-35T  (xc7a35ticsg324-1L)
+vivado -mode batch -source scripts/build.tcl -tclargs 100 phase    # Arty A7-100T (xc7a100tcsg324-1)
+vivado -mode batch -source scripts/build.tcl -tclargs 35 phase     # Arty A7-35T  (xc7a35ticsg324-1L)
 ```
 
-La placa de la tesis es la **A7-100T**, que es el valor por omisión del script. Sale `build/arty_phase_demo_<placa>.bit` y los informes de tiempos y de uso. Los pines son los mismos en las dos placas; solo cambia el dispositivo. El código de dispositivo de la 35T está *por verificar* en el selector de placas de Vivado.
+La placa de la tesis es la **A7-100T**, que es el valor por omisión del script. Sale `build/phase/arty_phase_demo_<placa>.bit` y los informes de tiempos y de uso. Los pines son los mismos en las dos placas; solo cambia el dispositivo. El código de dispositivo de la 35T está *por verificar* en el selector de placas de Vivado.
 
 Con la interfaz gráfica: proyecto RTL nuevo con la placa Arty A7 que corresponda, añadir `rtl/*.v` y `data/phase_table.mem` como fuentes de diseño y `constr/arty_a7.xdc` como restricciones, módulo superior `arty_phase_demo`, generar el *bitstream*.
 
@@ -197,3 +197,145 @@ Guardar cada captura con el nombre de la corrida, la capa y la fecha, y anotar j
 - Sintetizar en Vivado y revisar los tres informes del apartado 5.
 - Verificar en el manual del Pmod DA2 y en la hoja de datos del DAC121S101 las filas marcadas *por verificar*.
 - Generar la tabla con una corrida entrenada y tomar las capturas.
+
+## 10. Extensión: enganche de fase (IIR) y lectura con compuerta (FIR)
+
+Segundo diseño, independiente del anterior (`rtl/arty_lock_demo.v`, otro *bitstream*). Añade un Pmod AD1 (dos AD7476A, 12 bits) y cierra un lazo con una señal analógica real.
+
+### Qué demuestra y qué no
+
+- **Lazo cerrado.** El canal A del DAC excita una red RC (10 kΩ, 100 nF, τ = 1 ms), que hace de desfasador termo-óptico lento. El canal 0 del ADC lee su salida. Dentro de la FPGA esa tensión, más una deriva lenta opcional, se toma como fase de un interferómetro y pasa por una tabla de seno de 4096 entradas: es la señal del «detector». Un controlador PI mantiene el detector a media franja moviendo el DAC.
+- **Lectura.** El canal 1 del ADC pasa por un FIR de 64 coeficientes adaptado a la forma de un pulso. Una compuerta se abre cada 10 ms; la salida del FIR para la última muestra dentro de la compuerta es el valor de ese disparo, como la cuadratura de un disparo en una detección homodina.
+- **Es real:** el DAC, el ADC, el retardo de la red RC, el ruido y la cuantización de ambos, y toda la aritmética en punto fijo.
+- **Es emulado:** la franja (tabla de seno), la deriva (rampa triangular de ±1/4 de vuelta) y el pulso de lectura (hay que inyectarlo con el generador). No hay interferómetro ni luz.
+
+### Bloques
+
+```
+            ┌────────── FPGA ───────────────────────────────────────────────┐
+ ADC ch0 ──►│ ad1_spi ─► fase = 16·(código − 2048) + deriva ─► tabla seno ──┼─► «detector»
+ (salida RC)│                                                    │          │
+            │   consigna (2048 ± 300 con SW3) ──► error = consigna − detector│
+            │                                       │                       │
+            │                              iir_biquad (PI, anti-saturación) │
+            │                                       │                       │
+ DAC A ◄────┤ da2_spi ◄── 2048 + control ◄──────────┘                       │
+   │        │                                                               │
+   └─ R ─┬──┘ (red RC externa: 10 kΩ en serie, 100 nF a masa)               │
+         C  │                                                               │
+            │ ADC ch1 ─► fir_serial (64 coef.) ─► valor del disparo ────────┼─► DAC B (SW2)
+            │              compuerta: 80 muestras de cada 1000 ─────────────┼─► gate (JB1)
+            └───────────────────────────────────────────────────────────────┘
+```
+
+| archivo | función |
+|---|---|
+| `rtl/ad1_spi.v` | lector serie del Pmod AD1, los dos canales en la misma conversión |
+| `rtl/iir_biquad.v` | sección IIR de segundo orden, forma directa I, salida con saturación |
+| `rtl/fir_serial.v` | FIR de 64 coeficientes con un solo multiplicador |
+| `rtl/arty_lock_demo.v` | módulo superior del lazo y de la lectura |
+| `scripts/design_filters.py` | diseño del PI y del FIR; escribe `data/fringe_lut.mem` y `data/fir_coeffs.mem` |
+| `constr/arty_a7_lock.xdc` | pines |
+
+### El IIR: controlador PI
+
+Una sola sección de segundo orden, `y[n] = B0·x[n] + B1·x[n−1] + B2·x[n−2] + NA1·y[n−1] + NA2·y[n−2]`. Con `NA1 = 1` y `B2 = NA2 = 0` es un PI en forma incremental; cambiando los cinco coeficientes es un PID, una muesca o un pasa-bajos.
+
+- **Formatos:** coeficientes Q3.15 (18 bits), señales Q13.12 (25 bits). Un producto cabe en un bloque DSP48E1. Un multiplicador se usa cinco veces; el resultado sale 9 ciclos después.
+- **Bits fraccionarios en el estado:** la ganancia integral por muestra es 0,016. Sin fracción, un error de 1 código no movería nunca la salida y el lazo quedaría con error permanente.
+- **Anti-saturación:** la salida se recorta a ±2047 y el valor recortado es el que se realimenta, así que el integrador no sigue contando mientras el DAC está en el tope.
+
+Diseño (`scripts/design_filters.py`): planta `G(s) = K/(τs + 1)` con τ = 1 ms y K = 3,14 (pendiente de la franja a media altura, en códigos por código). El cero del PI se pone sobre el polo de la planta (Ti = τ) y Kp = 1,59 fija la constante de tiempo de lazo cerrado en 0,2 ms, cinco veces más rápido que la planta sola. Discretización bilineal a 100 kS/s: `B0 = 52438`, `B1 = −51916`.
+
+### El FIR: lectura adaptada
+
+`y[n] = Σ h[k]·x[n−k]`, 64 coeficientes Q1.17. Los coeficientes son la forma del pulso (gaussiana de σ = 9 muestras, centrada en la muestra 36 de 64) con la media restada, invertida en el tiempo y normalizada: para una entrada `a·pulso + constante`, la salida al final de la ventana es `a`. La suma de los coeficientes es exactamente cero, así que cualquier nivel constante se rechaza por completo.
+
+### Arranque y margen de captura
+
+La franja es periódica: el lazo solo engancha si la fase está a menos de un cuarto de vuelta del punto de trabajo; más allá la pendiente cambia de signo y la realimentación se vuelve positiva. Por eso, tras un reinicio el DAC espera 10 ms a media escala (1024 muestras, diez constantes de tiempo de la red RC) antes de dejar actuar al controlador, y la deriva emulada no arranca hasta entonces. La primera versión no lo hacía y la simulación lo delató: con el condensador descargado y la consigna baja, el controlador se iba al tope y se quedaba allí.
+
+### Pruebas de la extensión
+
+| banco | pruebas | qué comprueba |
+|---|---|---|
+| `adc` | 3 | 72 conversiones bit a bit en los dos canales; el modelo pone la línea en estado indeterminado fuera de la ventana válida de cada bit; período de SCLK y duración |
+| `iir`, `pi` | 4 + 4 (1 omitida) | 1120 muestras al azar idénticas bit a bit a la referencia en Python, con y sin recorte; impulso, escalón, borrado; anti-saturación del PI |
+| `fir` | 4 | 550 muestras al azar idénticas a la referencia; coeficientes cargados; un nivel constante da exactamente 0; amplitud de un pulso recuperada con error de 2 códigos como máximo |
+| `lock` | 7 | lazo cerrado con modelo de la red RC |
+
+Resultados del banco `lock` (18 nov 2026):
+
+- Cada valor interno de cada muestra (tabla, error, salida del PI, códigos del DAC) coincide con la referencia calculada a partir de los códigos del ADC.
+- Respuesta al escalón: 63 % a las 20 muestras en los cuatro escalones medidos (diseño: 20), sobrepaso inferior al 5 %, error final de 4 códigos como máximo. La planta sola tarda 100.
+- Deriva de ±1/4 de vuelta, 32 veces más rápida que en la placa: el detector se desvía 2047 códigos con el lazo abierto y 129 con el lazo cerrado.
+- Realimentación rota (ADC fijo): el controlador va al tope y enciende el aviso; al restaurarla, el error vuelve a la ventana de enganche en 167 muestras.
+- Lectura: seis pulsos de amplitudes entre −1500 y 1500 sobre un nivel de 300 códigos, con señal ajena fuera de la ventana: el valor del disparo es la amplitud exacta en los seis.
+
+En la simulación la muestra dura 400 ciclos de reloj en vez de 1000 y la constante de tiempo de la red se escala igual, así que la dinámica en muestras es la de la placa. yosys sintetiza el diseño: 2 bloques DSP48E1 (uno por filtro), la tabla en memoria de bloque, unos 460 biestables y 560 LUT.
+
+### Tiempos
+
+| magnitud | valor |
+|---|---|
+| muestreo | 100 kS/s (un ciclo de control cada 10 µs) |
+| retardo de ADC a DAC | unos 3,5 µs (conversión 1,4 µs, cálculo 0,8 µs, trama 1,4 µs) |
+| constante de tiempo de la planta | 1 ms (100 muestras) |
+| constante de tiempo en lazo cerrado | 0,2 ms (20 muestras) |
+| escalón de consigna (SW3) | ±300 códigos (±0,24 V en el DAC B), cada 5 ms |
+| deriva (SW1) | triangular, ±1/4 de vuelta, período 0,66 s |
+| compuerta | 0,8 ms cada 10 ms; ventana del FIR: los últimos 0,64 ms |
+
+### Protocolo del ADC
+
+| dato | valor usado | hoja de datos | estado |
+|---|---|---|---|
+| conversión | CS baja y muestrea; 16 flancos de bajada de SCLK; 4 ceros y 12 bits, MSB primero | igual | verificado (extractos de la hoja del AD7476A y del manual del Pmod AD1, vía buscador) |
+| frecuencia de SCLK | 12,5 MHz | máx. 20 MHz | verificado |
+| pines del Pmod AD1 | 1 CS, 2 D0, 3 D1, 4 CLK, 5 GND, 6 VCC | igual | verificado en copias del manual; confirmar en el original |
+| lectura del bit | 70 ns después del flanco que lo saca y 10 ns antes del que lo cambia | tiempo de acceso de decenas de ns | *por verificar* |
+| CS en alto entre conversiones | 8,5 µs | decenas de ns | *por verificar* |
+| filtro de entrada del Pmod AD1 | — | paso bajo de dos polos; frecuencia de corte no confirmada | *por verificar*: si está cerca de 1 kHz altera la planta |
+
+### Cableado y uso
+
+| señal | conector |
+|---|---|
+| Pmod DA2 | JA, fila superior |
+| Pmod AD1 | JD, fila superior |
+| `gate` | JB pin 1 (E15) |
+| `trig` | JB pin 2 (E16): cuadrada de la consigna, siempre activa |
+| red RC | salida A del DA2 → 10 kΩ → nodo; nodo → 100 nF → masa; nodo → entrada A0 del AD1 |
+| pulso de lectura | JDS6600 → entrada A1 del AD1, entre 0 y 3,3 V, en ráfaga disparada por `gate` si el generador lo permite (*por verificar*) |
+
+JB no tiene resistencias en serie: solo sondas, nunca una señal que empuje contra la FPGA. La entrada A1 no debe salir del rango 0–3,3 V.
+
+| interruptor | abajo | arriba |
+|---|---|---|
+| SW0 | lazo abierto, DAC A a media escala | lazo cerrado |
+| SW1 | sin deriva | deriva activa |
+| SW2 | DAC B = señal del detector | DAC B = valor del último disparo |
+| SW3 | consigna fija | consigna en onda cuadrada |
+
+LED: LD4 lazo cerrado, LD5 deriva, LD6 enganchado (error menor de 64 códigos durante 256 muestras), LD7 controlador en el tope.
+
+Síntesis: `vivado -mode batch -source scripts/build.tcl -tclargs 100 lock` (sale en `build/lock/`).
+
+### Capturas
+
+| n.º | interruptores (SW3..SW0) | canales | base de tiempos | qué muestra |
+|---|---|---|---|---|
+| L1 | 0010 | DAC B, DAC A | 100 ms/div | lazo abierto con deriva: el detector recorre la franja, el control no se mueve |
+| L2 | 0011 | DAC B, DAC A | 100 ms/div | lazo cerrado: el detector quieto a 1,65 V, el control dibuja la deriva invertida |
+| L3 | 1001 | DAC B, nodo RC; disparo en `trig` | 200 µs/div | respuesta al escalón: medir el 63 % (0,2 ms previstos) y el sobrepaso |
+| L4 | 1001 | DAC A, nodo RC; disparo en `trig` | 200 µs/div | esfuerzo de control: el pico proporcional que adelanta a la red RC |
+| L5 | 0001, desconectando y reconectando la entrada A0 del AD1 | DAC A, DAC B | 5 ms/div | saturación (LD7) y reenganche sin cola de integrador |
+| L6 | 0100 | entrada A1, `gate`, DAC B | 2 ms/div | lectura: pulso dentro de la compuerta y valor retenido por disparo |
+
+Para L3, comparar con la planta sola (SW0 abajo y un escalón del generador sobre la red RC): 1 ms frente a 0,2 ms.
+
+### Qué esperar distinto de la simulación
+
+- La tolerancia de R y C mueve el polo de la planta; el cero del PI ya no lo cancela exactamente y la respuesta tendrá una cola lenta pequeña o algo de sobrepaso. Medir τ con el osciloscopio y, si hace falta, volver a ejecutar `design_filters.py` con ese valor.
+- El filtro de entrada del Pmod AD1 añade retardo que la simulación no incluye.
+- El ruido del ADC aparece en el DAC A multiplicado por Kp (1,6).
