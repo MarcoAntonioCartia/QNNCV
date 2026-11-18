@@ -93,7 +93,7 @@ Paso completo: 5,6 ms. Capa de 6 pasos: 33,6 ms. La compuerta sube 4,0 ms despu�
 | flanco de muestreo | el DAC lee en el flanco de bajada de SCLK; la FPGA cambia el dato en el de subida | bajada | verificado |
 | actualización | en la 16.ª bajada; SYNC se mantiene bajo hasta después | 16.ª bajada; si SYNC sube antes, la trama se descarta | verificado |
 | frecuencia de SCLK | 12,5 MHz | máx. 30 MHz | verificado |
-| SYNC en alto entre tramas | 80 ns como mínimo | mín. 20 ns (2,7–3,6 V, todo el rango de temperatura) | verificado |
+| SYNC en alto entre tramas | 90 ns como mínimo | mín. 20 ns (2,7–3,6 V, todo el rango de temperatura) | verificado |
 | preparación y retención del dato | 40 ns y 40 ns | unos pocos ns | *por verificar* |
 | SYNC a primera bajada de SCLK | 40 ns | unos pocos ns | *por verificar* |
 | tiempo de asentamiento de la salida | se esperan 0,8 ms antes de la compuerta | del orden de 10 µs | *por verificar* |
@@ -123,7 +123,7 @@ pip install cocotb            # 2.x
 python fpga/tb/run_tests.py
 ```
 
-Resultado del 18 nov 2026 para este diseño: 5 comprobaciones del script, 6 pruebas del controlador y 7 del módulo superior, todas correctas. `python fpga/tb/run_tests.py spi demo` ejecuta solo estas; sin argumentos se ejecuta todo, incluida la extensión (unos 4 minutos).
+Resultado del 18 nov 2026 para este diseño: 5 comprobaciones del script, 6 pruebas del controlador y 7 del módulo superior, todas correctas. `python fpga/tb/run_tests.py spi demo` ejecuta solo las 13 de cocotb; sin argumentos se ejecuta todo, incluida la extensión (unos 4 minutos).
 
 | prueba | qué comprueba |
 |---|---|
@@ -136,9 +136,9 @@ Resultado del 18 nov 2026 para este diseño: 5 comprobaciones del script, 6 prue
 | `test_single_layer`, `test_missing_layer`, `test_layer_change_on_the_fly` | selección de capa con los interruptores |
 | `test_reset_while_gate_open` | el reinicio baja la compuerta y la tabla vuelve a empezar |
 
-El modelo del DAC (`tb/da2_model.py`) rechaza cualquier trama que no tenga 16 flancos de bajada, bits de modo distintos de 00, SCLK por encima de 30 MHz, SYNC en alto menos de 20 ns o datos que cambien a menos de 20 ns del flanco de muestreo. En simulación los tics se acortan (200 ciclos) para que la tabla dure milisegundos; la lógica es la misma.
+El modelo del DAC (`tb/da2_model.py`) rechaza cualquier trama que no tenga 16 flancos de bajada, bits de modo distintos de 00, SCLK por encima de 30 MHz, SYNC en alto menos de 20 ns o datos que cambien a menos de 20 ns del flanco de muestreo. En simulación se acortan los tics (200 ciclos), la rampa (8 puntos), el asentamiento, la compuerta y la espera (2, 3 y 2 tics) y la memoria (16 palabras) para que la tabla dure milisegundos; la lógica es la misma.
 
-Además, yosys 0.33 (`synth_xilinx`) sintetiza el diseño sin errores: unos 194 biestables y 240 LUT. Es una comprobación de que el código es sintetizable, no sustituye a Vivado.
+Además, yosys 0.33 (`synth_xilinx`) sintetiza el diseño sin errores: unos 194 biestables y 234 LUT. Es una comprobación de que el código es sintetizable, no sustituye a Vivado.
 
 ## 5. Síntesis en Vivado
 
@@ -241,7 +241,7 @@ Segundo diseño, independiente del anterior (`rtl/arty_lock_demo.v`, otro *bitst
 
 Una sola sección de segundo orden, `y[n] = B0·x[n] + B1·x[n−1] + B2·x[n−2] + NA1·y[n−1] + NA2·y[n−2]`. Con `NA1 = 1` y `B2 = NA2 = 0` es un PI en forma incremental; cambiando los cinco coeficientes es un PID, una muesca o un pasa-bajos.
 
-- **Formatos:** coeficientes Q3.15 (18 bits), señales Q13.12 (25 bits). Un producto cabe en un bloque DSP48E1. Un multiplicador se usa cinco veces; el resultado sale 9 ciclos después.
+- **Formatos:** coeficientes Q3.15 (18 bits), señales Q13.12 (25 bits). Un producto cabe en un bloque DSP48E1. Un multiplicador se usa cinco veces; el resultado queda registrado 8 ciclos después del inicio.
 - **Bits fraccionarios en el estado:** la ganancia integral por muestra es 0,016. Sin fracción, un error de 1 código no movería nunca la salida y el lazo quedaría con error permanente.
 - **Anti-saturación:** la salida se recorta a ±2047 y el valor recortado es el que se realimenta, así que el integrador no sigue contando mientras el DAC está en el tope.
 
@@ -260,9 +260,11 @@ La franja es periódica: el lazo solo engancha si la fase está a menos de un cu
 | banco | pruebas | qué comprueba |
 |---|---|---|
 | `adc` | 3 | 72 conversiones bit a bit en los dos canales; el modelo pone la línea en estado indeterminado fuera de la ventana válida de cada bit; período de SCLK y duración |
-| `iir`, `pi` | 4 + 4 (1 omitida) | 1120 muestras al azar idénticas bit a bit a la referencia en Python, con y sin recorte; impulso, escalón, borrado; anti-saturación del PI |
+| `iir`, `pi` | 4 + 4 (1 omitida) | 1120 muestras (900 al azar y tramos constantes en los extremos) idénticas bit a bit a la referencia en Python, con y sin recorte; impulso, escalón, borrado; anti-saturación del PI |
 | `fir` | 4 | 550 muestras al azar idénticas a la referencia; coeficientes cargados; un nivel constante da exactamente 0; amplitud de un pulso recuperada con error de 2 códigos como máximo |
 | `lock` | 7 | lazo cerrado con modelo de la red RC |
+
+Sin argumentos, `run_tests.py` ejecuta además 4 comprobaciones de `design_filters.py` (archivos al día, coeficientes del módulo superior iguales a los del diseño, constante de tiempo del lazo, FIR adaptado).
 
 Resultados del banco `lock` (18 nov 2026):
 
@@ -272,14 +274,14 @@ Resultados del banco `lock` (18 nov 2026):
 - Realimentación rota (ADC fijo): el controlador va al tope y enciende el aviso; al restaurarla, el error vuelve a la ventana de enganche en 167 muestras.
 - Lectura: seis pulsos de amplitudes entre −1500 y 1500 sobre un nivel de 300 códigos, con señal ajena fuera de la ventana: el valor del disparo es la amplitud exacta en los seis.
 
-En la simulación la muestra dura 400 ciclos de reloj en vez de 1000 y la constante de tiempo de la red se escala igual, así que la dinámica en muestras es la de la placa. yosys sintetiza el diseño: 2 bloques DSP48E1 (uno por filtro), la tabla en memoria de bloque, unos 460 biestables y 560 LUT.
+En la simulación la muestra dura 400 ciclos de reloj en vez de 1000 y la constante de tiempo de la red se escala igual, así que la dinámica del lazo en muestras es la de la placa. También se acortan la compuerta (cada 200 muestras), el escalón (cada 150) y la espera de arranque (500). yosys sintetiza el diseño: 2 bloques DSP48E1 (uno por filtro), la tabla en memoria de bloque, unos 470 biestables y 590 LUT.
 
 ### Tiempos
 
 | magnitud | valor |
 |---|---|
 | muestreo | 100 kS/s (un ciclo de control cada 10 µs) |
-| retardo de ADC a DAC | unos 3,5 µs (conversión 1,4 µs, cálculo 0,8 µs, trama 1,4 µs) |
+| retardo del muestreo a la actualización del DAC | unos 3,4 µs (conversión 1,41 µs, cálculo 0,77 µs, trama hasta la 16.ª bajada 1,24 µs) |
 | constante de tiempo de la planta | 1 ms (100 muestras) |
 | constante de tiempo en lazo cerrado | 0,2 ms (20 muestras) |
 | escalón de consigna (SW3) | ±300 códigos (±0,24 V en el DAC B), cada 5 ms |
@@ -294,7 +296,7 @@ En la simulación la muestra dura 400 ciclos de reloj en vez de 1000 y la consta
 | frecuencia de SCLK | 12,5 MHz | máx. 20 MHz | verificado |
 | pines del Pmod AD1 | 1 CS, 2 D0, 3 D1, 4 CLK, 5 GND, 6 VCC | igual | verificado en copias del manual; confirmar en el original |
 | lectura del bit | 70 ns después del flanco que lo saca y 10 ns antes del que lo cambia | tiempo de acceso de decenas de ns | *por verificar* |
-| CS en alto entre conversiones | 8,5 µs | decenas de ns | *por verificar* |
+| CS en alto entre conversiones | 8,7 µs | decenas de ns | *por verificar* |
 | filtro de entrada del Pmod AD1 | — | paso bajo de dos polos; frecuencia de corte no confirmada | *por verificar*: si está cerca de 1 kHz altera la planta |
 
 ### Cableado y uso

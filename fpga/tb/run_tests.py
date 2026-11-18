@@ -29,7 +29,8 @@ DEMO = {'TICK_DIV': 200, 'RAMP_LOG2': 3, 'SETTLE_TICKS': 2, 'GATE_TICKS': 3, 'HO
 B0, B1, _ = design_filters.pi_coeffs()
 IIR = {'B0': 6554, 'B1': 9830, 'B2': 6554, 'NA1': 39322, 'NA2': -22938, 'Y_MAX': 2047, 'Y_MIN': -2047}
 PI = {'B0': B0, 'B1': B1, 'B2': 0, 'NA1': 32768, 'NA2': 0, 'Y_MAX': 2047, 'Y_MIN': -2047}
-# closed loop: the same numbers of samples as on the board, fewer clocks per sample
+# closed loop: fewer clocks per sample (the plant model scales with it), and shorter gate,
+# step and start-up periods; the drift is 32 times faster than on the board
 LOCK = {'SAMPLE_DIV': 400, 'GATE_PERIOD': 200, 'GATE_LEN': 80, 'STEP_HALF': 150, 'STEP_AMPL': 300,
         'DRIFT_STEP': 32, 'WARM_SAMPLES': 500, 'PI_B0': B0, 'PI_B1': B1}
 
