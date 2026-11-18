@@ -251,9 +251,13 @@ Diseño (`scripts/design_filters.py`): planta `G(s) = K/(τs + 1)` con τ = 1 ms
 
 `y[n] = Σ h[k]·x[n−k]`, 64 coeficientes Q1.17. Los coeficientes son la forma del pulso (gaussiana de σ = 9 muestras, centrada en la muestra 36 de 64) con la media restada, invertida en el tiempo y normalizada: para una entrada `a·pulso + constante`, la salida al final de la ventana es `a`. La suma de los coeficientes es exactamente cero, así que cualquier nivel constante se rechaza por completo.
 
-### Arranque y margen de captura
+### Arranque y captura
 
-La franja es periódica: el lazo solo engancha si la fase está a menos de un cuarto de vuelta del punto de trabajo; más allá la pendiente cambia de signo y la realimentación se vuelve positiva. Por eso, tras un reinicio el DAC espera 10 ms a media escala (1024 muestras, diez constantes de tiempo de la red RC) antes de dejar actuar al controlador, y la deriva emulada no arranca hasta entonces. La primera versión no lo hacía y la simulación lo delató: con el condensador descargado y la consigna baja, el controlador se iba al tope y se quedaba allí.
+La franja es periódica. La pendiente solo es positiva a menos de un cuarto de vuelta del punto de trabajo, pero el error conserva el signo correcto hasta media vuelta, así que el lazo engancha desde ahí; más allá engancha en la franja siguiente. Falla solo cuando el punto estable más cercano queda fuera del recorrido del DAC: entonces el controlador acaba en el tope.
+
+Tras un reinicio el condensador está descargado, a media vuelta exacta (equilibrio inestable). Sin espera, el lazo satura unas 20 muestras y engancha en unos 2 ms (simulado con `WARM_SAMPLES = 1`). Para arrancar sin ese transitorio, el DAC espera 10 ms a media escala (1024 muestras, diez constantes de tiempo de la red RC) antes de dejar actuar al controlador, y la deriva emulada no arranca hasta entonces.
+
+Una versión anterior de este apartado decía que sin la espera el controlador se quedaba en el tope y que el margen de captura era de un cuarto de vuelta. Las dos afirmaciones eran erróneas; se corrigieron tras la verificación independiente (véase `GUIA_control_digital.md`).
 
 ### Pruebas de la extensión
 

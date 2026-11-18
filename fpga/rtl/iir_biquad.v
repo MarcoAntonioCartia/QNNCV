@@ -10,8 +10,9 @@
 //
 // Formats: coefficients signed Q3.15 (18 bits), signals signed Q13.12
 // (25 bits), so one product fits a single DSP48E1 (25 x 18). The fractional
-// bits of y are kept in the state: without them an integrator would ignore
-// errors smaller than 1 / (B0 + B1) and the loop would settle with an offset.
+// bits of y are kept in the state: without them, with this rounding, an
+// integrator would ignore errors below 0.5 / (B0 + B1) and the loop would
+// settle with an offset.
 //
 // Saturation: y is clamped to [Y_MIN, Y_MAX] and the clamped value is what
 // the recursion stores. For a PI this is anti-windup: the integrator cannot

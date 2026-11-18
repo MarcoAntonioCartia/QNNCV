@@ -158,9 +158,11 @@ module arty_lock_demo #(
     reg signed [12:0] shot;
     reg [7:0]         lock_cnt;
     reg               locked;
-    // The fringe is periodic: the loop only pulls in from within a quarter turn of
-    // the lock point. Mid-scale on the DAC is the lock point, so the controller
-    // starts from there, and after a reset it waits until the capacitor is there too.
+    // After a reset the capacitor is discharged: half a turn from the lock point,
+    // which is an unstable equilibrium of the periodic fringe. Closing the loop
+    // there works (it saturates for about 20 samples and locks), but the DAC waits
+    // at mid-scale, the lock point, until the capacitor is there too, so the loop
+    // starts without that transient.
     wire loop_run = loop_on & warm;
 
     wire signed [12:0] v_c      = $signed({1'b0, adc0}) - 13'sd2048;
