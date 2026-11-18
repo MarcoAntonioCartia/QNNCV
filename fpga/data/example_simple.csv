@@ -1,0 +1,8 @@
+# Hand-written example of the simple format: phases in radians.
+# ramp and gate are optional (empty: --ramp rule, gate on).
+layer,phase_a,phase_b,ramp,gate
+0,0.0,3.141593,0,1
+0,1.570796,4.712389,0,1
+0,3.141593,0.0,0,0
+1,6.283000,1.047198,1,1
+1,0.785398,5.497787,1,1

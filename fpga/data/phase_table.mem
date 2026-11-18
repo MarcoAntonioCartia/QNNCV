@@ -1,0 +1,21 @@
+// phase table for fpga/rtl/phase_rom.v, written by phases_to_mem.py
+// source: data/gates_example.csv
+// word = last|ramp|gate|mark|layer[3:0]|code_b[11:0]|code_a[11:0]
+30D4AE6B  //   0 layer  0 U1.MZI0 modes 0-1      A=3691 (2.974 V) B=3402 (2.741 V) step gate
+200BA57C  //   1 layer  0 U1.MZI1 modes 1-2      A=1404 (1.131 V) B= 186 (0.150 V) step gate
+2061904A  //   2 layer  0 U1.MZI2 modes 0-1      A=  74 (0.060 V) B=1561 (1.258 V) step gate
+2000EAD5  //   3 layer  0 U2.MZI0 modes 0-1      A=2773 (2.234 V) B=  14 (0.011 V) step gate
+200DBFDA  //   4 layer  0 U2.MZI1 modes 1-2      A=4058 (3.269 V) B= 219 (0.176 V) step gate
+2046801A  //   5 layer  0 U2.MZI2 modes 0-1      A=  26 (0.021 V) B=1128 (0.909 V) step gate
+71ED38F6  //   6 layer  1 U1.MZI0 modes 0-1      A=2294 (1.848 V) B=3795 (3.057 V) ramp gate
+6166D273  //   7 layer  1 U1.MZI1 modes 1-2      A= 627 (0.505 V) B=1645 (1.325 V) ramp gate
+61B82603  //   8 layer  1 U1.MZI2 modes 0-1      A=1539 (1.240 V) B=2946 (2.373 V) ramp gate
+61ADF98B  //   9 layer  1 U2.MZI0 modes 0-1      A=2443 (1.968 V) B=2783 (2.242 V) ramp gate
+61AA0607  //  10 layer  1 U2.MZI1 modes 1-2      A=1543 (1.243 V) B=2720 (2.191 V) ramp gate
+6145065F  //  11 layer  1 U2.MZI2 modes 0-1      A=1631 (1.314 V) B=1104 (0.889 V) ramp gate
+323DEBD4  //  12 layer  2 U1.MZI0 modes 0-1      A=3028 (2.440 V) B= 990 (0.798 V) step gate
+2288E776  //  13 layer  2 U1.MZI1 modes 1-2      A=1910 (1.539 V) B=2190 (1.764 V) step gate
+22F55473  //  14 layer  2 U1.MZI2 modes 0-1      A=1139 (0.918 V) B=3925 (3.162 V) step gate
+221AD0AE  //  15 layer  2 U2.MZI0 modes 0-1      A= 174 (0.140 V) B= 429 (0.346 V) step gate
+228B043C  //  16 layer  2 U2.MZI1 modes 1-2      A=1084 (0.873 V) B=2224 (1.792 V) step gate
+A2B26620  //  17 layer  2 U2.MZI2 modes 0-1      A=1568 (1.263 V) B=2854 (2.299 V) step gate
