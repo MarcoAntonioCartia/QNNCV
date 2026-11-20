@@ -95,6 +95,9 @@ module arty_lock_demo #(
 
     always @(posedge clk100) begin
         tick <= 1'b0;
+        // scope trigger: sq one clock (10 ns) later, written every cycle so the
+        // flip-flop has no hold feedback and fits in the I/O cell (IOB TRUE)
+        trig <= sq;
         if (rst) begin
             div      <= {DIV_W{1'b0}};
             n_gate   <= GATE_PERIOD - 1;
@@ -114,7 +117,6 @@ module arty_lock_demo #(
             if (n_step == STEP_HALF - 1) begin
                 n_step <= 16'd0;
                 sq     <= ~sq;
-                trig   <= ~sq;
             end else
                 n_step <= n_step + 1'b1;
             // drift: triangle between -1/4 and +1/4 of a turn, zero when off
