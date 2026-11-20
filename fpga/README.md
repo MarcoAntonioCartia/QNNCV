@@ -2,7 +2,7 @@
 
 Reproducción de una tabla de fases en los dos canales de un Pmod DA2, con un pulso de compuerta por paso, sobre una Arty A7. Base del Apéndice C de la tesis (sección 5.5).
 
-**Estado (18 nov 2026):** dos diseños escritos y probados en simulación (Icarus Verilog 12.0 + cocotb 2.1.0): la tabla de fases (secciones 1 a 9) y la extensión de lazo cerrado con filtros IIR y FIR (sección 10). 35 pruebas: 34 pasan y 1 se omite a propósito. **No se ha sintetizado con Vivado ni probado en la placa.** Los datos marcados *por verificar* no se pudieron contrastar con la hoja de datos original.
+**Estado (18 nov 2026):** dos diseños escritos y probados en simulación (Icarus Verilog 12.0 + cocotb 2.1.0): la tabla de fases (secciones 1 a 9) y la extensión de lazo cerrado con filtros IIR y FIR (sección 10). 35 pruebas: 34 pasan y 1 se omite a propósito. **Sintetizado e implementado con Vivado 2025.2 el 20 nov 2026 para la A7-100T (sección 5); no probado en la placa.** Los datos marcados *por verificar* no se pudieron contrastar con la hoja de datos original.
 
 ## 1. Qué demuestra y qué no
 
@@ -158,6 +158,15 @@ Qué revisar después de implementar:
 2. En el registro de síntesis, que `$readmemh` haya leído `phase_table.mem` (si no la encuentra, la tabla queda vacía y las salidas no se mueven).
 3. `io_<placa>.rpt`: los 6 pines de salida con el biestable en la celda de E/S (propiedad IOB).
 
+Resultado del 20 nov 2026 (Vivado 2025.2, xc7a100tcsg324-1, tabla de ejemplo sintética), sin avisos ni avisos críticos en ninguno de los dos diseños:
+
+| diseño | WNS | WHS | LUT | biestables | BRAM | DSP |
+|---|---|---|---|---|---|---|
+| `phase` | 0,906 ns | 0,109 ns | 210 | 210 | 0 | 0 |
+| `lock` | 2,115 ns | 0,121 ns | 425 (18 como RAM distribuida) | 432 | 1 RAMB36 + 1 RAMB18 (tabla de franja 4096 × 12) | 2 DSP48E1 (uno en `iir_biquad`, uno en `fir_serial`) |
+
+`$readmemh` leyó `phase_table.mem`, `fringe_lut.mem` y `fir_coeffs.mem`. Todos los puertos quedaron en los pines de la sección 6 y del apartado de cableado de la sección 10, y los biestables de las salidas serie, `gate` y `trig` (y de las entradas `ad1_d0`/`ad1_d1`) quedaron en las celdas de E/S. Único cambio necesario: en `arty_lock_demo.v`, `trig` se escribe en cada ciclo como copia de `sq` (10 ns de retraso), porque con la escritura condicional Vivado realimentaba el biestable a través de una LUT y no podía meterlo en la celda de E/S.
+
 ## 6. Cableado
 
 | señal | conector de la Arty | pin FPGA |
@@ -194,7 +203,6 @@ Guardar cada captura con el nombre de la corrida, la capa y la fecha, y anotar j
 
 ## 9. Pendiente
 
-- Sintetizar en Vivado y revisar los tres informes del apartado 5.
 - Verificar en el manual del Pmod DA2 y en la hoja de datos del DAC121S101 las filas marcadas *por verificar*.
 - Generar la tabla con una corrida entrenada y tomar las capturas.
 

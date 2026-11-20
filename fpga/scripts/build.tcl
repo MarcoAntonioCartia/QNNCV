@@ -8,7 +8,8 @@
 # Defaults: board 100, design phase. Every data/*.mem is copied next to the run.
 # Output: build/<design>/arty_<design>_demo_<board>.bit plus timing, utilisation
 # and I/O reports.
-# NOT RUN YET: written without access to Vivado; see fpga/README.md.
+# First run 20 Nov 2026 with Vivado 2025.2 on the A7-100T: both designs build,
+# timing met, no warnings (results in fpga/README.md, section 5).
 
 set board  [expr {$argc > 0 ? [lindex $argv 0] : "100"}]
 set design [expr {$argc > 1 ? [lindex $argv 1] : "phase"}]
