@@ -40,10 +40,13 @@ def test_gates_example():
 
 
 def test_committed_mem_is_current():
-    """data/phase_table.mem is what the script produces from data/gates_example.csv."""
-    steps = p2m.load(str(FPGA / 'data' / 'gates_example.csv'))
+    """data/phase_table.mem is what the script produces from data/gates_trained.csv
+    (a trained circuit: 6 layers x (U1, U2) x 3 Mach-Zehnder = 36 steps)."""
+    steps = p2m.load(str(FPGA / 'data' / 'gates_trained.csv'))
+    assert len(steps) == 36
+    assert [s['layer'] for s in steps] == [layer for layer in range(6) for _ in range(6)]
     words = p2m.read_mem(str(FPGA / 'data' / 'phase_table.mem'))
-    assert len(words) == 256 and words[18:] == [p2m.EMPTY] * 238
+    assert len(words) == 256 and words[36:] == [p2m.EMPTY] * 220
     assert p2m.table_of(words) == [p2m.pack(s) for s in steps]
 
 

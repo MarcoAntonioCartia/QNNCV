@@ -1,42 +1,42 @@
 // phase table for fpga/rtl/phase_rom.v, written by phases_to_mem.py
-// source: data/gates_example.csv
+// source: data/gates_trained.csv
 // word = last|ramp|gate|mark|layer[3:0]|code_b[11:0]|code_a[11:0]
-30D4AE6B  //   0 layer  0 U1.MZI0 modes 0-1      A=3691 (2.974 V) B=3402 (2.741 V) step gate
-200BA57C  //   1 layer  0 U1.MZI1 modes 1-2      A=1404 (1.131 V) B= 186 (0.150 V) step gate
-2061904A  //   2 layer  0 U1.MZI2 modes 0-1      A=  74 (0.060 V) B=1561 (1.258 V) step gate
-2000EAD5  //   3 layer  0 U2.MZI0 modes 0-1      A=2773 (2.234 V) B=  14 (0.011 V) step gate
-200DBFDA  //   4 layer  0 U2.MZI1 modes 1-2      A=4058 (3.269 V) B= 219 (0.176 V) step gate
-2046801A  //   5 layer  0 U2.MZI2 modes 0-1      A=  26 (0.021 V) B=1128 (0.909 V) step gate
-71ED38F6  //   6 layer  1 U1.MZI0 modes 0-1      A=2294 (1.848 V) B=3795 (3.057 V) ramp gate
-6166D273  //   7 layer  1 U1.MZI1 modes 1-2      A= 627 (0.505 V) B=1645 (1.325 V) ramp gate
-61B82603  //   8 layer  1 U1.MZI2 modes 0-1      A=1539 (1.240 V) B=2946 (2.373 V) ramp gate
-61ADF98B  //   9 layer  1 U2.MZI0 modes 0-1      A=2443 (1.968 V) B=2783 (2.242 V) ramp gate
-61AA0607  //  10 layer  1 U2.MZI1 modes 1-2      A=1543 (1.243 V) B=2720 (2.191 V) ramp gate
-6145065F  //  11 layer  1 U2.MZI2 modes 0-1      A=1631 (1.314 V) B=1104 (0.889 V) ramp gate
-323DEBD4  //  12 layer  2 U1.MZI0 modes 0-1      A=3028 (2.440 V) B= 990 (0.798 V) step gate
-2288E776  //  13 layer  2 U1.MZI1 modes 1-2      A=1910 (1.539 V) B=2190 (1.764 V) step gate
-22F55473  //  14 layer  2 U1.MZI2 modes 0-1      A=1139 (0.918 V) B=3925 (3.162 V) step gate
-221AD0AE  //  15 layer  2 U2.MZI0 modes 0-1      A= 174 (0.140 V) B= 429 (0.346 V) step gate
-228B043C  //  16 layer  2 U2.MZI1 modes 1-2      A=1084 (0.873 V) B=2224 (1.792 V) step gate
-A2B26620  //  17 layer  2 U2.MZI2 modes 0-1      A=1568 (1.263 V) B=2854 (2.299 V) step gate
-80000000
-80000000
-80000000
-80000000
-80000000
-80000000
-80000000
-80000000
-80000000
-80000000
-80000000
-80000000
-80000000
-80000000
-80000000
-80000000
-80000000
-80000000
+3083E7BA  //   0 layer  0 U1.MZI0 modes 0-1      A=1978 (1.594 V) B=2110 (1.700 V) step gate
+20898788  //   1 layer  0 U1.MZI1 modes 1-2      A=1928 (1.553 V) B=2200 (1.772 V) step gate
+208637A5  //   2 layer  0 U1.MZI2 modes 0-1      A=1957 (1.577 V) B=2147 (1.730 V) step gate
+2081D7A3  //   3 layer  0 U2.MZI0 modes 0-1      A=1955 (1.575 V) B=2077 (1.673 V) step gate
+20873773  //   4 layer  0 U2.MZI1 modes 1-2      A=1907 (1.536 V) B=2163 (1.743 V) step gate
+207F67E5  //   5 layer  0 U2.MZI2 modes 0-1      A=2021 (1.628 V) B=2038 (1.642 V) step gate
+71F5177C  //   6 layer  1 U1.MZI0 modes 0-1      A=1916 (1.544 V) B=3921 (3.159 V) ramp gate
+6181B69A  //   7 layer  1 U1.MZI1 modes 1-2      A=1690 (1.362 V) B=2075 (1.672 V) ramp gate
+61F297CE  //   8 layer  1 U1.MZI2 modes 0-1      A=1998 (1.610 V) B=3881 (3.127 V) ramp gate
+610246A9  //   9 layer  1 U2.MZI0 modes 0-1      A=1705 (1.374 V) B=  36 (0.029 V) ramp gate
+617CD7D3  //  10 layer  1 U2.MZI1 modes 1-2      A=2003 (1.614 V) B=1997 (1.609 V) ramp gate
+6175C7FC  //  11 layer  1 U2.MZI2 modes 0-1      A=2044 (1.647 V) B=1884 (1.518 V) ramp gate
+327A47B0  //  12 layer  2 U1.MZI0 modes 0-1      A=1968 (1.586 V) B=1956 (1.576 V) step gate
+227F66D7  //  13 layer  2 U1.MZI1 modes 1-2      A=1751 (1.411 V) B=2038 (1.642 V) step gate
+227847ED  //  14 layer  2 U1.MZI2 modes 0-1      A=2029 (1.635 V) B=1924 (1.550 V) step gate
+227B57CF  //  15 layer  2 U2.MZI0 modes 0-1      A=1999 (1.611 V) B=1973 (1.590 V) step gate
+22F4D7C5  //  16 layer  2 U2.MZI1 modes 1-2      A=1989 (1.602 V) B=3917 (3.156 V) step gate
+22F0A7F2  //  17 layer  2 U2.MZI2 modes 0-1      A=2034 (1.639 V) B=3850 (3.102 V) step gate
+73812793  //  18 layer  3 U1.MZI0 modes 0-1      A=1939 (1.562 V) B=2066 (1.665 V) ramp gate
+63FEB7F3  //  19 layer  3 U1.MZI1 modes 1-2      A=2035 (1.640 V) B=4075 (3.283 V) ramp gate
+63EF967F  //  20 layer  3 U1.MZI2 modes 0-1      A=1663 (1.340 V) B=3833 (3.088 V) ramp gate
+630977E7  //  21 layer  3 U2.MZI0 modes 0-1      A=2023 (1.630 V) B= 151 (0.122 V) ramp gate
+638C47C3  //  22 layer  3 U2.MZI1 modes 1-2      A=1987 (1.601 V) B=2244 (1.808 V) ramp gate
+63FD4771  //  23 layer  3 U2.MZI2 modes 0-1      A=1905 (1.535 V) B=4052 (3.265 V) ramp gate
+346D0747  //  24 layer  4 U1.MZI0 modes 0-1      A=1863 (1.501 V) B=1744 (1.405 V) step gate
+2482D7CF  //  25 layer  4 U1.MZI1 modes 1-2      A=1999 (1.611 V) B=2093 (1.686 V) step gate
+247EB70D  //  26 layer  4 U1.MZI2 modes 0-1      A=1805 (1.454 V) B=2027 (1.633 V) step gate
+241586DD  //  27 layer  4 U2.MZI0 modes 0-1      A=1757 (1.416 V) B= 344 (0.277 V) step gate
+2407D77A  //  28 layer  4 U2.MZI1 modes 1-2      A=1914 (1.542 V) B= 125 (0.101 V) step gate
+245CF742  //  29 layer  4 U2.MZI2 modes 0-1      A=1858 (1.497 V) B=1487 (1.198 V) step gate
+75776739  //  30 layer  5 U1.MZI0 modes 0-1      A=1849 (1.490 V) B=1910 (1.539 V) ramp gate
+650777B5  //  31 layer  5 U1.MZI1 modes 1-2      A=1973 (1.590 V) B= 119 (0.096 V) ramp gate
+650EA691  //  32 layer  5 U1.MZI2 modes 0-1      A=1681 (1.354 V) B= 234 (0.189 V) ramp gate
+65817762  //  33 layer  5 U2.MZI0 modes 0-1      A=1890 (1.523 V) B=2071 (1.669 V) ramp gate
+650CE7C9  //  34 layer  5 U2.MZI1 modes 1-2      A=1993 (1.606 V) B= 206 (0.166 V) ramp gate
+E50CB784  //  35 layer  5 U2.MZI2 modes 0-1      A=1924 (1.550 V) B= 203 (0.164 V) ramp gate
 80000000
 80000000
 80000000
