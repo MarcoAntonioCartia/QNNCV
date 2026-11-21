@@ -113,7 +113,7 @@ python fpga/scripts/phases_to_mem.py analysis/hw_sweep/gates_<corrida>.csv -o fp
 
 `--ramp none|all|alternate` elige escalón o rampa por capa (por omisión, escalón en las capas pares y rampa en las impares). `--elements U1` limita la tabla a una malla. El script también acepta un CSV sencillo `layer,phase_a,phase_b[,ramp,gate]` en radianes (`data/example_simple.csv`).
 
-El `phase_table.mem` incluido sale de `data/gates_example.csv`, que es **sintético** (fases al azar con semilla fija, 3 capas), no un circuito entrenado. Hay que sustituirlo por el de una corrida real antes de tomar las capturas del libro.
+El `phase_table.mem` incluido sale de `data/gates_trained.csv`: un circuito **entrenado** (familia de anillos, generador de VC de 3 modos y 6 capas, crítico denso, semilla 5, la mediana de las 20 semillas por W1 de fidelidad). Son 36 pasos en las capas 0 a 5. `data/gates_example.csv` es **sintético** (fases al azar con semilla fija, 3 capas) y queda solo como ejemplo de formato y para las pruebas. En la tabla entrenada las fases internas quedan todas cerca de π (códigos 1663 a 2044, de 1,34 a 1,65 V), así que el canal A apenas se mueve; 15 de las 36 fases externas caen junto al salto 0/2π, de modo que fases casi iguales aparecen en extremos opuestos del canal B.
 
 ## 4. Simulación
 
@@ -158,11 +158,11 @@ Qué revisar después de implementar:
 2. En el registro de síntesis, que `$readmemh` haya leído `phase_table.mem` (si no la encuentra, la tabla queda vacía y las salidas no se mueven).
 3. `io_<placa>.rpt`: los 6 pines de salida con el biestable en la celda de E/S (propiedad IOB).
 
-Resultado del 20 nov 2026 (Vivado 2025.2, xc7a100tcsg324-1, tabla de ejemplo sintética), sin avisos ni avisos críticos en ninguno de los dos diseños:
+Resultado del 21 nov 2026 para `phase` (con la tabla entrenada) y del 20 nov 2026 para `lock` (Vivado 2025.2, xc7a100tcsg324-1), sin avisos ni avisos críticos en ninguno de los dos diseños:
 
 | diseño | WNS | WHS | LUT | biestables | BRAM | DSP |
 |---|---|---|---|---|---|---|
-| `phase` | 0,906 ns | 0,109 ns | 210 | 210 | 0 | 0 |
+| `phase` | 2,409 ns | 0,122 ns | 225 | 209 | 0 | 0 |
 | `lock` | 2,115 ns | 0,121 ns | 425 (18 como RAM distribuida) | 432 | 1 RAMB36 + 1 RAMB18 (tabla de franja 4096 × 12) | 2 DSP48E1 (uno en `iir_biquad`, uno en `fir_serial`) |
 
 `$readmemh` leyó `phase_table.mem`, `fringe_lut.mem` y `fir_coeffs.mem`. Todos los puertos quedaron en los pines de la sección 6 y del apartado de cableado de la sección 10, y los biestables de las salidas serie, `gate` y `trig` (y de las entradas `ad1_d0`/`ad1_d1`) quedaron en las celdas de E/S. Único cambio necesario: en `arty_lock_demo.v`, `trig` se escribe en cada ciclo como copia de `sq` (10 ns de retraso), porque con la escritura condicional Vivado realimentaba el biestable a través de una LUT y no podía meterlo en la celda de E/S.
@@ -183,7 +183,7 @@ Resultado del 20 nov 2026 (Vivado 2025.2, xc7a100tcsg324-1, tabla de ejemplo sin
 
 ## 7. Qué medir
 
-1. Niveles: con la tabla de ejemplo, comparar cada meseta con la tensión que el script escribe en los comentarios del `.mem` (por ejemplo, código 3691 → 2,974 V). Tolerancia: la de la alimentación de 3,3 V.
+1. Niveles: comparar cada meseta con la tensión que el script escribe en los comentarios del `.mem` (por ejemplo, código 1978 → 1,594 V en el primer paso). Tolerancia: la de la alimentación de 3,3 V.
 2. Duración del paso: 5,6 ms entre escalones.
 3. Rampa: 3,2 ms, 32 peldaños de 100 µs.
 4. Compuerta: sube 4,0 ms después del inicio del paso, dura 0,8 ms, y las dos salidas analógicas están quietas mientras está en alto.
@@ -204,7 +204,7 @@ Guardar cada captura con el nombre de la corrida, la capa y la fecha, y anotar j
 ## 9. Pendiente
 
 - Verificar en el manual del Pmod DA2 y en la hoja de datos del DAC121S101 las filas marcadas *por verificar*.
-- Generar la tabla con una corrida entrenada y tomar las capturas.
+- Tomar las capturas (la tabla ya es la de una corrida entrenada).
 
 ## 10. Extensión: enganche de fase (IIR) y lectura con compuerta (FIR)
 
