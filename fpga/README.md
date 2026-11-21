@@ -125,6 +125,8 @@ python fpga/tb/run_tests.py
 
 Resultado del 18 nov 2026 para este diseño: 5 comprobaciones del script, 6 pruebas del controlador y 7 del módulo superior, todas correctas. `python fpga/tb/run_tests.py spi demo` ejecuta solo las 13 de cocotb; sin argumentos se ejecuta todo, incluida la extensión (unos 4 minutos).
 
+Repetido el 21 nov 2026 en Windows, después del cambio de `trig` y con la tabla entrenada. Se usó Icarus Verilog 12.0 (instalador de bleyer.org, `winget install Icarus.Verilog`), cocotb 2.1.0 y Python 3.11. Pasaron las comprobaciones de los dos scripts y las 35 pruebas: 34 correctas y 1 omitida a propósito (spi 6, demo 7, adc 3, iir 4, pi 4, fir 4, lock 7). Tardó 149 s.
+
 | prueba | qué comprueba |
 |---|---|
 | `test_frames_bit_exact` | 72 tramas (extremos, patrones alternos y 64 al azar, semilla 20261118) llegan bit a bit a los dos canales |
